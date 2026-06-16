@@ -40,6 +40,7 @@ Common flags:
 --sync <fetch-only|ff-only|merge|rebase|reset|driver-selected>
 --remote <name>
 --jobs <n>
+--max-per-host <n>
 --progress-interval <ms>
 --json
 --jsonl

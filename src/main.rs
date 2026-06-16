@@ -317,10 +317,20 @@ struct GlobalArgs {
         global = true,
         value_name = "n",
         value_parser = parse_positive_i64,
-        help = "Maximum number of repos to process concurrently",
-        long_help = "Maximum number of workspace member repositories to process concurrently."
+        help = "Global ceiling on concurrent member operations (default 50)",
+        long_help = "Global ceiling on the total number of member repositories processed concurrently across all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host."
     )]
     jobs: Option<i64>,
+
+    #[arg(
+        long = "max-per-host",
+        global = true,
+        value_name = "n",
+        value_parser = parse_positive_i64,
+        help = "Max concurrent connections to any one host (default 8)",
+        long_help = "Maximum concurrent network operations against a single remote host, so a host is not overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by --jobs. Defaults to 8."
+    )]
+    max_per_host: Option<i64>,
 
     #[arg(
         long = "progress-interval",
@@ -1449,6 +1459,7 @@ impl Cli {
             sync: self.global.sync.map(Into::into),
             remote: self.global.remote.clone(),
             concurrency: self.global.jobs,
+            max_connections_per_host: self.global.max_per_host,
             progress_min_interval_ms: Some(
                 self.global
                     .progress_interval
