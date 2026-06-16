@@ -71,3 +71,7 @@ cargo test
 cargo fmt --check
 cargo run -- --version
 ```
+
+## License
+
+`gws-cli` is licensed under GPL-2.0-only, the same license family used by Git.

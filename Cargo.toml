@@ -2,7 +2,7 @@
 name = "gws-cli"
 version = "0.1.0"
 edition = "2024"
-license = "Apache-2.0 OR MIT"
+license = "GPL-2.0-only"
 rust-version = "1.95"
 
 [[bin]]
