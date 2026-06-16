@@ -357,7 +357,7 @@ impl RemoteFixture {
         let remote = temp.path().join(format!("{repo_name}.git"));
         fs::create_dir_all(&source).unwrap();
         git2::Repository::init_opts(&source, init_opts()).unwrap();
-        git2::Repository::init_bare(&remote).unwrap();
+        init_bare_main(&remote);
         git2::Repository::open(&source)
             .unwrap()
             .remote("origin", remote.to_str().unwrap())
@@ -382,6 +382,11 @@ impl RemoteFixture {
             .unwrap();
         commit
     }
+}
+
+fn init_bare_main(path: &Path) {
+    let repo = git2::Repository::init_bare(path).unwrap();
+    repo.set_head("refs/heads/main").unwrap();
 }
 
 struct TempDir {
