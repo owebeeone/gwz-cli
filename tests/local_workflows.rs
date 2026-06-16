@@ -106,7 +106,15 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
     let first = remote.commit_and_push("README.md", "one", "initial");
 
     let init = gwz(temp.path())
-        .args(["--root", temp.path_str(), "--jsonl", "init", remote.url()])
+        .args([
+            "--root",
+            temp.path_str(),
+            "--jsonl",
+            "init",
+            "--path",
+            "repos",
+            remote.url(),
+        ])
         .output()
         .unwrap();
     assert_success(&init);
@@ -208,7 +216,14 @@ fn pull_head_and_push_work_with_local_remote() {
     let first = remote.commit_and_push("README.md", "one", "initial");
     assert_success(
         &gwz(temp.path())
-            .args(["--root", temp.path_str(), "init", remote.url()])
+            .args([
+                "--root",
+                temp.path_str(),
+                "init",
+                "--path",
+                "repos",
+                remote.url(),
+            ])
             .output()
             .unwrap(),
     );
@@ -281,7 +296,7 @@ fn add_create_and_dry_run_commands_work() {
 }
 
 #[test]
-fn combined_status_is_explicitly_unsupported_until_backend_file_entries_exist() {
+fn combined_status_succeeds_by_default() {
     let temp = TempDir::new("combined-status");
     assert_success(
         &gwz(temp.path())
@@ -295,8 +310,9 @@ fn combined_status_is_explicitly_unsupported_until_backend_file_entries_exist() 
         .output()
         .unwrap();
 
-    assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("UnsupportedOperation"));
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("status: Ok"));
 }
 
 #[test]
@@ -308,7 +324,15 @@ fn pull_head_dirty_member_blocks_partial_mutation() {
     bad.commit_and_push("README.md", "one", "initial");
     assert_success(
         &gwz(temp.path())
-            .args(["--root", temp.path_str(), "init", good.url(), bad.url()])
+            .args([
+                "--root",
+                temp.path_str(),
+                "init",
+                "--path",
+                "repos",
+                good.url(),
+                bad.url(),
+            ])
             .output()
             .unwrap(),
     );

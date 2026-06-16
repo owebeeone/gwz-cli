@@ -9,6 +9,7 @@ The CLI is intentionally thin: it parses argv, builds GWZ requests, calls
 
 ```text
 gwz init
+gwz init --path <path-prefix> <url>...
 gwz init <url>...
 gwz add <repo-path>
 gwz repo create <member-path>
@@ -30,7 +31,7 @@ Common flags:
 ```text
 --root <path>
 --member <member-id>
---path <member-path>
+--member-path <member-path>
 --all
 --dry-run
 --partial
@@ -56,6 +57,7 @@ Examples:
 
 ```text
 gwz --root /tmp/ws init /tmp/source.git
+gwz --root /tmp/ws init --path repos /tmp/source.git
 gwz --root /tmp/ws status --json
 gwz --root /tmp/ws status --no-combined --json
 gwz --root /tmp/ws snapshot snap_one

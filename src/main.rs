@@ -33,6 +33,7 @@ const INIT_AFTER: &str = "\
 Examples:
   gwz init
   gwz --root /work/demo init
+  gwz init --path repos git@github.com:org/app.git
   gwz init git@github.com:org/app.git git@github.com:org/lib.git";
 
 const ADD_LONG: &str = "\
@@ -149,7 +150,7 @@ Push workspace member refs to their configured remotes.
 
 `gwz push` applies one push request across the selected workspace members. Use
 `--remote` to choose a remote name and selection flags such as `--member`,
-`--path`, or `--all` to control which members participate.";
+`--member-path`, or `--all` to control which members participate.";
 
 const PUSH_AFTER: &str = "\
 Examples:
@@ -229,7 +230,7 @@ struct GlobalArgs {
     members: Vec<String>,
 
     #[arg(
-        long = "path",
+        long = "member-path",
         global = true,
         value_name = "member-path",
         help = "Select a workspace member by path",
@@ -241,7 +242,7 @@ struct GlobalArgs {
         long,
         global = true,
         help = "Select all workspace members",
-        long_help = "Select all workspace members. Cannot be combined with `--member` or `--path`."
+        long_help = "Select all workspace members. Cannot be combined with `--member` or `--member-path`."
     )]
     all: bool,
 
@@ -375,6 +376,15 @@ enum CommandArgs {
 
 #[derive(Clone, Debug, Args)]
 struct InitArgs {
+    #[arg(
+        long = "path",
+        default_value = "",
+        value_name = "path-prefix",
+        help = "Workspace-relative prefix for initialized source repositories",
+        long_help = "Workspace-relative prefix for initialized source repositories. Defaults to an empty prefix, so repositories are created directly under the workspace root."
+    )]
+    path_prefix: String,
+
     #[arg(
         value_name = "url",
         help = "Git source URL to add as an initial workspace member",
@@ -800,7 +810,7 @@ impl Cli {
         }
         if self.global.all && (!self.global.members.is_empty() || !self.global.paths.is_empty()) {
             return Err(CliError::new(
-                "--all cannot be combined with --member or --path",
+                "--all cannot be combined with --member or --member-path",
             ));
         }
         if let CommandArgs::Status(status) = &self.command {
@@ -930,13 +940,15 @@ impl InitArgs {
                         .urls
                         .iter()
                         .cloned()
-                        .map(|url| gwz_core::SourceUrl {
-                            url,
-                            path: None,
-                            remote_name: None,
-                            branch: None,
+                        .map(|url| {
+                            Ok(gwz_core::SourceUrl {
+                                path: init_source_path(&self.path_prefix, &url)?,
+                                url,
+                                remote_name: None,
+                                branch: None,
+                            })
                         })
-                        .collect(),
+                        .collect::<Result<Vec<_>, CliError>>()?,
                     target: Some(gwz_core::MaterializeTarget {
                         kind: gwz_core::MaterializeTargetKind::Head,
                         name: None,
@@ -1099,6 +1111,33 @@ impl From<SyncArg> for gwz_core::SyncBehavior {
     }
 }
 
+fn init_source_path(path_prefix: &str, url: &str) -> Result<Option<String>, CliError> {
+    let prefix = path_prefix
+        .replace('\\', "/")
+        .trim_matches(|value| value == '/')
+        .to_owned();
+    if prefix.trim().is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(format!("{prefix}/{}", repo_name_from_url(url)?)))
+}
+
+fn repo_name_from_url(url: &str) -> Result<String, CliError> {
+    let trimmed = url.trim_end_matches(['/', '\\']);
+    let segment = trimmed
+        .rsplit(['/', '\\', ':'])
+        .find(|part| !part.is_empty())
+        .unwrap_or(trimmed);
+    let name = segment.strip_suffix(".git").unwrap_or(segment);
+    if name.is_empty() {
+        Err(CliError::new(
+            "source URL does not include a repository name",
+        ))
+    } else {
+        Ok(name.to_owned())
+    }
+}
+
 fn parse_positive_i64(value: &str) -> Result<i64, String> {
     let parsed = value
         .parse::<i64>()
@@ -1183,6 +1222,28 @@ mod tests {
     }
 
     #[test]
+    fn parses_init_path_prefix_for_initial_sources() {
+        let invocation = parse_args_with_request_id(
+            strings([
+                "init",
+                "--path",
+                "repos",
+                "git@github.com:org/repo-a.git",
+                "https://github.com/org/repo-b",
+            ]),
+            "req_test",
+            Path::new("/cwd"),
+        )
+        .unwrap();
+
+        let CliRequest::InitFromSources(request) = invocation.request else {
+            panic!("expected init from sources");
+        };
+        assert_eq!(request.sources[0].path, Some("repos/repo-a".to_owned()));
+        assert_eq!(request.sources[1].path, Some("repos/repo-b".to_owned()));
+    }
+
+    #[test]
     fn parses_global_selection_policy_and_output_flags() {
         let invocation = parse_args_with_request_id(
             strings([
@@ -1190,7 +1251,7 @@ mod tests {
                 "/ws",
                 "--member",
                 "mem_app",
-                "--path",
+                "--member-path",
                 "repos/lib",
                 "--dry-run",
                 "--partial",
@@ -1331,6 +1392,7 @@ mod tests {
     fn rejects_invalid_command_combinations_before_core_execution() {
         assert!(parse_result(strings(["--json", "--jsonl", "status"])).is_err());
         assert!(parse_result(strings(["--all", "--member", "mem_app", "status"])).is_err());
+        assert!(parse_result(strings(["--path", "repos/lib", "status"])).is_err());
         assert!(parse_result(strings(["status", "--no-files", "--no-branches"])).is_err());
         assert!(parse_result(strings(["status", "--combined", "--no-combined"])).is_err());
         assert!(parse_result(strings(["status", "--porcelain", "--no-combined"])).is_err());
