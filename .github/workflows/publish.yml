@@ -18,6 +18,7 @@ concurrency:
 
 env:
   RUST_TOOLCHAIN: "1.95.0"
+  TAUT_PYTHON: python
 
 jobs:
   verify:
@@ -55,6 +56,14 @@ jobs:
 
       - name: Show Rust version
         run: rustc --version
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install taut-proto
+        run: python -m pip install --upgrade pip taut-proto
 
       - name: Format gwz-core
         run: cargo fmt --check

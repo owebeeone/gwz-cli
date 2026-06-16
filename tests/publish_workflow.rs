@@ -16,6 +16,13 @@ fn publish_workflow_checks_out_core_as_sibling_dependency() {
 }
 
 #[test]
+fn publish_workflow_installs_release_taut_proto_for_core_protocol_tests() {
+    assert!(PUBLISH_WORKFLOW.contains("actions/setup-python"));
+    assert!(PUBLISH_WORKFLOW.contains("TAUT_PYTHON: python"));
+    assert!(PUBLISH_WORKFLOW.contains("python -m pip install --upgrade pip taut-proto"));
+}
+
+#[test]
 fn publish_workflow_builds_installable_release_assets() {
     assert!(PUBLISH_WORKFLOW.contains("x86_64-unknown-linux-gnu"));
     assert!(PUBLISH_WORKFLOW.contains("x86_64-pc-windows-msvc"));
