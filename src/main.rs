@@ -6,7 +6,7 @@ const CLI_LONG: &str = "\
 GWZ manages a local workspace made from multiple git repositories.
 
 A workspace records its member repositories and exact revisions under the
-tracked `workspace/` directory. Commands operate on the workspace as a whole,
+tracked `gwz.conf/` directory. Commands operate on the workspace as a whole,
 so a single request can initialize, inspect, snapshot, materialize, pull, or
 push a coordinated set of repositories.";
 
@@ -20,9 +20,9 @@ Examples:
 const INIT_LONG: &str = "\
 Create a workspace or initialize one from source URLs.
 
-A GWZ workspace is a local directory that owns a tracked `workspace/` metadata
-directory. `workspace/gwz.yml` describes the workspace and its repository
-members. `workspace/gwz.lock.yml` records the exact revisions that make the
+A GWZ workspace is a local directory that owns a tracked `gwz.conf/` metadata
+directory. `gwz.conf/gwz.yml` describes the workspace and its repository
+members. `gwz.conf/gwz.lock.yml` records the exact revisions that make the
 workspace reproducible.
 
 Running `gwz init` with no URLs creates an empty workspace at `--root` or the
@@ -35,6 +35,25 @@ Examples:
   gwz --root /work/demo init
   gwz init --path repos git@github.com:org/app.git
   gwz init git@github.com:org/app.git git@github.com:org/lib.git";
+
+const CLONE_LONG: &str = "\
+Clone a GWZ workspace from its root repository URL.
+
+`gwz clone` is the one-shot form of `git clone <url>` followed by
+`gwz materialize --lock`. It clones the workspace root repository (the one that
+owns the tracked `gwz.conf/` directory) into a target directory, verifies it is
+a GWZ workspace, then materializes every member: missing member repositories are
+cloned and checked out at the commits recorded in `gwz.conf/gwz.lock.yml`.
+
+If the target directory is omitted, it is derived from the URL.";
+
+const CLONE_AFTER: &str = "\
+Examples:
+  gwz clone git@github.com:org/workspace.git
+  gwz clone git@github.com:org/workspace.git work/demo
+
+If you already ran a plain `git clone` on a workspace root, run
+`gwz materialize --lock` inside it to complete the clone instead.";
 
 const ADD_LONG: &str = "\
 Add an existing local git repository to the workspace.
@@ -172,7 +191,7 @@ fn main() {
         Ok(invocation) => match execute_invocation(&invocation) {
             Ok(response) => {
                 println!("{}", render_response(&response, invocation.output));
-                std::process::exit(exit_code_for_response(&response));
+                std::process::exit(exit_code_for_response(&response.envelope));
             }
             Err(error) => {
                 eprintln!("gwz: {}", error.message);
@@ -325,6 +344,12 @@ enum CommandArgs {
     )]
     Init(InitArgs),
     #[command(
+        about = "Clone a workspace and materialize its members",
+        long_about = CLONE_LONG,
+        after_long_help = CLONE_AFTER
+    )]
+    Clone(CloneArgs),
+    #[command(
         about = "Add an existing git repository to the workspace",
         long_about = ADD_LONG,
         after_long_help = ADD_AFTER
@@ -394,6 +419,19 @@ struct InitArgs {
 }
 
 #[derive(Clone, Debug, Args)]
+struct CloneArgs {
+    #[arg(value_name = "url", help = "Git URL of the workspace root repository")]
+    url: String,
+
+    #[arg(
+        value_name = "directory",
+        help = "Target directory for the cloned workspace",
+        long_help = "Target directory for the cloned workspace. Defaults to a directory named after the workspace repository."
+    )]
+    dir: Option<String>,
+}
+
+#[derive(Clone, Debug, Args)]
 struct AddArgs {
     #[arg(
         value_name = "repo-path",
@@ -438,8 +476,8 @@ struct StatusArgs {
 
     #[arg(
         long = "no-combined",
-        help = "Render per-member status summaries",
-        long_help = "Render per-member status summaries instead of one combined workspace view."
+        help = "Render per-repo status with file changes",
+        long_help = "Render per-repo status with file changes instead of one combined workspace view."
     )]
     no_combined: bool,
 
@@ -524,6 +562,11 @@ struct CliInvocation {
 #[derive(Clone, Debug, PartialEq)]
 enum CliRequest {
     CreateWorkspace(gwz_core::CreateWorkspaceRequest),
+    CloneWorkspace {
+        meta: gwz_core::RequestMeta,
+        url: String,
+        target: String,
+    },
     InitFromSources(gwz_core::InitFromSourcesRequest),
     AddExistingRepo(gwz_core::AddExistingRepoRequest),
     CreateRepo(gwz_core::CreateRepoRequest),
@@ -542,6 +585,23 @@ enum OutputMode {
     Json,
     Jsonl,
     Porcelain,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct CliResponse {
+    envelope: gwz_core::ResponseEnvelope,
+    workspace_git_status: Option<gwz_core::WorkspaceGitStatus>,
+    status_mode: Option<gwz_core::StatusMode>,
+}
+
+impl CliResponse {
+    fn envelope(response: gwz_core::ResponseEnvelope) -> Self {
+        Self {
+            envelope: response,
+            workspace_git_status: None,
+            status_mode: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -589,14 +649,24 @@ fn invocation_from_cli(
     })
 }
 
-fn execute_invocation(invocation: &CliInvocation) -> Result<gwz_core::ResponseEnvelope, CliError> {
+fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliError> {
     let backend = gwz_core::git::Git2Backend::new();
     let operation_id = new_operation_id();
     let start = invocation.start_dir.as_path();
     let response = match &invocation.request {
+        CliRequest::CloneWorkspace { meta, url, target } => {
+            gwz_core::workspace_ops::handle_clone_workspace(
+                &backend,
+                meta.clone(),
+                url,
+                target,
+                operation_id,
+            )
+            .map(|response| CliResponse::envelope(response.response))
+        }
         CliRequest::CreateWorkspace(request) => {
             gwz_core::workspace_ops::handle_create_workspace(request.clone(), operation_id)
-                .map(|response| response.response)
+                .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::InitFromSources(request) => gwz_core::workspace_ops::handle_init_from_sources(
             &backend,
@@ -604,39 +674,44 @@ fn execute_invocation(invocation: &CliInvocation) -> Result<gwz_core::ResponseEn
             request.clone(),
             operation_id,
         )
-        .map(|response| response.response),
+        .map(|response| CliResponse::envelope(response.response)),
         CliRequest::AddExistingRepo(request) => gwz_core::workspace_ops::handle_add_existing_repo(
             &backend,
             start,
             request.clone(),
             operation_id,
         )
-        .map(|response| response.response),
+        .map(|response| CliResponse::envelope(response.response)),
         CliRequest::CreateRepo(request) => gwz_core::workspace_ops::handle_create_repo(
             &backend,
             start,
             request.clone(),
             operation_id,
         )
-        .map(|response| response.response),
+        .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Materialize(request) => gwz_core::workspace_ops::handle_materialize(
             &backend,
             start,
             request.clone(),
             operation_id,
         )
-        .map(|response| response.response),
+        .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Status(request) => {
-            gwz_core::status::handle_status(&backend, start, request.clone(), operation_id)
-                .map(|response| response.response)
+            gwz_core::status::handle_status(&backend, start, request.clone(), operation_id).map(
+                |response| CliResponse {
+                    envelope: response.response,
+                    workspace_git_status: response.workspace_git_status,
+                    status_mode: request.mode,
+                },
+            )
         }
         CliRequest::Snapshot(request) => {
             gwz_core::workspace_ops::handle_snapshot(start, request.clone(), operation_id)
-                .map(|response| response.response)
+                .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::Tag(request) => {
             gwz_core::workspace_ops::handle_tag(start, request.clone(), operation_id)
-                .map(|response| response.response)
+                .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::PullHead(request) => gwz_core::workspace_ops::handle_pull_head(
             &backend,
@@ -644,23 +719,23 @@ fn execute_invocation(invocation: &CliInvocation) -> Result<gwz_core::ResponseEn
             request.clone(),
             operation_id,
         )
-        .map(|response| response.response),
+        .map(|response| CliResponse::envelope(response.response)),
         CliRequest::PullSnapshot(request) => gwz_core::workspace_ops::handle_pull_snapshot(
             &backend,
             start,
             request.clone(),
             operation_id,
         )
-        .map(|response| response.response),
+        .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Push(request) => {
             gwz_core::workspace_ops::handle_push(&backend, start, request.clone(), operation_id)
-                .map(|response| response.response)
+                .map(|response| CliResponse::envelope(response.response))
         }
     };
     response.map_err(|error| CliError::new(error.to_string()))
 }
 
-fn render_response(response: &gwz_core::ResponseEnvelope, output: OutputMode) -> String {
+fn render_response(response: &CliResponse, output: OutputMode) -> String {
     match output {
         OutputMode::Human => render_human_response(response),
         OutputMode::Json => response_json(response).to_string(),
@@ -669,9 +744,16 @@ fn render_response(response: &gwz_core::ResponseEnvelope, output: OutputMode) ->
     }
 }
 
-fn render_human_response(response: &gwz_core::ResponseEnvelope) -> String {
-    let mut lines = vec![format!("status: {:?}", response.meta.aggregate_status)];
-    for member in &response.members {
+fn render_human_response(response: &CliResponse) -> String {
+    if let Some(workspace_status) = &response.workspace_git_status {
+        return render_human_status_response(response, workspace_status);
+    }
+
+    let mut lines = vec![format!(
+        "status: {:?}",
+        response.envelope.meta.aggregate_status
+    )];
+    for member in &response.envelope.members {
         let mut line = format!(
             "{} {} {:?}",
             member.member_id, member.member_path, member.status
@@ -681,14 +763,308 @@ fn render_human_response(response: &gwz_core::ResponseEnvelope) -> String {
         }
         lines.push(line);
     }
-    for error in &response.errors {
+    for error in &response.envelope.errors {
         lines.push(format!("{:?}: {}", error.code, error.message));
     }
     lines.join("\n")
 }
 
-fn render_porcelain_response(response: &gwz_core::ResponseEnvelope) -> String {
+fn render_human_status_response(
+    response: &CliResponse,
+    workspace_status: &gwz_core::WorkspaceGitStatus,
+) -> String {
+    let per_repo = response.status_mode == Some(gwz_core::StatusMode::Summary);
+    let mut lines = Vec::new();
+    append_workspace_heading(&mut lines, workspace_status.root_status.as_ref());
+    if per_repo {
+        append_per_repo_status(&mut lines, response, workspace_status);
+    } else {
+        append_member_branch_summary(&mut lines, workspace_status);
+        let mut changes = root_human_changes(workspace_status);
+        changes.extend(member_human_changes(workspace_status, None));
+        append_change_sections(&mut lines, &changes);
+    }
+    append_unmaterialized_notice(&mut lines, response);
+    append_status_issues(&mut lines, response);
+    if lines.is_empty() {
+        lines.push("nothing to commit, working tree clean".to_owned());
+    }
+    lines.join("\n")
+}
+
+fn is_unmaterialized(member: &gwz_core::MemberResponse) -> bool {
+    member
+        .state
+        .as_ref()
+        .is_some_and(|state| !state.materialized)
+}
+
+fn append_unmaterialized_notice(lines: &mut Vec<String>, response: &CliResponse) {
+    let unmaterialized = response
+        .envelope
+        .members
+        .iter()
+        .filter(|member| is_unmaterialized(member))
+        .collect::<Vec<_>>();
+    if unmaterialized.is_empty() {
+        return;
+    }
+    push_blank(lines);
+    lines.push(
+        "Members not materialized (run `gwz materialize --lock` to complete the clone):".to_owned(),
+    );
+    lines.extend(
+        unmaterialized
+            .into_iter()
+            .map(|member| format!("  {}", member.member_path)),
+    );
+}
+
+fn append_workspace_heading(
+    lines: &mut Vec<String>,
+    root_status: Option<&gwz_core::WorkspaceRootGitStatus>,
+) {
+    let Some(root_status) = root_status else {
+        lines.push("Workspace status".to_owned());
+        return;
+    };
+    if let Some(branch) = &root_status.branch {
+        lines.push(format!("Workspace root on branch {branch}"));
+    } else if root_status.detached {
+        lines.push("Workspace root HEAD detached".to_owned());
+    } else {
+        lines.push("Workspace root HEAD unavailable".to_owned());
+    }
+    if root_status.unborn {
+        lines.push("No commits yet".to_owned());
+    }
+}
+
+fn append_member_branch_summary(
+    lines: &mut Vec<String>,
+    workspace_status: &gwz_core::WorkspaceGitStatus,
+) {
+    if workspace_status.branch_groups.is_empty() {
+        return;
+    }
+    push_blank(lines);
+    if workspace_status.branch_groups.len() == 1 {
+        let group = &workspace_status.branch_groups[0];
+        lines.push(format!("All members {}", branch_group_phrase(&group.label)));
+        return;
+    }
+    for group in &workspace_status.branch_groups {
+        lines.push(format!(
+            "{} {}",
+            group.member_paths.join(", "),
+            branch_group_phrase(&group.label)
+        ));
+    }
+}
+
+fn branch_group_phrase(label: &str) -> String {
+    if label == "unborn" {
+        "have no commits yet".to_owned()
+    } else if let Some(commit) = label.strip_prefix("detached@") {
+        format!("detached at {commit}")
+    } else {
+        format!("on branch {label}")
+    }
+}
+
+fn append_per_repo_status(
+    lines: &mut Vec<String>,
+    response: &CliResponse,
+    workspace_status: &gwz_core::WorkspaceGitStatus,
+) {
+    let root_changes = root_human_changes(workspace_status);
+    if !root_changes.is_empty() {
+        push_blank(lines);
+        lines.push("Workspace root".to_owned());
+        append_change_sections(lines, &root_changes);
+    }
+
+    for member in &response.envelope.members {
+        if is_unmaterialized(member) {
+            continue;
+        }
+        let changes = member_human_changes(workspace_status, Some(&member.member_id));
+        if changes.is_empty() && member.status == gwz_core::MemberStatus::Ok {
+            continue;
+        }
+        push_blank(lines);
+        lines.push(format_member_status_heading(member));
+        append_change_sections(lines, &changes);
+    }
+}
+
+fn append_status_issues(lines: &mut Vec<String>, response: &CliResponse) {
+    let mut issues = Vec::new();
+    for member in &response.envelope.members {
+        if is_unmaterialized(member) {
+            continue;
+        }
+        if member.status != gwz_core::MemberStatus::Ok || member.error.is_some() {
+            let mut issue = format!("{}: {:?}", member.member_path, member.status);
+            if let Some(error) = &member.error {
+                issue.push_str(&format!(" {:?}: {}", error.code, error.message));
+            }
+            issues.push(issue);
+        }
+    }
+    issues.extend(
+        response
+            .envelope
+            .errors
+            .iter()
+            .map(|error| format!("{:?}: {}", error.code, error.message)),
+    );
+    if issues.is_empty() {
+        return;
+    }
+    push_blank(lines);
+    lines.push("Issues:".to_owned());
+    lines.extend(issues.into_iter().map(|issue| format!("  {issue}")));
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HumanChangeSection {
+    Staged,
+    Unstaged,
+    Untracked,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct HumanChange {
+    section: HumanChangeSection,
+    status: String,
+    path: String,
+}
+
+fn root_human_changes(workspace_status: &gwz_core::WorkspaceGitStatus) -> Vec<HumanChange> {
+    workspace_status
+        .root_file_changes
+        .iter()
+        .map(|change| {
+            human_change(
+                &change.index_status,
+                &change.worktree_status,
+                &change.workspace_path,
+            )
+        })
+        .collect()
+}
+
+fn member_human_changes(
+    workspace_status: &gwz_core::WorkspaceGitStatus,
+    member_id: Option<&str>,
+) -> Vec<HumanChange> {
+    workspace_status
+        .file_changes
+        .iter()
+        .filter(|change| member_id.is_none_or(|member_id| change.member_id == member_id))
+        .map(|change| {
+            human_change(
+                &change.index_status,
+                &change.worktree_status,
+                &change.workspace_path,
+            )
+        })
+        .collect()
+}
+
+fn human_change(index_status: &str, worktree_status: &str, path: &str) -> HumanChange {
+    let section = if index_status == " " && worktree_status == "?" {
+        HumanChangeSection::Untracked
+    } else if index_status != " " {
+        HumanChangeSection::Staged
+    } else {
+        HumanChangeSection::Unstaged
+    };
+    HumanChange {
+        section,
+        status: format_status_pair(index_status, worktree_status),
+        path: path.to_owned(),
+    }
+}
+
+fn append_change_sections(lines: &mut Vec<String>, changes: &[HumanChange]) {
+    append_change_section(
+        lines,
+        changes,
+        HumanChangeSection::Staged,
+        "Changes to be committed:",
+    );
+    append_change_section(
+        lines,
+        changes,
+        HumanChangeSection::Unstaged,
+        "Changes not staged for commit:",
+    );
+    append_change_section(
+        lines,
+        changes,
+        HumanChangeSection::Untracked,
+        "Untracked files:",
+    );
+}
+
+fn append_change_section(
+    lines: &mut Vec<String>,
+    changes: &[HumanChange],
+    section: HumanChangeSection,
+    header: &str,
+) {
+    let section_changes = changes
+        .iter()
+        .filter(|change| change.section == section)
+        .collect::<Vec<_>>();
+    if section_changes.is_empty() {
+        return;
+    }
+    push_blank(lines);
+    lines.push(header.to_owned());
+    lines.extend(
+        section_changes
+            .into_iter()
+            .map(|change| format!("  {} {}", change.status, change.path)),
+    );
+}
+
+fn push_blank(lines: &mut Vec<String>) {
+    if !lines.is_empty() && !lines.last().is_some_and(|line| line.is_empty()) {
+        lines.push(String::new());
+    }
+}
+
+fn format_member_status_heading(member: &gwz_core::MemberResponse) -> String {
+    let Some(git_status) = &member.git_status else {
+        return member.member_path.clone();
+    };
+    if let Some(branch) = &git_status.branch {
+        format!("{} on branch {}", member.member_path, branch)
+    } else if git_status.detached {
+        format!("{} detached", member.member_path)
+    } else {
+        member.member_path.clone()
+    }
+}
+
+fn render_porcelain_response(response: &CliResponse) -> String {
+    if let Some(workspace_status) = &response.workspace_git_status
+        && !(workspace_status.root_file_changes.is_empty()
+            && workspace_status.file_changes.is_empty())
+    {
+        return workspace_status
+            .root_file_changes
+            .iter()
+            .map(format_root_file_change)
+            .chain(workspace_status.file_changes.iter().map(format_file_change))
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
     response
+        .envelope
         .members
         .iter()
         .filter(|member| member.status != gwz_core::MemberStatus::Ok)
@@ -697,8 +1073,26 @@ fn render_porcelain_response(response: &gwz_core::ResponseEnvelope) -> String {
         .join("\n")
 }
 
+fn format_file_change(change: &gwz_core::GitFileChange) -> String {
+    let status = format_status_pair(&change.index_status, &change.worktree_status);
+    format!("{status} {}", change.workspace_path)
+}
+
+fn format_root_file_change(change: &gwz_core::WorkspaceRootFileChange) -> String {
+    let status = format_status_pair(&change.index_status, &change.worktree_status);
+    format!("{status} {}", change.workspace_path)
+}
+
+fn format_status_pair(index_status: &str, worktree_status: &str) -> String {
+    if index_status == " " && worktree_status == "?" {
+        "??".to_owned()
+    } else {
+        format!("{index_status}{worktree_status}")
+    }
+}
+
 fn render_jsonl_stream(
-    response: &gwz_core::ResponseEnvelope,
+    response: &CliResponse,
     events: &[gwz_core::OperationEvent],
     result: Option<&gwz_core::OperationResult>,
 ) -> String {
@@ -721,12 +1115,13 @@ fn exit_code_for_response(response: &gwz_core::ResponseEnvelope) -> i32 {
     }
 }
 
-fn response_json(response: &gwz_core::ResponseEnvelope) -> serde_json::Value {
+fn response_json(response: &CliResponse) -> serde_json::Value {
     serde_json::json!({
         "kind": "response",
-        "meta": response_meta_json(&response.meta),
-        "members": response.members.iter().map(member_json).collect::<Vec<_>>(),
-        "errors": response.errors.iter().map(error_json).collect::<Vec<_>>(),
+        "meta": response_meta_json(&response.envelope.meta),
+        "members": response.envelope.members.iter().map(member_json).collect::<Vec<_>>(),
+        "errors": response.envelope.errors.iter().map(error_json).collect::<Vec<_>>(),
+        "workspace_git_status": response.workspace_git_status.as_ref().map(workspace_git_status_json),
     })
 }
 
@@ -780,7 +1175,130 @@ fn member_json(member: &gwz_core::MemberResponse) -> serde_json::Value {
         "status": format!("{:?}", member.status),
         "error": member.error.as_ref().map(error_json),
         "planned": member.planned.as_ref().map(planned_json),
+        "state": member.state.as_ref().map(member_state_json),
+        "git_status": member.git_status.as_ref().map(git_status_json),
         "lock_match": member.lock_match.map(|lock_match| format!("{:?}", lock_match)),
+    })
+}
+
+fn member_state_json(state: &gwz_core::ResolvedMemberState) -> serde_json::Value {
+    serde_json::json!({
+        "member_id": state.member_id,
+        "path": state.path,
+        "source_id": state.source_id,
+        "source_kind": format!("{:?}", state.source_kind),
+        "commit": state.commit,
+        "branch": state.branch,
+        "detached": state.detached,
+        "upstream": state.upstream,
+        "dirty": state.dirty,
+        "materialized": state.materialized,
+        "remotes": state.remotes.iter().map(remote_spec_json).collect::<Vec<_>>(),
+    })
+}
+
+fn remote_spec_json(remote: &gwz_core::RemoteSpec) -> serde_json::Value {
+    serde_json::json!({
+        "name": remote.name,
+        "url": remote.url,
+        "fetch": remote.fetch,
+        "push": remote.push,
+    })
+}
+
+fn git_status_json(status: &gwz_core::GitStatus) -> serde_json::Value {
+    serde_json::json!({
+        "member_id": status.member_id,
+        "branch": status.branch,
+        "detached": status.detached,
+        "head": status.head,
+        "upstream": status.upstream,
+        "ahead": status.ahead,
+        "behind": status.behind,
+        "staged": status.staged,
+        "unstaged": status.unstaged,
+        "untracked": status.untracked,
+        "dirty": status.dirty,
+    })
+}
+
+fn workspace_git_status_json(status: &gwz_core::WorkspaceGitStatus) -> serde_json::Value {
+    serde_json::json!({
+        "clean": status.clean,
+        "root_status": status.root_status.as_ref().map(root_git_status_json),
+        "root_file_changes": status.root_file_changes.iter().map(root_file_change_json).collect::<Vec<_>>(),
+        "file_changes": status.file_changes.iter().map(file_change_json).collect::<Vec<_>>(),
+        "branches": status.branches.iter().map(branch_status_json).collect::<Vec<_>>(),
+        "branch_groups": status.branch_groups.iter().map(branch_group_json).collect::<Vec<_>>(),
+        "branch_differences": status.branch_differences.iter().map(branch_difference_json).collect::<Vec<_>>(),
+    })
+}
+
+fn root_git_status_json(status: &gwz_core::WorkspaceRootGitStatus) -> serde_json::Value {
+    serde_json::json!({
+        "branch": status.branch,
+        "detached": status.detached,
+        "head": status.head,
+        "staged": status.staged,
+        "unstaged": status.unstaged,
+        "untracked": status.untracked,
+        "dirty": status.dirty,
+        "unborn": status.unborn,
+    })
+}
+
+fn root_file_change_json(change: &gwz_core::WorkspaceRootFileChange) -> serde_json::Value {
+    serde_json::json!({
+        "repo_path": change.repo_path,
+        "workspace_path": change.workspace_path,
+        "index_status": change.index_status,
+        "worktree_status": change.worktree_status,
+        "original_repo_path": change.original_repo_path,
+    })
+}
+
+fn file_change_json(change: &gwz_core::GitFileChange) -> serde_json::Value {
+    serde_json::json!({
+        "member_id": change.member_id,
+        "member_path": change.member_path,
+        "repo_path": change.repo_path,
+        "workspace_path": change.workspace_path,
+        "index_status": change.index_status,
+        "worktree_status": change.worktree_status,
+        "original_repo_path": change.original_repo_path,
+    })
+}
+
+fn branch_status_json(status: &gwz_core::GitMemberBranchStatus) -> serde_json::Value {
+    serde_json::json!({
+        "member_id": status.member_id,
+        "member_path": status.member_path,
+        "label": status.label,
+        "branch": status.branch,
+        "detached": status.detached,
+        "unborn": status.unborn,
+        "head": status.head,
+        "upstream": status.upstream,
+        "ahead": status.ahead,
+        "behind": status.behind,
+    })
+}
+
+fn branch_group_json(group: &gwz_core::GitBranchGroup) -> serde_json::Value {
+    serde_json::json!({
+        "label": group.label,
+        "member_ids": group.member_ids,
+        "member_paths": group.member_paths,
+    })
+}
+
+fn branch_difference_json(difference: &gwz_core::GitBranchDifference) -> serde_json::Value {
+    serde_json::json!({
+        "label": difference.label,
+        "majority_label": difference.majority_label,
+        "member_ids": difference.member_ids,
+        "member_paths": difference.member_paths,
+        "message": difference.message,
     })
 }
 
@@ -815,6 +1333,9 @@ impl Cli {
         }
         if let CommandArgs::Status(status) = &self.command {
             status.validate(&self.global)?;
+        }
+        if matches!(&self.command, CommandArgs::Clone(_)) && self.global.dry_run {
+            return Err(CliError::new("--dry-run is not supported for clone"));
         }
         Ok(())
     }
@@ -895,6 +1416,7 @@ impl Cli {
     ) -> Result<CliRequest, CliError> {
         match &self.command {
             CommandArgs::Init(args) => args.request(meta, workspace_root),
+            CommandArgs::Clone(args) => args.request(meta),
             CommandArgs::Add(args) => args.request(meta),
             CommandArgs::Repo(args) => args.request(meta),
             CommandArgs::Status(args) => args.request(meta),
@@ -958,6 +1480,20 @@ impl InitArgs {
                 },
             ))
         }
+    }
+}
+
+impl CloneArgs {
+    fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        let target = match &self.dir {
+            Some(dir) => dir.clone(),
+            None => repo_name_from_url(&self.url)?,
+        };
+        Ok(CliRequest::CloneWorkspace {
+            meta,
+            url: self.url.clone(),
+            target,
+        })
     }
 }
 
@@ -1030,13 +1566,13 @@ impl StatusArgs {
             } else {
                 gwz_core::StatusMode::Summary
             }),
-            include_file_changes: if combined { Some(!self.no_files) } else { None },
+            include_file_changes: Some(if combined { !self.no_files } else { true }),
             include_branch_summary: if combined {
                 Some(!self.no_branches)
             } else {
-                None
+                Some(true)
             },
-            path_style: combined.then_some(gwz_core::StatusPathStyle::WorkspaceRelative),
+            path_style: Some(gwz_core::StatusPathStyle::WorkspaceRelative),
         }))
     }
 }
@@ -1222,6 +1758,47 @@ mod tests {
     }
 
     #[test]
+    fn parses_clone_with_explicit_and_derived_target() {
+        let with_dir = parse_args_with_request_id(
+            strings(["clone", "git@github.com:org/workspace.git", "work/demo"]),
+            "req_test",
+            Path::new("/cwd"),
+        )
+        .unwrap();
+        let CliRequest::CloneWorkspace { url, target, .. } = with_dir.request else {
+            panic!("expected clone workspace");
+        };
+        assert_eq!(url, "git@github.com:org/workspace.git");
+        assert_eq!(target, "work/demo");
+
+        let derived = parse_args_with_request_id(
+            strings(["clone", "https://github.com/org/workspace.git"]),
+            "req_test",
+            Path::new("/cwd"),
+        )
+        .unwrap();
+        let CliRequest::CloneWorkspace { target, .. } = derived.request else {
+            panic!("expected clone workspace");
+        };
+        assert_eq!(target, "workspace");
+    }
+
+    #[test]
+    fn clone_rejects_dry_run() {
+        let error = parse_args_with_request_id(
+            strings(["--dry-run", "clone", "https://github.com/org/workspace.git"]),
+            "req_test",
+            Path::new("/cwd"),
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("--dry-run is not supported for clone")
+        );
+    }
+
+    #[test]
     fn parses_init_path_prefix_for_initial_sources() {
         let invocation = parse_args_with_request_id(
             strings([
@@ -1343,9 +1920,12 @@ mod tests {
             panic!("expected status");
         };
         assert_eq!(request.mode, Some(gwz_core::StatusMode::Summary));
-        assert_eq!(request.include_file_changes, None);
-        assert_eq!(request.include_branch_summary, None);
-        assert_eq!(request.path_style, None);
+        assert_eq!(request.include_file_changes, Some(true));
+        assert_eq!(request.include_branch_summary, Some(true));
+        assert_eq!(
+            request.path_style,
+            Some(gwz_core::StatusPathStyle::WorkspaceRelative)
+        );
     }
 
     #[test]
@@ -1431,15 +2011,18 @@ mod tests {
         let response = execute_invocation(&invocation).unwrap();
 
         assert_eq!(
-            response.meta.aggregate_status,
+            response.envelope.meta.aggregate_status,
             gwz_core::AggregateStatus::Ok
         );
-        assert!(response.members.is_empty());
+        assert!(response.envelope.members.is_empty());
     }
 
     #[test]
     fn json_renderer_outputs_structured_response() {
-        let response = sample_response(gwz_core::AggregateStatus::Ok, gwz_core::MemberStatus::Ok);
+        let response = CliResponse::envelope(sample_response(
+            gwz_core::AggregateStatus::Ok,
+            gwz_core::MemberStatus::Ok,
+        ));
 
         let json: serde_json::Value =
             serde_json::from_str(&render_response(&response, OutputMode::Json)).unwrap();
@@ -1459,7 +2042,7 @@ mod tests {
         let event = sample_event();
         let result = sample_result();
 
-        let lines = render_jsonl_stream(&response, &[event], Some(&result))
+        let lines = render_jsonl_stream(&CliResponse::envelope(response), &[event], Some(&result))
             .lines()
             .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
             .collect::<Vec<_>>();
@@ -1473,25 +2056,28 @@ mod tests {
     #[test]
     fn human_renderer_smoke_covers_success_rejection_and_member_failure() {
         let success = render_response(
-            &sample_response(gwz_core::AggregateStatus::Ok, gwz_core::MemberStatus::Ok),
+            &CliResponse::envelope(sample_response(
+                gwz_core::AggregateStatus::Ok,
+                gwz_core::MemberStatus::Ok,
+            )),
             OutputMode::Human,
         );
         assert!(success.contains("status: Ok"));
 
         let rejected = render_response(
-            &sample_response(
+            &CliResponse::envelope(sample_response(
                 gwz_core::AggregateStatus::Rejected,
                 gwz_core::MemberStatus::Rejected,
-            ),
+            )),
             OutputMode::Human,
         );
         assert!(rejected.contains("status: Rejected"));
 
         let failed = render_response(
-            &sample_response(
+            &CliResponse::envelope(sample_response(
                 gwz_core::AggregateStatus::Failed,
                 gwz_core::MemberStatus::Failed,
-            ),
+            )),
             OutputMode::Human,
         );
         assert!(failed.contains("RemoteRejected"));

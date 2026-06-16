@@ -11,6 +11,7 @@ The CLI is intentionally thin: it parses argv, builds GWZ requests, calls
 gwz init
 gwz init --path <path-prefix> <url>...
 gwz init <url>...
+gwz clone <url> [directory]
 gwz add <repo-path>
 gwz repo create <member-path>
 gwz status
@@ -58,6 +59,7 @@ Examples:
 ```text
 gwz --root /tmp/ws init /tmp/source.git
 gwz --root /tmp/ws init --path repos /tmp/source.git
+gwz clone /tmp/ws.git /tmp/ws-clone
 gwz --root /tmp/ws status --json
 gwz --root /tmp/ws status --no-combined --json
 gwz --root /tmp/ws snapshot snap_one

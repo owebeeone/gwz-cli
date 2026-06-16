@@ -57,8 +57,8 @@ fn init_help_explains_gwz_workspace_basics() {
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("A GWZ workspace is a local directory"));
-    assert!(stdout.contains("workspace/gwz.yml"));
-    assert!(stdout.contains("workspace/gwz.lock.yml"));
+    assert!(stdout.contains("gwz.conf/gwz.yml"));
+    assert!(stdout.contains("gwz.conf/gwz.lock.yml"));
     assert!(stdout.contains("Examples:"));
     assert!(stdout.contains("gwz init git@github.com:org/app.git"));
 }
@@ -210,6 +210,56 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
 }
 
 #[test]
+fn status_reports_unmaterialized_members_with_completion_hint() {
+    let temp = TempDir::new("status-unmaterialized");
+    let remote = RemoteFixture::new("status-unmaterialized-source");
+    remote.commit_and_push("README.md", "one", "initial");
+
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                temp.path_str(),
+                "init",
+                "--path",
+                "repos",
+                remote.url(),
+            ])
+            .output()
+            .unwrap(),
+    );
+
+    // Simulate a naive `git clone` of the workspace root: gwz.conf is present
+    // but the member working tree was never materialized.
+    fs::remove_dir_all(temp.path().join("repos/remote")).unwrap();
+
+    let status = gwz(temp.path())
+        .args(["--root", temp.path_str(), "status"])
+        .output()
+        .unwrap();
+    assert_success(&status);
+    let stdout = String::from_utf8_lossy(&status.stdout);
+    assert!(
+        stdout.contains("not materialized"),
+        "expected a not-materialized notice, got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("gwz materialize --lock"),
+        "expected a completion hint, got:\n{stdout}"
+    );
+
+    let status_json = gwz(temp.path())
+        .args(["--root", temp.path_str(), "--json", "status"])
+        .output()
+        .unwrap();
+    assert_success(&status_json);
+    let member = &json(&status_json)["members"][0];
+    assert_eq!(member["status"], "Noop");
+    assert_eq!(member["lock_match"], "Missing");
+    assert_eq!(member["state"]["materialized"], false);
+}
+
+#[test]
 fn pull_head_and_push_work_with_local_remote() {
     let temp = TempDir::new("pull-push");
     let remote = RemoteFixture::new("pull-push-source");
@@ -312,7 +362,112 @@ fn combined_status_succeeds_by_default() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("status: Ok"));
+    assert!(stdout.contains("Workspace root on branch main"), "{stdout}");
+}
+
+#[test]
+fn status_without_workspace_names_missing_config_file() {
+    let temp = TempDir::new("missing-workspace");
+
+    let output = gwz(temp.path()).arg("status").output().unwrap();
+
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("WorkspaceNotFound"), "{stderr}");
+    assert!(stderr.contains("gwz.conf/gwz.yml missing"), "{stderr}");
+}
+
+#[test]
+fn status_reports_branch_and_untracked_files() {
+    let temp = TempDir::new("status-files");
+    let remote = RemoteFixture::new("status-files-source");
+    remote.commit_and_push("README.md", "one", "initial");
+    assert_success(
+        &gwz(temp.path())
+            .args(["--root", temp.path_str(), "init", remote.url()])
+            .output()
+            .unwrap(),
+    );
+    fs::write(temp.path().join("remote/foo.txt"), "untracked").unwrap();
+
+    let output = gwz(temp.path())
+        .args(["--root", temp.path_str(), "status"])
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Workspace root on branch main"), "{stdout}");
+    assert!(stdout.contains("All members on branch main"), "{stdout}");
+    assert!(stdout.contains("No commits yet"), "{stdout}");
+    assert!(!stdout.contains("On workspace branch"), "{stdout}");
+    assert!(!stdout.contains("workspace ."), "{stdout}");
+    assert!(!stdout.contains("mem_remote"), "{stdout}");
+    assert!(stdout.contains("Changes to be committed:"), "{stdout}");
+    assert!(stdout.contains("Untracked files:"), "{stdout}");
+    assert!(stdout.contains("A  gwz.conf/gwz.yml"), "{stdout}");
+    assert!(stdout.contains("?? remote/foo.txt"), "{stdout}");
+}
+
+#[test]
+fn combined_status_separates_workspace_root_branch_from_member_branches() {
+    let temp = TempDir::new("status-branch-groups");
+    let good = RemoteFixture::new_named("status-branch-good", "good");
+    let bad = RemoteFixture::new_named("status-branch-bad", "bad");
+    good.commit_and_push("README.md", "one", "initial");
+    bad.commit_and_push("README.md", "one", "initial");
+    assert_success(
+        &gwz(temp.path())
+            .args(["--root", temp.path_str(), "init", good.url(), bad.url()])
+            .output()
+            .unwrap(),
+    );
+    set_unborn_branch(temp.path(), "foo");
+    checkout_branch(&temp.path().join("bad"), "foo");
+
+    let output = gwz(temp.path())
+        .args(["--root", temp.path_str(), "status"])
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Workspace root on branch foo"), "{stdout}");
+    assert!(stdout.contains("good on branch main"), "{stdout}");
+    assert!(stdout.contains("bad on branch foo"), "{stdout}");
+    assert!(!stdout.contains("On workspace branch foo"), "{stdout}");
+}
+
+#[test]
+fn no_combined_status_reports_per_repo_file_changes() {
+    let temp = TempDir::new("status-no-combined-files");
+    let remote = RemoteFixture::new("status-no-combined-source");
+    remote.commit_and_push("README.md", "one", "initial");
+    assert_success(
+        &gwz(temp.path())
+            .args(["--root", temp.path_str(), "init", remote.url()])
+            .output()
+            .unwrap(),
+    );
+    fs::write(temp.path().join("remote/foo.txt"), "untracked").unwrap();
+
+    let output = gwz(temp.path())
+        .args(["--root", temp.path_str(), "status", "--no-combined"])
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Workspace root"), "{stdout}");
+    assert!(stdout.contains("Workspace root on branch main"), "{stdout}");
+    assert!(!stdout.contains("workspace ."), "{stdout}");
+    assert!(!stdout.contains("mem_remote"), "{stdout}");
+    assert!(stdout.contains("Changes to be committed:"), "{stdout}");
+    assert!(stdout.contains("A  gwz.conf/gwz.yml"), "{stdout}");
+    assert!(stdout.contains("remote on branch main"), "{stdout}");
+    assert!(stdout.contains("Untracked files:"), "{stdout}");
+    assert!(stdout.contains("?? remote/foo.txt"), "{stdout}");
 }
 
 #[test]
@@ -350,6 +505,72 @@ fn pull_head_dirty_member_blocks_partial_mutation() {
         repo_head(&temp.path().join("repos/good")),
         Some(good_second)
     );
+}
+
+#[test]
+fn clone_completes_workspace_from_root_url() {
+    let temp = TempDir::new("clone-from-url");
+    let remote = RemoteFixture::new("clone-from-url-source");
+    let commit = remote.commit_and_push("README.md", "one", "initial");
+
+    // Create and commit a source workspace so its root repo can be cloned.
+    let origin = temp.path().join("origin");
+    fs::create_dir_all(&origin).unwrap();
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                origin.to_str().unwrap(),
+                "init",
+                "--path",
+                "repos",
+                remote.url(),
+            ])
+            .output()
+            .unwrap(),
+    );
+    commit_workspace_root(&origin);
+
+    // Clone the whole workspace in one shot.
+    let target = temp.path().join("target");
+    let clone = gwz(temp.path())
+        .args(["clone", origin.to_str().unwrap(), target.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert_success(&clone);
+
+    // gwz.conf came over with the clone and the member was materialized at the
+    // locked commit.
+    assert!(target.join("gwz.conf/gwz.yml").is_file());
+    assert_eq!(repo_head(&target.join("repos/remote")), Some(commit));
+
+    // A second clone into the same target must refuse rather than corrupt it.
+    let again = gwz(temp.path())
+        .args(["clone", origin.to_str().unwrap(), target.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(!again.status.success());
+}
+
+fn commit_workspace_root(root: &Path) {
+    let repo = git2::Repository::open(root).unwrap();
+    let mut index = repo.index().unwrap();
+    index
+        .add_all(["."], git2::IndexAddOption::DEFAULT, None)
+        .unwrap();
+    index.write().unwrap();
+    let tree_id = index.write_tree().unwrap();
+    let tree = repo.find_tree(tree_id).unwrap();
+    let signature = git2::Signature::now("GWZ Test", "gwz@example.invalid").unwrap();
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        "init workspace",
+        &tree,
+        &[],
+    )
+    .unwrap();
 }
 
 fn gwz(cwd: &Path) -> Command {
@@ -433,6 +654,23 @@ fn repo_ref(repo_path: &Path, ref_name: &str) -> Option<String> {
         .revparse_single(ref_name)
         .ok()
         .map(|object| object.id().to_string())
+}
+
+fn set_unborn_branch(repo_path: &Path, branch: &str) {
+    git2::Repository::open(repo_path)
+        .unwrap()
+        .set_head(&format!("refs/heads/{branch}"))
+        .unwrap();
+}
+
+fn checkout_branch(repo_path: &Path, branch: &str) {
+    let repo = git2::Repository::open(repo_path).unwrap();
+    let commit = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch(branch, &commit, false).unwrap();
+    repo.set_head(&format!("refs/heads/{branch}")).unwrap();
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.safe();
+    repo.checkout_head(Some(&mut checkout)).unwrap();
 }
 
 fn init_opts() -> &'static mut git2::RepositoryInitOptions {
