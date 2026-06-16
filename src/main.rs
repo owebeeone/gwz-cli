@@ -177,6 +177,10 @@ Examples:
   gwz push --remote origin
   gwz --member mem_app push";
 
+// Default coalescing for member_progress events: at most one per member per
+// 100 ms. Set as a request option so a driver can tune or disable it (0).
+const DEFAULT_PROGRESS_MIN_INTERVAL_MS: i64 = 100;
+
 fn main() {
     let cli = Cli::parse();
     let cwd = match std::env::current_dir() {
@@ -317,6 +321,16 @@ struct GlobalArgs {
         long_help = "Maximum number of workspace member repositories to process concurrently."
     )]
     jobs: Option<i64>,
+
+    #[arg(
+        long = "progress-interval",
+        global = true,
+        value_name = "ms",
+        value_parser = parse_non_negative_i64,
+        help = "Min milliseconds between progress events per repo (0 = every update)",
+        long_help = "Minimum milliseconds between member progress events per repository. Coalesces high-frequency Git transfer updates; 0 emits every update. Defaults to 100."
+    )]
+    progress_interval: Option<i64>,
 
     #[arg(
         long,
@@ -604,6 +618,20 @@ impl CliResponse {
     }
 }
 
+/// Streams each operation event to stdout as a JSON line, flushed immediately,
+/// so `--jsonl` consumers see records live as the operation runs instead of
+/// batched at the end. stdout is block-buffered when piped, hence the flush.
+struct JsonlSink;
+
+impl gwz_core::operation::EventSink for JsonlSink {
+    fn deliver(&self, event: gwz_core::OperationEvent) {
+        use std::io::Write;
+        let mut out = std::io::stdout().lock();
+        let _ = writeln!(out, "{}", event_json(&event));
+        let _ = out.flush();
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CliError {
     message: String,
@@ -653,6 +681,15 @@ fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliErro
     let backend = gwz_core::git::Git2Backend::new();
     let operation_id = new_operation_id();
     let start = invocation.start_dir.as_path();
+    // In --jsonl mode, stream events to stdout as they are emitted; other modes
+    // drop them (the human progress renderer is a separate slice).
+    let jsonl_sink = JsonlSink;
+    let null_sink = gwz_core::operation::NullSink;
+    let events: &dyn gwz_core::operation::EventSink = if invocation.output == OutputMode::Jsonl {
+        &jsonl_sink
+    } else {
+        &null_sink
+    };
     let response = match &invocation.request {
         CliRequest::CloneWorkspace { meta, url, target } => {
             gwz_core::workspace_ops::handle_clone_workspace(
@@ -661,6 +698,7 @@ fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliErro
                 url,
                 target,
                 operation_id,
+                events,
             )
             .map(|response| CliResponse::envelope(response.response))
         }
@@ -673,6 +711,7 @@ fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliErro
             start,
             request.clone(),
             operation_id,
+            events,
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::AddExistingRepo(request) => gwz_core::workspace_ops::handle_add_existing_repo(
@@ -694,6 +733,7 @@ fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliErro
             start,
             request.clone(),
             operation_id,
+            events,
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Status(request) => {
@@ -725,6 +765,7 @@ fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliErro
             start,
             request.clone(),
             operation_id,
+            events,
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Push(request) => {
@@ -1153,6 +1194,18 @@ fn event_json(event: &gwz_core::OperationEvent) -> serde_json::Value {
         "message": event.message,
         "member": event.member.as_ref().map(member_json),
         "error": event.error.as_ref().map(error_json),
+        "progress": event.progress.as_ref().map(git_transfer_progress_json),
+    })
+}
+
+fn git_transfer_progress_json(progress: &gwz_core::GitTransferProgress) -> serde_json::Value {
+    serde_json::json!({
+        "phase": format!("{:?}", progress.phase),
+        "received_objects": progress.received_objects,
+        "total_objects": progress.total_objects,
+        "received_bytes": progress.received_bytes,
+        "indexed_deltas": progress.indexed_deltas,
+        "total_deltas": progress.total_deltas,
     })
 }
 
@@ -1384,29 +1437,25 @@ impl Cli {
     }
 
     fn policy(&self) -> Option<gwz_core::OperationPolicy> {
-        if self.global.partial
-            || self.global.force
-            || self.global.sync.is_some()
-            || self.global.remote.is_some()
-            || self.global.jobs.is_some()
-        {
-            Some(gwz_core::OperationPolicy {
-                partial: self
-                    .global
-                    .partial
-                    .then_some(gwz_core::PartialBehavior::Partial),
-                destructive: self
-                    .global
-                    .force
-                    .then_some(gwz_core::DestructiveBehavior::Allow),
-                sync: self.global.sync.map(Into::into),
-                remote: self.global.remote.clone(),
-                concurrency: self.global.jobs,
-                ..Default::default()
-            })
-        } else {
-            None
-        }
+        Some(gwz_core::OperationPolicy {
+            partial: self
+                .global
+                .partial
+                .then_some(gwz_core::PartialBehavior::Partial),
+            destructive: self
+                .global
+                .force
+                .then_some(gwz_core::DestructiveBehavior::Allow),
+            sync: self.global.sync.map(Into::into),
+            remote: self.global.remote.clone(),
+            concurrency: self.global.jobs,
+            progress_min_interval_ms: Some(
+                self.global
+                    .progress_interval
+                    .unwrap_or(DEFAULT_PROGRESS_MIN_INTERVAL_MS),
+            ),
+            ..Default::default()
+        })
     }
 
     fn command_request(
@@ -1680,6 +1729,16 @@ fn parse_positive_i64(value: &str) -> Result<i64, String> {
         .map_err(|_| "--jobs requires an integer".to_owned())?;
     if parsed < 1 {
         return Err("--jobs must be greater than zero".to_owned());
+    }
+    Ok(parsed)
+}
+
+fn parse_non_negative_i64(value: &str) -> Result<i64, String> {
+    let parsed = value
+        .parse::<i64>()
+        .map_err(|_| "--progress-interval requires an integer".to_owned())?;
+    if parsed < 0 {
+        return Err("--progress-interval must be zero or greater".to_owned());
     }
     Ok(parsed)
 }
@@ -2180,6 +2239,7 @@ mod tests {
             member: None,
             error: None,
             attribution: None,
+            progress: None,
         }
     }
 

@@ -118,8 +118,13 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
         .output()
         .unwrap();
     assert_success(&init);
-    assert_eq!(json_lines(&init)[0]["kind"], "response");
-    assert_eq!(json_lines(&init)[0]["meta"]["aggregate_status"], "Ok");
+    // Events stream live first; the response record is the terminal line.
+    let init_lines = json_lines(&init);
+    let init_response = init_lines
+        .iter()
+        .find(|line| line["kind"] == "response")
+        .expect("jsonl carries a response record");
+    assert_eq!(init_response["meta"]["aggregate_status"], "Ok");
 
     let status_root = gwz(temp.path())
         .args([
@@ -550,6 +555,61 @@ fn clone_completes_workspace_from_root_url() {
         .output()
         .unwrap();
     assert!(!again.status.success());
+}
+
+#[test]
+fn clone_streams_member_lifecycle_events_as_jsonl() {
+    let temp = TempDir::new("clone-jsonl");
+    let remote = RemoteFixture::new("clone-jsonl-source");
+    remote.commit_and_push("README.md", "one", "initial");
+    let origin = temp.path().join("origin");
+    fs::create_dir_all(&origin).unwrap();
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                origin.to_str().unwrap(),
+                "init",
+                "--path",
+                "repos",
+                remote.url(),
+            ])
+            .output()
+            .unwrap(),
+    );
+    commit_workspace_root(&origin);
+
+    let target = temp.path().join("target");
+    let out = gwz(temp.path())
+        .args([
+            "--jsonl",
+            "clone",
+            origin.to_str().unwrap(),
+            target.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_success(&out);
+
+    // The stream carries the operation/member lifecycle as `event` records.
+    // (Transfer-progress events only fire on network transports, not local
+    // clones, so we assert the deterministic lifecycle here.)
+    let event_kinds: Vec<String> = json_lines(&out)
+        .iter()
+        .filter(|line| line["kind"] == "event")
+        .map(|line| line["event_kind"].as_str().unwrap().to_owned())
+        .collect();
+    for expected in [
+        "OperationStarted",
+        "MemberStarted",
+        "MemberFinished",
+        "OperationFinished",
+    ] {
+        assert!(
+            event_kinds.iter().any(|kind| kind == expected),
+            "missing {expected} in {event_kinds:?}"
+        );
+    }
 }
 
 fn commit_workspace_root(root: &Path) {
