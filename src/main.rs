@@ -1,6 +1,8 @@
 #[cfg(test)]
 use clap::CommandFactory;
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 const CLI_LONG: &str = "\
 GWZ manages a local workspace made from multiple git repositories.
@@ -642,6 +644,231 @@ impl gwz_core::operation::EventSink for JsonlSink {
     }
 }
 
+/// Folds the operation event stream into the minimal state a single-line
+/// progress display needs: how many members have started/finished and the
+/// latest member activity to surface. Pure — terminal writing lives in
+/// [`StderrProgressSink`], formatting in [`render_progress_line`].
+#[derive(Clone, Debug, Default, PartialEq)]
+struct ProgressModel {
+    label: String,
+    started: usize,
+    finished: usize,
+    current_path: Option<String>,
+    current_progress: Option<gwz_core::GitTransferProgress>,
+}
+
+impl ProgressModel {
+    fn new(label: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            ..Self::default()
+        }
+    }
+
+    fn active(&self) -> usize {
+        self.started.saturating_sub(self.finished)
+    }
+
+    /// Applies one event. Returns true when the display changed (so the sink
+    /// can skip redrawing on events that do not affect the line).
+    fn apply(&mut self, event: &gwz_core::OperationEvent) -> bool {
+        use gwz_core::EventKind;
+        match event.kind {
+            EventKind::MemberStarted => {
+                self.started += 1;
+                self.current_path = event.member_path.clone();
+                self.current_progress = None;
+                true
+            }
+            EventKind::MemberProgress => {
+                self.current_path = event.member_path.clone();
+                self.current_progress = event.progress.clone();
+                true
+            }
+            EventKind::MemberFinished => {
+                self.finished += 1;
+                if self.current_path == event.member_path {
+                    self.current_path = None;
+                    self.current_progress = None;
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+const SPINNER_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/// Renders the model as one status line. `tick` advances the spinner so the
+/// line shows liveness even when byte counts are momentarily static (e.g.
+/// while resolving deltas).
+fn render_progress_line(model: &ProgressModel, tick: usize) -> String {
+    let spinner = SPINNER_FRAMES[tick % SPINNER_FRAMES.len()];
+    let mut line = format!(
+        "{spinner} {}: {} done, {} active",
+        model.label,
+        model.finished,
+        model.active()
+    );
+    if let Some(path) = &model.current_path {
+        line.push_str(" · ");
+        line.push_str(member_short_name(path));
+        if let Some(progress) = &model.current_progress {
+            line.push(' ');
+            line.push_str(progress_phase_label(progress.phase));
+            let detail = progress_detail(progress);
+            if !detail.is_empty() {
+                line.push(' ');
+                line.push_str(&detail);
+            }
+        }
+    }
+    line
+}
+
+fn progress_phase_label(phase: gwz_core::GitProgressPhase) -> &'static str {
+    use gwz_core::GitProgressPhase as P;
+    match phase {
+        P::Enumerating => "enumerating",
+        P::Counting => "counting",
+        P::Compressing => "compressing",
+        P::Receiving => "receiving",
+        P::Resolving => "resolving",
+        P::CheckingOut => "checking out",
+        P::Writing => "writing",
+    }
+}
+
+/// The detail tail for the current phase: "45% (1234/2730), 3.2 MiB" while
+/// receiving, "78% (980/1254)" while resolving, a raw count while counting.
+fn progress_detail(progress: &gwz_core::GitTransferProgress) -> String {
+    use gwz_core::GitProgressPhase as P;
+    match progress.phase {
+        P::Receiving => {
+            let mut parts = Vec::new();
+            if let (Some(recv), Some(total)) = (progress.received_objects, progress.total_objects) {
+                parts.push(format!("{}% ({recv}/{total})", pct(recv, total)));
+            }
+            if let Some(bytes) = progress.received_bytes {
+                parts.push(human_bytes(bytes));
+            }
+            parts.join(", ")
+        }
+        P::Resolving => match (progress.indexed_deltas, progress.total_deltas) {
+            (Some(idx), Some(total)) => format!("{}% ({idx}/{total})", pct(idx, total)),
+            _ => String::new(),
+        },
+        P::Counting | P::Enumerating => progress
+            .total_objects
+            .or(progress.received_objects)
+            .map(|n| n.to_string())
+            .unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+/// Whole-percent of `n/d`, clamped to 0..=100.
+fn pct(n: i64, d: i64) -> i64 {
+    if d > 0 {
+        (n.saturating_mul(100) / d).clamp(0, 100)
+    } else {
+        0
+    }
+}
+
+/// Human-readable byte count in binary units (B/KiB/MiB/GiB).
+fn human_bytes(bytes: i64) -> String {
+    const UNITS: [&str; 4] = ["B", "KiB", "MiB", "GiB"];
+    let bytes = bytes.max(0);
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} {}", UNITS[unit])
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
+}
+
+/// Last path component for compact display, with a trailing `.git` stripped.
+fn member_short_name(path: &str) -> &str {
+    let trimmed = path.trim_end_matches('/');
+    let name = trimmed.rsplit(['/', '\\']).next().unwrap_or(trimmed);
+    name.strip_suffix(".git").unwrap_or(name)
+}
+
+/// A short verb for the progress line, derived from the request kind. Only the
+/// I/O-bound operations emit member events, so only those labels are ever seen.
+fn operation_label(request: &CliRequest) -> &'static str {
+    match request {
+        CliRequest::CloneWorkspace { .. } => "cloning",
+        CliRequest::Materialize(_) => "materializing",
+        CliRequest::InitFromSources(_) => "initializing",
+        CliRequest::PullSnapshot(_) => "pulling",
+        _ => "working",
+    }
+}
+
+/// Renders live progress to stderr as a single rewritten line while an
+/// operation runs, then clears it. Active only when stderr is a terminal, so
+/// piped or redirected runs stay clean; the machine-readable stream is
+/// `--jsonl`. The model lock also serializes the concurrent member threads'
+/// terminal writes.
+struct StderrProgressSink {
+    term: console::Term,
+    enabled: bool,
+    state: Mutex<ProgressModel>,
+    tick: AtomicUsize,
+}
+
+impl StderrProgressSink {
+    fn new(label: impl Into<String>) -> Self {
+        let term = console::Term::stderr();
+        let enabled = term.is_term();
+        Self {
+            term,
+            enabled,
+            state: Mutex::new(ProgressModel::new(label)),
+            tick: AtomicUsize::new(0),
+        }
+    }
+}
+
+impl gwz_core::operation::EventSink for StderrProgressSink {
+    fn deliver(&self, event: gwz_core::OperationEvent) {
+        let mut state = self.state.lock().expect("progress state poisoned");
+        let changed = state.apply(&event);
+        if !self.enabled {
+            return;
+        }
+        if event.kind == gwz_core::EventKind::OperationFinished {
+            let _ = self.term.clear_line();
+            return;
+        }
+        if !changed {
+            return;
+        }
+        let tick = self.tick.fetch_add(1, Ordering::Relaxed);
+        let line = truncate_to_width(&render_progress_line(&state, tick), &self.term);
+        let _ = self.term.clear_line();
+        let _ = self.term.write_str(&line);
+    }
+}
+
+/// Truncates to one terminal width so the `\r` redraw never wraps and leaves
+/// orphaned text. Width 0 (unknown) means no truncation.
+fn truncate_to_width(line: &str, term: &console::Term) -> String {
+    let width = term.size().1 as usize;
+    if width == 0 || line.chars().count() <= width {
+        return line.to_owned();
+    }
+    line.chars().take(width.saturating_sub(1)).collect()
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CliError {
     message: String,
@@ -691,14 +918,15 @@ fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliErro
     let backend = gwz_core::git::Git2Backend::new();
     let operation_id = new_operation_id();
     let start = invocation.start_dir.as_path();
-    // In --jsonl mode, stream events to stdout as they are emitted; other modes
-    // drop them (the human progress renderer is a separate slice).
+    // --jsonl streams machine records to stdout; Human renders a live progress
+    // line to stderr (TTY-gated); Json/Porcelain stay quiet.
     let jsonl_sink = JsonlSink;
     let null_sink = gwz_core::operation::NullSink;
-    let events: &dyn gwz_core::operation::EventSink = if invocation.output == OutputMode::Jsonl {
-        &jsonl_sink
-    } else {
-        &null_sink
+    let progress_sink = StderrProgressSink::new(operation_label(&invocation.request));
+    let events: &dyn gwz_core::operation::EventSink = match invocation.output {
+        OutputMode::Jsonl => &jsonl_sink,
+        OutputMode::Human => &progress_sink,
+        OutputMode::Json | OutputMode::Porcelain => &null_sink,
     };
     let response = match &invocation.request {
         CliRequest::CloneWorkspace { meta, url, target } => {
@@ -2293,5 +2521,168 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    fn progress_event(
+        kind: gwz_core::EventKind,
+        member_path: Option<&str>,
+        progress: Option<gwz_core::GitTransferProgress>,
+    ) -> gwz_core::OperationEvent {
+        gwz_core::OperationEvent {
+            operation_id: "op".to_owned(),
+            request_id: "req".to_owned(),
+            sequence: 0,
+            timestamp_ms: 0,
+            kind,
+            severity: gwz_core::Severity::Info,
+            member_id: member_path.map(|_| "m".to_owned()),
+            member_path: member_path.map(str::to_owned),
+            message: None,
+            member: None,
+            error: None,
+            attribution: None,
+            progress,
+        }
+    }
+
+    fn receiving(recv: i64, total: i64, bytes: i64) -> gwz_core::GitTransferProgress {
+        gwz_core::GitTransferProgress {
+            phase: gwz_core::GitProgressPhase::Receiving,
+            received_objects: Some(recv),
+            total_objects: Some(total),
+            received_bytes: Some(bytes),
+            indexed_deltas: None,
+            total_deltas: None,
+        }
+    }
+
+    #[test]
+    fn progress_model_folds_member_lifecycle() {
+        use gwz_core::EventKind;
+        let mut model = ProgressModel::new("cloning");
+
+        assert!(model.apply(&progress_event(
+            EventKind::MemberStarted,
+            Some("repos/foo"),
+            None
+        )));
+        assert!(model.apply(&progress_event(
+            EventKind::MemberStarted,
+            Some("repos/bar"),
+            None
+        )));
+        assert_eq!((model.started, model.finished, model.active()), (2, 0, 2));
+
+        assert!(model.apply(&progress_event(
+            EventKind::MemberProgress,
+            Some("repos/foo"),
+            Some(receiving(10, 100, 2048)),
+        )));
+        assert_eq!(model.current_path.as_deref(), Some("repos/foo"));
+        assert!(model.current_progress.is_some());
+
+        // Finishing the current member clears the surfaced detail.
+        assert!(model.apply(&progress_event(
+            EventKind::MemberFinished,
+            Some("repos/foo"),
+            None
+        )));
+        assert_eq!((model.finished, model.active()), (1, 1));
+        assert_eq!(model.current_path, None);
+        assert!(model.current_progress.is_none());
+
+        // Finishing a non-current member only moves the counts.
+        model.current_path = Some("repos/bar".to_owned());
+        assert!(model.apply(&progress_event(
+            EventKind::MemberFinished,
+            Some("repos/baz"),
+            None
+        )));
+        assert_eq!((model.finished, model.active()), (2, 0));
+        assert_eq!(model.current_path.as_deref(), Some("repos/bar"));
+    }
+
+    #[test]
+    fn progress_model_ignores_non_member_events() {
+        use gwz_core::EventKind;
+        let mut model = ProgressModel::new("materializing");
+        assert!(!model.apply(&progress_event(EventKind::OperationStarted, None, None)));
+        assert!(!model.apply(&progress_event(EventKind::ArtifactWritten, None, None)));
+        assert!(!model.apply(&progress_event(EventKind::OperationFinished, None, None)));
+        assert_eq!((model.started, model.finished), (0, 0));
+    }
+
+    #[test]
+    fn render_progress_line_shows_counts_and_receiving_detail() {
+        let model = ProgressModel {
+            label: "cloning".to_owned(),
+            started: 3,
+            finished: 1,
+            current_path: Some("repos/app.git".to_owned()),
+            current_progress: Some(receiving(1234, 2730, 3_400_000)),
+        };
+        assert_eq!(
+            render_progress_line(&model, 0),
+            "⠋ cloning: 1 done, 2 active · app receiving 45% (1234/2730), 3.2 MiB"
+        );
+    }
+
+    #[test]
+    fn render_progress_line_without_current_member_is_just_counts() {
+        let model = ProgressModel {
+            label: "pulling".to_owned(),
+            started: 2,
+            finished: 2,
+            current_path: None,
+            current_progress: None,
+        };
+        assert_eq!(
+            render_progress_line(&model, 0),
+            "⠋ pulling: 2 done, 0 active"
+        );
+        // The spinner advances with the tick.
+        assert!(render_progress_line(&model, 1).starts_with("⠙ "));
+    }
+
+    #[test]
+    fn progress_detail_covers_resolving_and_counting_phases() {
+        let resolving = gwz_core::GitTransferProgress {
+            phase: gwz_core::GitProgressPhase::Resolving,
+            received_objects: None,
+            total_objects: None,
+            received_bytes: None,
+            indexed_deltas: Some(980),
+            total_deltas: Some(1254),
+        };
+        assert_eq!(progress_detail(&resolving), "78% (980/1254)");
+
+        let counting = gwz_core::GitTransferProgress {
+            phase: gwz_core::GitProgressPhase::Counting,
+            received_objects: None,
+            total_objects: Some(500),
+            received_bytes: None,
+            indexed_deltas: None,
+            total_deltas: None,
+        };
+        assert_eq!(progress_detail(&counting), "500");
+    }
+
+    #[test]
+    fn human_bytes_uses_binary_units() {
+        assert_eq!(human_bytes(0), "0 B");
+        assert_eq!(human_bytes(512), "512 B");
+        assert_eq!(human_bytes(1024), "1.0 KiB");
+        assert_eq!(human_bytes(1536), "1.5 KiB");
+        assert_eq!(human_bytes(1_048_576), "1.0 MiB");
+        assert_eq!(human_bytes(1_073_741_824), "1.0 GiB");
+        assert_eq!(human_bytes(-5), "0 B");
+    }
+
+    #[test]
+    fn member_short_name_strips_dir_and_git_suffix() {
+        assert_eq!(member_short_name("repos/app.git"), "app");
+        assert_eq!(member_short_name("app"), "app");
+        assert_eq!(member_short_name("a/b/c"), "c");
+        assert_eq!(member_short_name("x/"), "x");
     }
 }
