@@ -5,6 +5,10 @@ fn main() {
         println!("gwz {}", gwz_core::version());
         return;
     }
+    if args.iter().any(|arg| arg == "-h" || arg == "--help") {
+        print!("{}", usage_text());
+        return;
+    }
 
     match parse_args(args) {
         Ok(invocation) => match execute_invocation(&invocation) {
@@ -22,6 +26,50 @@ fn main() {
             std::process::exit(2);
         }
     }
+}
+
+fn usage_text() -> &'static str {
+    "\
+Usage: gwz [OPTIONS] <COMMAND>
+
+Commands:
+  gwz init
+  gwz init <url>...
+  gwz add <repo-path>
+  gwz repo create <member-path>
+  gwz status
+  gwz snapshot <name>
+  gwz tag <name>
+  gwz materialize --lock
+  gwz materialize --snapshot <name>
+  gwz materialize --tag <name>
+  gwz pull --head
+  gwz pull --snapshot <name>
+  gwz push
+
+Options:
+  --root <path>
+  --member <member-id>
+  --path <member-path>
+  --all
+  --dry-run
+  --partial
+  --force
+  --sync <fetch-only|ff-only|merge|rebase|reset|driver-selected>
+  --remote <name>
+  --jobs <n>
+  --json
+  --jsonl
+  -h, --help
+  --version
+
+Status options:
+  --combined
+  --no-combined
+  --porcelain
+  --no-files
+  --no-branches
+"
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -760,6 +808,16 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::*;
+
+    #[test]
+    fn usage_text_covers_standard_help_and_commands() {
+        let usage = usage_text();
+
+        assert!(usage.contains("Usage: gwz"));
+        assert!(usage.contains("-h, --help"));
+        assert!(usage.contains("gwz init <url>..."));
+        assert!(usage.contains("gwz status"));
+    }
 
     #[test]
     fn parses_init_workspace_with_root() {

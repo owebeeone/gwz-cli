@@ -6,6 +6,21 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::Value;
 
 #[test]
+fn help_flags_print_usage() {
+    let temp = TempDir::new("help");
+    for flag in ["--help", "-h"] {
+        let output = gwz(temp.path()).arg(flag).output().unwrap();
+
+        assert_success(&output);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("Usage: gwz"));
+        assert!(stdout.contains("-h, --help"));
+        assert!(stdout.contains("gwz init"));
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
 fn init_status_snapshot_tag_and_materialize_targets_work() {
     let temp = TempDir::new("init-status");
     let remote = RemoteFixture::new("init-status-source");
