@@ -21,8 +21,19 @@ change. This is advisory, not a hard limit.
 - Bundle-wide `pop` MUST be the default.
 - Per-member `pop` MAY be supported only when explicit through member selection,
   and MUST update bundle metadata so partial restoration is visible.
-- `stash@{n}` MUST be advisory only. Lookup MUST prefer the GWZ message prefix
-  and stash commit identity when available.
+- `stash@{n}` MUST be display-only. Native stash indices move after every stash
+  mutation and MUST NOT be persisted as restore identity.
+- The native stash object id MUST be the primary stash identity. Message-prefix
+  lookup is a fallback for recovery and older metadata.
+- Git stash mutations MUST execute sequentially inside one workspace operation.
+  Do not use the per-host parallel execution pool for stash push, apply, pop, or
+  drop.
+- v0 MUST assume one workspace mutator at a time, enforced by an existing
+  workspace operation lock or by a stash-specific lock before stash mutation
+  begins.
+- Registry reconciliation MUST scan both directions:
+  - registry entry points at missing native stash payload
+  - native GWZ-prefixed stash payload has no registry bundle
 
 ## Target Commands
 
@@ -60,7 +71,7 @@ members:
     restore_state: pending
     stash_message: "gwz:stsh_01JZABC123: before-refactor"
     git_stash_oid: "..."
-    git_stash_ref: "stash@{0}"
+    display_stash_ref: "stash@{0}"
     branch_before: main
     head_before: "..."
     dirty_summary_before:
@@ -83,7 +94,10 @@ Participation values:
 
 - `stashed`: native Git stash entry was created
 - `empty`: member participated but had nothing to stash
-- `skipped`: member was not part of this explicit operation
+
+Do not persist skipped members. Skipped members are non-membership, not bundle
+state. They MAY appear in command responses but MUST NOT be written to bundle
+files.
 
 Restore state values:
 
@@ -93,6 +107,10 @@ Restore state values:
 - `dropped`: stash was dropped without applying
 - `noop`: clean member with no Git stash payload
 - `missing`: registry entry no longer has a matching Git stash payload
+
+`branch_before` and `head_before` MUST be used by restore preflight to detect
+base drift. v0 SHOULD report this as a warning in the response before attempting
+native apply/pop. A later strict mode MAY reject drift before mutation.
 
 ## Step 1: Spec Tightening
 
@@ -111,6 +129,15 @@ Work:
 - State that root repository stash support is deferred.
 - State that explicit member selection on `pop`, `apply`, and `drop` creates a
   partial bundle and updates `restore_state`.
+- State that `apply` always marks selected members `applied`, regardless of
+  whether the user selected the whole bundle or explicit members. The state
+  describes native Git reality, not command spelling.
+- State that restore operations may partially fail after preflight because a
+  clean worktree can still conflict with a stash. The operation MUST stop on
+  first conflict, keep unattempted members pending, and return a typed partial
+  result naming the failing member.
+- Clarify that stale project spelling in docs currently blocks the rename guard;
+  Step 1 MUST clean those docs before full verification can pass.
 
 Verification:
 
@@ -134,14 +161,21 @@ Work:
 - Validate schema, workspace id, stash id, member ids, member paths, and state
   enum values.
 - Keep `.gwz/` reserved and local.
+- Add bundle states for pending intent and finalized bundle records, or model
+  intent through per-member records that can represent not-yet-attempted,
+  completed, and failed push work.
+- Add a workspace stash lock helper or clearly integrate with the existing
+  workspace mutation lock before any stash operation mutates member repos.
 
 Tests first:
 
 - Round-trip one bundle with `stashed`, `empty`, and partial restore states.
 - Reject unsupported schema versions.
 - Reject duplicate or invalid member records.
+- Reject persisted skipped members.
 - Atomic write replaces existing bundle cleanly.
 - Listing returns newest first by `created_at`.
+- Concurrent stash mutations cannot both acquire the workspace stash lock.
 
 Exit criteria:
 
@@ -167,9 +201,24 @@ stash_pop(path, selector, preserve_index) -> GitStashPopResult
 stash_drop(path, selector) -> GitStashDropResult
 ```
 
-- Selector MUST support message prefix and, when available, stash object id.
-- Result SHOULD include stash oid, advisory stash ref, message, and timestamp
+- The Git2 backend MUST account for the libgit2/git2 API shape:
+  - `stash_save` returns an object id
+  - `stash_foreach` exposes `(index, message, oid)`
+  - `stash_apply`, `stash_pop`, and `stash_drop` accept only a numeric index
+- Selector resolution MUST therefore run `stash_foreach` to map GWZ identity to
+  the current index, then call the index-based mutation.
+- Restore and drop operations MUST re-resolve the current index immediately
+  before every `apply`, `pop`, or `drop`. Never cache a stash index across a
+  mutation.
+- Selector matching order MUST be:
+  1. exact stash object id
+  2. GWZ message prefix
+- Result SHOULD include stash oid, display-only stash ref, message, and timestamp
   when Git exposes them.
+- Option mapping:
+  - `--include-untracked` maps to `StashFlags::INCLUDE_UNTRACKED`
+  - `--all` maps to `StashFlags::INCLUDE_UNTRACKED | StashFlags::INCLUDE_IGNORED`
+  - preserve index maps to `StashApplyFlags::REINSTATE_INDEX`
 
 Tests first:
 
@@ -180,6 +229,8 @@ Tests first:
 - Apply restores but keeps stash entry.
 - Pop restores and removes only the matching GWZ stash.
 - Drop removes only the matching GWZ stash.
+- Two GWZ bundles in one member can pop the older bundle correctly after the
+  newer bundle changes the current stash indices.
 - Non-GWZ stashes are not touched.
 
 Exit criteria:
@@ -228,18 +279,27 @@ Work:
 - Resolve workspace and selection.
 - Generate a stash id.
 - Preflight all selected active Git members.
+- Write a pending bundle intent before the first native stash mutation. The
+  intent MUST record the stash id, selected members, message, options, and
+  not-yet-attempted member states.
 - For each selected member:
   - record `empty` when no included changes exist
   - run native stash when changes exist
   - record message, oid/ref, branch/head, and dirty summary
-- Write bundle after member stashes complete.
+- Update the pending bundle after each successful native stash mutation.
+- Finalize the bundle after member stashes complete.
 
 Atomicity notes:
 
 - Full atomicity is not guaranteed once native Git mutations start.
 - Preflight MUST reduce predictable failures.
-- If mutation fails mid-operation, GWZ MUST write a recovery bundle for any
-  completed member stashes and return a typed partial failure.
+- If mutation fails mid-operation, GWZ MUST leave a recoverable bundle with
+  completed member stashes, pending unattempted members, and the failing member
+  detail, then return a typed partial failure.
+- If `stash_save` succeeds and the process dies before registry update,
+  reconciliation MUST discover the orphaned GWZ-prefixed native stash and either
+  adopt it into the pending bundle or report it as an orphan that can be adopted.
+- Stash push MUST process members sequentially.
 
 Tests first:
 
@@ -251,6 +311,8 @@ Tests first:
 - `-u` includes untracked files.
 - `-a` includes ignored files.
 - Mid-operation failure records recoverable partial metadata.
+- Orphaned GWZ-prefixed native stashes are discovered when no finalized bundle
+  references them.
 
 Exit criteria:
 
@@ -266,8 +328,13 @@ Files:
 
 Work:
 
-- Core loads bundle registry and optionally reconciles against member `git stash
-  list`.
+- Core loads bundle registry and reconciles against member `git stash list`.
+- Reconciliation MUST detect registry entries whose native stash payload is
+  missing.
+- Reconciliation MUST detect native GWZ-prefixed stash payloads that are not
+  referenced by any bundle.
+- Orphaned native stash payloads SHOULD be surfaced in list output and MAY be
+  adopted into a bundle by a later explicit repair command.
 - Combined human output shows one line per bundle.
 - `--no-combined` expands per-member participation and restore state.
 - JSON output exposes full bundle metadata.
@@ -279,6 +346,7 @@ Tests first:
   state when applicable.
 - Expanded list shows per-member stash refs or clean/noop state.
 - Drift is surfaced when a registry entry points at a missing Git stash.
+- Drift is surfaced when a native GWZ-prefixed Git stash has no registry bundle.
 
 Exit criteria:
 
@@ -297,10 +365,19 @@ Work:
 - Resolve newest eligible bundle when no stash id is supplied.
 - For explicit stash id, use that bundle.
 - Preflight all pending `stashed` members in the bundle.
-- `apply` restores all pending stashed members and sets `restore_state: applied`
-  when selection is explicit or keeps state pending when applying bundle-wide.
+- `apply` restores all selected pending stashed members and sets
+  `restore_state: applied`. Native stash payloads remain present.
 - `pop` restores all pending stashed members, drops native stash entries, and
   sets `restore_state: popped`.
+- Restore operations MUST process members sequentially.
+- Before each native apply/pop, resolve the current stash index from the member's
+  current stash list by oid first, message prefix second.
+- If a native apply/pop conflicts after earlier members succeeded, GWZ MUST:
+  - stop immediately
+  - leave unattempted members `pending`
+  - preserve successful member state updates
+  - name the failing member
+  - return a typed partial failure with `StashConflict`
 - Delete the bundle file only after all members are terminal:
   `popped`, `dropped`, or `noop`.
 
@@ -310,7 +387,12 @@ Tests first:
 - Bundle-wide apply restores all dirty members and keeps Git stash payloads.
 - Pop never touches unrelated Git stashes.
 - Missing native stash returns `StashIncomplete`.
+- Restore reports a base-drift warning when current branch/head differs from
+  `branch_before` or `head_before`.
 - Dirty destination worktree returns `StashConflict` before mutation.
+- Clean destination worktree can still conflict during native apply/pop; the
+  operation records successful prior members, stops at the conflict, and leaves
+  later members pending.
 
 Exit criteria:
 
@@ -362,6 +444,9 @@ Work:
 
 - Drop native stash payloads for selected pending/applied members.
 - Set restore state to `dropped`.
+- Drop operations MUST process members sequentially.
+- Before each native drop, resolve the current stash index by oid first, message
+  prefix second.
 - Delete bundle file when all member states are terminal.
 
 Tests first:
@@ -400,8 +485,6 @@ Verification:
 
 ## Open Questions
 
-- Should `apply` mark `restore_state: applied`, or should it leave state
-  `pending` because the native stash still exists?
 - Should `pop` preserve staged state by default with `--index`, or should this
   be opt-in?
 - Should missing native stash on `drop` be terminal `missing`, or should the
@@ -410,3 +493,7 @@ Verification:
   members are pending?
 - Should root repository stash support be added after the workspace root has an
   initial commit flow?
+- Should `gwz status` mention open GWZ stash bundles, for example
+  `2 open stash bundles`, or should stash state stay only in `gwz stash list`?
+- Should orphaned native GWZ-prefixed stashes be auto-adopted during list, or
+  should adoption require an explicit repair command?

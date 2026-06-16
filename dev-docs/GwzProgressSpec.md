@@ -347,6 +347,6 @@ smoke.
 
 ## Related Docs
 
-- `gwz-core/protocol/gws.taut.py` — `OperationEvent`, `EventKind`
+- `gwz-core/protocol/gwz.taut.py` — `OperationEvent`, `EventKind`
 - `gwz-core/src/operation/mod.rs` — runtime, `EventSink`
 - `gwz-cli/src/main.rs` — current synchronous execute/render path
