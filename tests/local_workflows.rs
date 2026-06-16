@@ -11,7 +11,7 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
     let remote = RemoteFixture::new("init-status-source");
     let first = remote.commit_and_push("README.md", "one", "initial");
 
-    let init = gws(temp.path())
+    let init = gwz(temp.path())
         .args(["--root", temp.path_str(), "--jsonl", "init", remote.url()])
         .output()
         .unwrap();
@@ -19,7 +19,7 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
     assert_eq!(json_lines(&init)[0]["kind"], "response");
     assert_eq!(json_lines(&init)[0]["meta"]["aggregate_status"], "Ok");
 
-    let status_root = gws(temp.path())
+    let status_root = gwz(temp.path())
         .args([
             "--root",
             temp.path_str(),
@@ -32,7 +32,7 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
     assert_success(&status_root);
     assert_eq!(json(&status_root)["members"][0]["status"], "Ok");
 
-    let status_member = gws(&temp.path().join("repos/remote"))
+    let status_member = gwz(&temp.path().join("repos/remote"))
         .args(["--json", "status", "--no-combined"])
         .output()
         .unwrap();
@@ -40,13 +40,13 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
     assert_eq!(json(&status_member)["meta"]["aggregate_status"], "Ok");
 
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "snapshot", "snap_first"])
             .output()
             .unwrap(),
     );
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "tag", "tag_first"])
             .output()
             .unwrap(),
@@ -54,7 +54,7 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
 
     fs::remove_dir_all(temp.path().join("repos/remote")).unwrap();
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "materialize", "--lock"])
             .output()
             .unwrap(),
@@ -66,19 +66,19 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
 
     let second = remote.commit_and_push("README.md", "two", "second");
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "pull", "--head"])
             .output()
             .unwrap(),
     );
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "snapshot", "snap_second"])
             .output()
             .unwrap(),
     );
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args([
                 "--root",
                 temp.path_str(),
@@ -92,7 +92,7 @@ fn init_status_snapshot_tag_and_materialize_targets_work() {
     );
     assert_eq!(repo_head(&temp.path().join("repos/remote")), Some(first));
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args([
                 "--root",
                 temp.path_str(),
@@ -113,7 +113,7 @@ fn pull_head_and_push_work_with_local_remote() {
     let remote = RemoteFixture::new("pull-push-source");
     let first = remote.commit_and_push("README.md", "one", "initial");
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "init", remote.url()])
             .output()
             .unwrap(),
@@ -121,7 +121,7 @@ fn pull_head_and_push_work_with_local_remote() {
 
     let second = remote.commit_and_push("README.md", "two", "second");
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "pull", "--head"])
             .output()
             .unwrap(),
@@ -135,7 +135,7 @@ fn pull_head_and_push_work_with_local_remote() {
         "local",
     );
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "push", "--remote", "origin"])
             .output()
             .unwrap(),
@@ -151,7 +151,7 @@ fn pull_head_and_push_work_with_local_remote() {
 fn add_create_and_dry_run_commands_work() {
     let temp = TempDir::new("add-create");
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "init"])
             .output()
             .unwrap(),
@@ -160,18 +160,18 @@ fn add_create_and_dry_run_commands_work() {
     let existing = temp.path().join("repos/existing");
     create_repo_with_commit(&existing);
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "add", existing.to_str().unwrap()])
             .output()
             .unwrap(),
     );
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "repo", "create", "repos/empty"])
             .output()
             .unwrap(),
     );
-    let dry_run = gws(temp.path())
+    let dry_run = gwz(temp.path())
         .args([
             "--root",
             temp.path_str(),
@@ -190,13 +190,13 @@ fn add_create_and_dry_run_commands_work() {
 fn combined_status_is_explicitly_unsupported_until_backend_file_entries_exist() {
     let temp = TempDir::new("combined-status");
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "init"])
             .output()
             .unwrap(),
     );
 
-    let output = gws(temp.path())
+    let output = gwz(temp.path())
         .args(["--root", temp.path_str(), "status"])
         .output()
         .unwrap();
@@ -213,7 +213,7 @@ fn pull_head_dirty_member_blocks_partial_mutation() {
     let bad = RemoteFixture::new_named("pull-atomic-bad", "bad");
     bad.commit_and_push("README.md", "one", "initial");
     assert_success(
-        &gws(temp.path())
+        &gwz(temp.path())
             .args(["--root", temp.path_str(), "init", good.url(), bad.url()])
             .output()
             .unwrap(),
@@ -221,7 +221,7 @@ fn pull_head_dirty_member_blocks_partial_mutation() {
     let good_second = good.commit_and_push("README.md", "two", "second");
     fs::write(temp.path().join("repos/bad/README.md"), "dirty").unwrap();
 
-    let output = gws(temp.path())
+    let output = gwz(temp.path())
         .args(["--root", temp.path_str(), "pull", "--head"])
         .output()
         .unwrap();
@@ -234,8 +234,8 @@ fn pull_head_dirty_member_blocks_partial_mutation() {
     );
 }
 
-fn gws(cwd: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_gws"));
+fn gwz(cwd: &Path) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_gwz"));
     command.current_dir(cwd);
     command
 }
@@ -284,7 +284,7 @@ fn commit_in_repo(
     index.write().unwrap();
     let tree_id = index.write_tree().unwrap();
     let tree = repo.find_tree(tree_id).unwrap();
-    let signature = git2::Signature::now("GWS Test", "gws@example.invalid").unwrap();
+    let signature = git2::Signature::now("GWZ Test", "gwz@example.invalid").unwrap();
     let parents = repo
         .head()
         .ok()
@@ -380,7 +380,7 @@ impl TempDir {
             .unwrap()
             .as_nanos();
         let path = std::env::temp_dir().join(format!(
-            "gws-cli-it-{prefix}-{}-{unique}",
+            "gwz-cli-it-{prefix}-{}-{unique}",
             std::process::id()
         ));
         fs::create_dir_all(&path).unwrap();

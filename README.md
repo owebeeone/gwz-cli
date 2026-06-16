@@ -1,28 +1,28 @@
-# gws-cli
+# gwz-cli
 
-`gws-cli` provides the `gws` command-line driver for `gws-core`.
+`gwz-cli` provides the `gwz` command-line driver for `gwz-core`.
 
-The CLI is intentionally thin: it parses argv, builds GWS requests, calls
-`gws-core`, and renders responses/events.
+The CLI is intentionally thin: it parses argv, builds GWZ requests, calls
+`gwz-core`, and renders responses/events.
 
 ## Current Commands
 
 ```text
-gws init
-gws init <url>...
-gws add <repo-path>
-gws repo create <member-path>
-gws status
-gws status --no-combined
-gws status --porcelain
-gws snapshot <name>
-gws tag <name>
-gws materialize --lock
-gws materialize --snapshot <name>
-gws materialize --tag <name>
-gws pull --head
-gws pull --snapshot <name>
-gws push
+gwz init
+gwz init <url>...
+gwz add <repo-path>
+gwz repo create <member-path>
+gwz status
+gwz status --no-combined
+gwz status --porcelain
+gwz snapshot <name>
+gwz tag <name>
+gwz materialize --lock
+gwz materialize --snapshot <name>
+gwz materialize --tag <name>
+gwz pull --head
+gwz pull --snapshot <name>
+gwz push
 ```
 
 Common flags:
@@ -55,12 +55,12 @@ Status-specific flags:
 Examples:
 
 ```text
-gws --root /tmp/ws init /tmp/source.git
-gws --root /tmp/ws status --json
-gws --root /tmp/ws status --no-combined --json
-gws --root /tmp/ws snapshot snap_one
-gws --root /tmp/ws pull --head
-gws --root /tmp/ws push --remote origin
+gwz --root /tmp/ws init /tmp/source.git
+gwz --root /tmp/ws status --json
+gwz --root /tmp/ws status --no-combined --json
+gwz --root /tmp/ws snapshot snap_one
+gwz --root /tmp/ws pull --head
+gwz --root /tmp/ws push --remote origin
 ```
 
 ## Development
@@ -74,4 +74,4 @@ cargo run -- --version
 
 ## License
 
-`gws-cli` is licensed under GPL-2.0-only, the same license family used by Git.
+`gwz-cli` is licensed under GPL-2.0-only, the same license family used by Git.

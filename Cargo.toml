@@ -1,16 +1,16 @@
 [package]
-name = "gws-cli"
+name = "gwz-cli"
 version = "0.1.0"
 edition = "2024"
 license = "GPL-2.0-only"
 rust-version = "1.95"
 
 [[bin]]
-name = "gws"
+name = "gwz"
 path = "src/main.rs"
 
 [dependencies]
-gws-core = { path = "../gws-core" }
+gwz-core = { path = "../gwz-core" }
 serde_json = "1"
 
 [dev-dependencies]
