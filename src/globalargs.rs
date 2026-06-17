@@ -356,11 +356,11 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             )
         }
         CliRequest::Snapshot(request) => {
-            gwz_core::workspace_ops::handle_snapshot(start, request.clone(), operation_id)
+            gwz_core::workspace_ops::handle_snapshot(&backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::Tag(request) => {
-            gwz_core::workspace_ops::handle_tag(start, request.clone(), operation_id)
+            gwz_core::workspace_ops::handle_tag(&backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::PullHead(request) => gwz_core::workspace_ops::handle_pull_head_with_events(
