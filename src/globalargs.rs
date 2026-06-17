@@ -410,7 +410,9 @@ pub(crate) fn exit_code_for_response(response: &gwz_core::ResponseEnvelope) -> i
     match response.meta.aggregate_status {
         gwz_core::AggregateStatus::Accepted
         | gwz_core::AggregateStatus::Ok
-        | gwz_core::AggregateStatus::Noop => 0,
+        | gwz_core::AggregateStatus::Noop
+        // F5/AD3: a dirty workspace is the normal resting state (like `git status`) — exit 0.
+        | gwz_core::AggregateStatus::Dirty => 0,
         gwz_core::AggregateStatus::Rejected => 2,
         gwz_core::AggregateStatus::Partial | gwz_core::AggregateStatus::Failed => 1,
     }

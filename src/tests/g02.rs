@@ -117,6 +117,14 @@ pub(crate) fn exit_code_mapping_distinguishes_success_rejected_and_failed() {
         )),
         1
     );
+    // F5: a dirty workspace is normal -- exit 0.
+    assert_eq!(
+        exit_code_for_response(&sample_response(
+            gwz_core::AggregateStatus::Dirty,
+            gwz_core::MemberStatus::Ok,
+        )),
+        0
+    );
 }
 
 pub(crate) fn sample_response(
