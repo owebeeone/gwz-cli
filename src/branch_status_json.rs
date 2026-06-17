@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) fn workspace_git_status_json(
     status: &gwz_core::WorkspaceGitStatus,

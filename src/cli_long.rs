@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const CLI_LONG: &str = "\
 GWZ manages a local workspace made from multiple git repositories.

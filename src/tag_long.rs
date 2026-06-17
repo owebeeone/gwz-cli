@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const TAG_LONG: &str = "\
 Record a named GWZ workspace tag.

@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 use clap::Parser;
 
 mod add_after;

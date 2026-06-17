@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const SNAPSHOT_LONG: &str = "\
 Record the current workspace selection as a named snapshot.

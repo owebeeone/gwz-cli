@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) fn member_json(member: &gwz_core::MemberResponse) -> serde_json::Value {
     serde_json::json!({

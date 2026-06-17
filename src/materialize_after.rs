@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const MATERIALIZE_AFTER: &str = "\
 Examples:

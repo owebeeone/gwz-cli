@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const STATUS_LONG: &str = "\
 Show git status across workspace members.

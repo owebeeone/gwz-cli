@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) fn new_operation_id() -> String {
     format!("op_{}", unique_suffix())

@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const INIT_LONG: &str = "\
 Create a workspace or initialize one from source URLs.

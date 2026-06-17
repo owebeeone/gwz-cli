@@ -1,6 +1,4 @@
 use clap::Args;
-#[cfg(test)]
-use clap::CommandFactory;
 
 #[derive(Clone, Debug, Args)]
 pub(crate) struct NameArgs {

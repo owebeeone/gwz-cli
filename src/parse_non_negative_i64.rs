@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) fn parse_non_negative_i64(value: &str) -> Result<i64, String> {
     let parsed = value

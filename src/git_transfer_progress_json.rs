@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) fn git_transfer_progress_json(
     progress: &gwz_core::GitTransferProgress,

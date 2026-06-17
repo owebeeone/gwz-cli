@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const PULL_LONG: &str = "\
 Move workspace members forward to an explicit target.

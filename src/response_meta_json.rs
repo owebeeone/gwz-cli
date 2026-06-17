@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) fn response_meta_json(meta: &gwz_core::ResponseMeta) -> serde_json::Value {
     serde_json::json!({

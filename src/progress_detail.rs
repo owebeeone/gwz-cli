@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

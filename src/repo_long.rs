@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const REPO_LONG: &str = "\
 Manage repository members inside a workspace.

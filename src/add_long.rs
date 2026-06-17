@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 
 pub(crate) const ADD_LONG: &str = "\
 Add an existing local git repository to the workspace.
