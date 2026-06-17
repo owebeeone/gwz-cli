@@ -518,7 +518,12 @@ fn combined_status_succeeds_by_default() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("Workspace root on branch main"), "{stdout}");
+    assert!(stdout.contains("On branch main"), "{stdout}");
+    assert!(
+        !stdout.contains("Workspace root on branch main"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("All members on branch main"), "{stdout}");
 }
 
 #[test]
@@ -554,8 +559,12 @@ fn status_reports_branch_and_untracked_files() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("Workspace root on branch main"), "{stdout}");
-    assert!(stdout.contains("All members on branch main"), "{stdout}");
+    assert!(stdout.contains("On branch main"), "{stdout}");
+    assert!(
+        !stdout.contains("Workspace root on branch main"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("All members on branch main"), "{stdout}");
     assert!(stdout.contains("No commits yet"), "{stdout}");
     assert!(!stdout.contains("On workspace branch"), "{stdout}");
     assert!(!stdout.contains("workspace ."), "{stdout}");
@@ -589,9 +598,9 @@ fn combined_status_separates_workspace_root_branch_from_member_branches() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("Workspace root on branch foo"), "{stdout}");
+    assert!(stdout.contains("., bad on branch foo"), "{stdout}");
     assert!(stdout.contains("good on branch main"), "{stdout}");
-    assert!(stdout.contains("bad on branch foo"), "{stdout}");
+    assert!(!stdout.contains("Workspace root on branch foo"), "{stdout}");
     assert!(!stdout.contains("On workspace branch foo"), "{stdout}");
 }
 
@@ -615,8 +624,13 @@ fn no_combined_status_reports_per_repo_file_changes() {
 
     assert_success(&output);
     let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("On branch main"), "{stdout}");
     assert!(stdout.contains("Workspace root"), "{stdout}");
-    assert!(stdout.contains("Workspace root on branch main"), "{stdout}");
+    assert!(
+        !stdout.contains("Workspace root on branch main"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("All members on branch main"), "{stdout}");
     assert!(!stdout.contains("workspace ."), "{stdout}");
     assert!(!stdout.contains("mem_remote"), "{stdout}");
     assert!(stdout.contains("Changes to be committed:"), "{stdout}");
