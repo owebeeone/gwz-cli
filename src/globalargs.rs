@@ -414,7 +414,10 @@ pub(crate) fn exit_code_for_response(response: &gwz_core::ResponseEnvelope) -> i
         // F5/AD3: a dirty workspace is the normal resting state (like `git status`) — exit 0.
         | gwz_core::AggregateStatus::Dirty => 0,
         gwz_core::AggregateStatus::Rejected => 2,
-        gwz_core::AggregateStatus::Partial | gwz_core::AggregateStatus::Failed => 1,
+        // A conflict needs developer action (resolve + continue) — exit non-zero, like `git rebase`.
+        gwz_core::AggregateStatus::Partial
+        | gwz_core::AggregateStatus::Failed
+        | gwz_core::AggregateStatus::Conflicted => 1,
     }
 }
 

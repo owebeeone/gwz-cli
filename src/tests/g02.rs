@@ -125,6 +125,14 @@ pub(crate) fn exit_code_mapping_distinguishes_success_rejected_and_failed() {
         )),
         0
     );
+    // A conflicted workspace needs action -- exit 1.
+    assert_eq!(
+        exit_code_for_response(&sample_response(
+            gwz_core::AggregateStatus::Conflicted,
+            gwz_core::MemberStatus::Conflicted,
+        )),
+        1
+    );
 }
 
 pub(crate) fn sample_response(
