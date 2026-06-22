@@ -179,13 +179,7 @@ pub(crate) enum CommandArgs {
     )]
     Clone(CloneArgs),
     #[command(
-        about = "Add an existing git repository to the workspace",
-        long_about = ADD_LONG,
-        after_long_help = ADD_AFTER
-    )]
-    Add(AddArgs),
-    #[command(
-        about = "Manage workspace repositories",
+        about = "Manage workspace repositories (add an existing repo, or create one)",
         long_about = REPO_LONG,
         after_long_help = REPO_AFTER
     )]
