@@ -218,6 +218,8 @@ pub(crate) enum CommandArgs {
     Push,
     #[command(about = "Record the live worktree state into the lock (no mutation)")]
     Capture,
+    #[command(about = "Commit staged changes across members and the workspace root")]
+    Commit(CommitArgs),
 }
 
 #[derive(Clone, Debug, Args)]
@@ -391,6 +393,10 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Capture(request) => {
             gwz_core::workspace_ops::handle_capture(&backend, start, request.clone(), operation_id)
+                .map(|response| CliResponse::envelope(response.response))
+        }
+        CliRequest::Commit(request) => {
+            gwz_core::workspace_ops::handle_commit(&backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
     };

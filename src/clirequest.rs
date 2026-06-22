@@ -79,6 +79,24 @@ pub(crate) struct PullArgs {
     pub(crate) snapshot: Option<String>,
 }
 
+#[derive(Clone, Debug, Args)]
+pub(crate) struct CommitArgs {
+    #[arg(
+        short = 'm',
+        long,
+        value_name = "message",
+        help = "Commit message applied to every committed repo"
+    )]
+    pub(crate) message: String,
+
+    #[arg(
+        short = 'a',
+        long,
+        help = "Stage tracked modifications first (git commit -a)"
+    )]
+    pub(crate) all: bool,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct CliInvocation {
     pub(crate) request: CliRequest,
@@ -105,6 +123,7 @@ pub(crate) enum CliRequest {
     PullSnapshot(gwz_core::PullSnapshotRequest),
     Push(gwz_core::PushRequest),
     Capture(gwz_core::CaptureRequest),
+    Commit(gwz_core::CommitRequest),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -272,6 +291,7 @@ impl Cli {
                 meta,
             })),
             CommandArgs::Capture => Ok(CliRequest::Capture(gwz_core::CaptureRequest { meta })),
+            CommandArgs::Commit(args) => args.request(meta),
         }
     }
 }
@@ -418,6 +438,16 @@ impl PullArgs {
             })),
             _ => Ok(CliRequest::PullHead(gwz_core::PullHeadRequest { meta })),
         }
+    }
+}
+
+impl CommitArgs {
+    pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        Ok(CliRequest::Commit(gwz_core::CommitRequest {
+            meta,
+            message: self.message.clone(),
+            all: self.all.then_some(true),
+        }))
     }
 }
 
