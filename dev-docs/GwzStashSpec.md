@@ -1,6 +1,6 @@
 # GWZ Stash
 
-Status: draft
+Status: proposed / not implemented
 
 Scope: coordinated `git stash` across workspace members. CLI surface in
 `gwz-cli`; semantics and registry in `gwz-core`.
@@ -47,8 +47,10 @@ gwz:stsh_01JZABC123: <user message>
 
 If `-m` is omitted, the suffix is `gwz stash`.
 
-The prefix is how `gwz stash list` rediscovers bundles if the registry is stale,
-and how `pop` matches the correct `stash@{n}` in each repo.
+The native stash object id is the primary restore identity. The prefix is the
+fallback that lets `gwz stash list` rediscover bundles if the registry is stale,
+and lets restore operations find the correct native stash after `stash@{n}`
+indices move.
 
 ### Stash bundle
 
@@ -91,21 +93,24 @@ members:
   mem_gwz_core:
     path: gwz-core
     participation: stashed
-    git_stash_ref: stash@{2}
+    git_stash_oid: "..."
+    display_stash_ref: stash@{2}
   mem_taut:
     path: taut
     participation: empty
   mem_gwz_cli:
     path: gwz-cli
     participation: stashed
-    git_stash_ref: stash@{0}
+    git_stash_oid: "..."
+    display_stash_ref: stash@{0}
 ```
 
 Rules:
 
-- Written atomically after a successful `stash push`.
-- `git_stash_ref` is the ref at push time (`stash@{n}`); pop resolves by
-  message prefix first, falls back to stored ref if ref moved.
+- Written atomically and updated as native stash mutations complete, so partial
+  failures leave recoverable bundle metadata.
+- `git_stash_oid` is the restore identity. `display_stash_ref` is display-only
+  because native stash indices move after every stash mutation.
 - Registry MUST NOT be a workspace member path; `.gwz/` is already reserved.
 
 ## Commands
@@ -113,7 +118,7 @@ Rules:
 ### `gwz stash push`
 
 ```text
-gwz stash push [-a] [-m <message>] [--member …] [--member-path …] [--all]
+gwz stash push [-u|-a] [-m <message>] [--member …] [--member-path …] [--all]
 ```
 
 Behavior:
@@ -122,18 +127,19 @@ Behavior:
 2. Generate new `stash_id`.
 3. Preflight every selected member (repo exists, stash possible).
 4. For each member:
-   - If dirty (tracked/untracked per `-a`):  
-     `git stash push` with `-a` when set and message  
+   - If dirty (tracked by default, untracked with `-u`, ignored with `-a`):
+     `git stash push` with the requested `-u`/`-a` option and message
      `gwz:<stash_id>: <message or "gwz stash">`
    - If clean: record `participation: empty`; **do not** run `git stash push`.
-5. Write bundle under `.gwz/stash/bundles/`.
+5. Write or update bundle metadata under `.gwz/stash/bundles/`.
 6. Report per-member outcomes + aggregate status.
 
 Flags:
 
 | Flag | Maps to |
 |------|---------|
-| `-a` | `git stash push -a` on members that stash |
+| `-u` / `--include-untracked` | `git stash push -u` on members that stash |
+| `-a` / `--all` | `git stash push -a` on members that stash |
 | `-m` | User suffix only; GWZ adds prefix |
 | Selection globals | Same as `gwz status` / `gwz pull` |
 
@@ -194,9 +200,21 @@ Important: pop is **bundle-scoped**. Popping `stsh_X` never pops a member’s
 unrelated `git stash` entries. Users who want single-repo pop use `git stash`
 inside that repo.
 
-Selection narrows which bundles are eligible for “newest” resolution but a
-explicit `stash-id` still pops the **whole** bundle (all members recorded in it).
-Rationale: the bundle is the unit of consistency.
+Selection narrows which bundles are eligible for "newest" resolution. Explicit
+member selection for `pop`/`apply`/`drop` is allowed only when intentional and
+updates the bundle's per-member restore state; otherwise a restore is
+bundle-wide. Rationale: the bundle is the unit of consistency, and partial
+restore state must be visible.
+
+### `gwz stash apply`
+
+```text
+gwz stash apply [stash-id] [--member …] [--all]
+```
+
+Apply restores matching native stash payloads but keeps them present in Git.
+Selected restored members are marked `applied` in the registry so later `list`
+shows that the bundle is no longer fully pending.
 
 ### `gwz stash drop` (v0 SHOULD)
 
@@ -231,12 +249,17 @@ If a member later becomes dirty and the user runs `gwz stash push` again, a new
 | `gwz-cli` | argv, selection flags, human/json list renderers |
 | `gwz-core` | bundle id, registry I/O, per-member git stash via `GitBackend`, atomic orchestration |
 
+The workspace root repository is deferred for v0; stash operations apply to
+selected members only until root stash semantics are specified.
+
 `GitBackend` SHOULD gain:
 
 ```text
-stash_push(path, all, message) -> GitStashResult
+stash_push(path, options, message) -> GitStashResult
 stash_list(path) -> Vec<GitStashEntry>
-stash_pop(path, selector) -> GitStashPopResult   # selector = message prefix or ref
+stash_apply(path, selector, preserve_index) -> GitStashApplyResult
+stash_pop(path, selector, preserve_index) -> GitStashPopResult
+stash_drop(path, selector) -> GitStashDropResult
 ```
 
 ## Output modes
@@ -286,4 +309,4 @@ gwz stash pop stsh_01JZABC123
 
 - `gwz-cli` status combined/`--no-combined` — same list UX pattern
 - `gwz-core` `.gwz/` runtime dir — registry location
-- `GwzProgressSpec.md` — progress on `stash push`/`pop` when slow (optional)
+- `history/GwzProgressSpec.md` — progress/events implementation background
