@@ -16,19 +16,22 @@ pinned ``git`` + ``tag``. This script automates RELEASE.md steps 2-4 for a given
      Cargo.lock against gwz-core@``<tag>`` (and the script then asserts the lock really
      pins the git tag) and proves gwz-cli compiles against the pinned release -- then
      commit the merge as ``chore(release): gwz-cli X.Y.Z (pins gwz-core vX.Y.Z)``.
+  5. Tag that commit ``<tag>`` (lightweight). An existing tag is NEVER moved -- if ``<tag>``
+     already points elsewhere the script aborts rather than re-pointing a release tag.
 
 The worktree is removed afterward (kept only with ``--keep-worktree``). The ``release``
-branch advances ONLY if every step succeeds; on any failure nothing is committed and
-``release`` is left untouched. Re-running after a successful (but unpushed) release is an
-idempotent no-op. Tagging and pushing are deliberately left to you.
+branch advances ONLY if every step succeeds; on any failure nothing is committed/tagged and
+``release`` is left untouched. Re-running after a successful release is an idempotent no-op
+(and will create the tag if a prior run stopped before tagging). Pushing is left to you
+unless ``--push`` is given.
 
 This operates on your LOCAL ``main`` and ``release`` refs and does not fetch; it warns if
 either is behind its upstream. Pull first if you want the latest.
 
 Usage:
-    python scripts/release.py vX.Y.Z
-    python scripts/release.py vX.Y.Z --no-test                 # skip `cargo test` (still builds)
-    python scripts/release.py vX.Y.Z --main main --release release
+    python scripts/release.py vX.Y.Z              # reconcile + verify + commit + tag (no push)
+    python scripts/release.py vX.Y.Z --push       # also push the release branch + tag to origin
+    python scripts/release.py vX.Y.Z --no-test    # skip `cargo test` (still builds)
 """
 
 from __future__ import annotations
@@ -192,6 +195,31 @@ def verify_locked_git_pin(worktree, tag: str):
     log(f"verified Cargo.lock pins gwz-core via {source}")
 
 
+def ensure_tag(tag: str, target: str):
+    """Create the lightweight tag `tag` at commit `target`, or no-op if it already points there.
+    NEVER moves an existing tag -- released tags are immutable."""
+    existing = git(["rev-parse", "-q", "--verify", f"refs/tags/{tag}^{{commit}}"], capture=True, check=False)
+    if existing.returncode == 0:
+        if existing.stdout.strip() == target:
+            log(f"tag {tag} already points at {target[:10]} -- leaving it")
+            return
+        fail(f"tag {tag} already exists at {existing.stdout.strip()[:10]}, not the release commit "
+             f"{target[:10]} -- refusing to move a release tag (delete it yourself if this is intentional)")
+    git(["tag", tag, target])
+    log(f"created tag {tag} -> {target[:10]}")
+
+
+def push_release(release: str, tag: str):
+    """Push the release branch + tag together, atomically (both land or neither)."""
+    result = run(["git", "-C", REPO, "push", "--atomic", "origin", release, tag], capture=True, check=False)
+    if result.returncode != 0:
+        if result.stderr:
+            print(result.stderr, file=sys.stderr)
+        fail(f"`git push --atomic origin {release} {tag}` failed -- with --atomic the remote is left "
+             "unchanged; inspect `git ls-remote origin` and retry")
+    log(f"pushed {release} + {tag} to origin (atomic)")
+
+
 def remove_worktree(worktree):
     result = git(["worktree", "remove", "--force", worktree], capture=True, check=False)
     if result.returncode != 0:
@@ -211,6 +239,7 @@ def main():
     parser.add_argument("--main", default="main", help="source branch to merge from (default: main)")
     parser.add_argument("--release", default="release", help="release branch to reconcile (default: release)")
     parser.add_argument("--no-test", action="store_true", help="skip `cargo test` (still runs `cargo build`)")
+    parser.add_argument("--push", action="store_true", help="also push the release branch + tag to origin")
     parser.add_argument("--keep-worktree", action="store_true",
                         help="leave the temp worktree in place (you must `git worktree remove` it before re-running)")
     args = parser.parse_args()
@@ -232,36 +261,55 @@ def main():
 
     verify_remote_tag(gwz_core_url(args.release), tag)
 
+    # If the tag already exists, the release is already cut: never advance release past it and never
+    # move it. Checking here -- before any commit -- also removes any commit-but-no-tag window.
+    existing = git(["rev-parse", "-q", "--verify", f"refs/tags/{tag}^{{commit}}"], capture=True, check=False)
+    if existing.returncode == 0:
+        head = git(["rev-parse", args.release], capture=True).stdout.strip()
+        if existing.stdout.strip() != head:
+            fail(f"tag {tag} already exists at {existing.stdout.strip()[:10]} but {args.release} HEAD is "
+                 f"{head[:10]} -- inconsistent; resolve the tag manually before re-running")
+        log(f"{tag} already exists at {args.release} HEAD ({head[:10]}); release already cut")
+        if args.push:
+            push_release(args.release, tag)
+        return
+
     worktree = Path(tempfile.gettempdir()) / f"gwz-cli-{tag}-{os.getpid()}"
     git(["worktree", "add", worktree, args.release])
     try:
         do_merge(worktree, args.main, args.release)
         merged = merge_head_exists(worktree)
         changed = reconcile_cargo_toml(worktree, tag, version)
-        if not merged and not changed:
-            log(f"{args.release} is already reconciled for {tag}; nothing to do")
-            return
+        if merged or changed:
+            # The worktree lives outside the gwz-dev workspace, so cargo resolves gwz-core via
+            # git+tag: this refreshes Cargo.lock against the pinned release and verifies the build.
+            run(["cargo", "build"], cwd=worktree)
+            if not args.no_test:
+                run(["cargo", "test"], cwd=worktree)
+            verify_locked_git_pin(worktree, tag)
+            git_wt(worktree, ["add", "-A"])
+            message = (
+                f"chore(release): gwz-cli {version} (pins gwz-core {tag})\n\n"
+                "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+            )
+            git_wt(worktree, ["commit", "-m", message])
+            sha = git_wt(worktree, ["rev-parse", "HEAD"], capture=True, check=False).stdout.strip()
+            log(f"{args.release} reconciled -> {sha[:10] if sha else '(committed)'}  "
+                f"(gwz-cli {version}, gwz-core {tag})")
+        else:
+            log(f"{args.release} already reconciled for {tag}; no new commit needed")
+            verify_locked_git_pin(worktree, tag)  # only ever tag a commit whose lock pins the git tag
 
-        # The worktree lives outside the gwz-dev workspace, so cargo resolves gwz-core via git+tag:
-        # this refreshes Cargo.lock against the pinned release and verifies gwz-cli compiles.
-        run(["cargo", "build"], cwd=worktree)
-        if not args.no_test:
-            run(["cargo", "test"], cwd=worktree)
-        verify_locked_git_pin(worktree, tag)
+        # Tag the worktree's HEAD (== release HEAD). The tag was confirmed absent above, so this
+        # creates it; ensure_tag still refuses to move a tag if one raced in concurrently.
+        target = git_wt(worktree, ["rev-parse", "HEAD"], capture=True).stdout.strip()
+        ensure_tag(tag, target)
 
-        git_wt(worktree, ["add", "-A"])
-        message = (
-            f"chore(release): gwz-cli {version} (pins gwz-core {tag})\n\n"
-            "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
-        )
-        git_wt(worktree, ["commit", "-m", message])
-        # Past this point release has advanced; remaining steps must not be able to fail.
-        sha = git_wt(worktree, ["rev-parse", "HEAD"], capture=True, check=False).stdout.strip()
-        log(f"{args.release} reconciled -> {sha[:10] if sha else '(committed)'}  "
-            f"(gwz-cli {version}, gwz-core {tag})")
-        log("next steps (not done by this script):")
-        log(f"  git -C {REPO} tag {tag} {args.release}")
-        log(f"  git -C {REPO} push origin {args.release} {tag}")
+        if args.push:
+            push_release(args.release, tag)
+        else:
+            log("next step (not done without --push):")
+            log(f"  git -C {REPO} push origin {args.release} {tag}")
     finally:
         if args.keep_worktree:
             log(f"left worktree at {worktree} (remove it before the next run: git worktree remove)")
