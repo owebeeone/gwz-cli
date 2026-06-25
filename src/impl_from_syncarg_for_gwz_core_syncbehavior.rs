@@ -1,4 +1,3 @@
-
 use crate::*;
 
 impl From<SyncArg> for gwz_core::SyncBehavior {

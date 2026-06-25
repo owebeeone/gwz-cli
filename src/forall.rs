@@ -27,7 +27,10 @@ pub(crate) struct ForallArgs {
     )]
     pub(crate) command_string: Option<String>,
 
-    #[arg(long = "no-banner", help = "Suppress the per-member `=== <path> ===` banner")]
+    #[arg(
+        long = "no-banner",
+        help = "Suppress the per-member `=== <path> ===` banner"
+    )]
     pub(crate) no_banner: bool,
 }
 
@@ -79,7 +82,12 @@ pub(crate) fn execute_forall(
     let summary = if failures.is_empty() {
         String::new()
     } else {
-        format!("{}/{} failed: {}", failures.len(), results.len(), failures.join(", "))
+        format!(
+            "{}/{} failed: {}",
+            failures.len(),
+            results.len(),
+            failures.join(", ")
+        )
     };
     let envelope = gwz_core::operation::response_envelope_for(
         meta,
@@ -155,7 +163,10 @@ fn run_one(req: &ExecRequest, member: &MemberEntry, root: &str) -> ExecResult {
     let mut command = match req.mode {
         ExecMode::Argv => {
             // Substitute `{@}` → member path in each argv element.
-            let mut args = req.command.iter().map(|arg| arg.replace("{@}", &member.path));
+            let mut args = req
+                .command
+                .iter()
+                .map(|arg| arg.replace("{@}", &member.path));
             let Some(program) = args.next() else {
                 return spawn_failure(member, "empty command");
             };
@@ -165,7 +176,11 @@ fn run_one(req: &ExecRequest, member: &MemberEntry, root: &str) -> ExecResult {
         }
         ExecMode::Shell => {
             let script = req.command.first().cloned().unwrap_or_default();
-            let (program, flag) = if cfg!(windows) { ("cmd", "/C") } else { ("sh", "-c") };
+            let (program, flag) = if cfg!(windows) {
+                ("cmd", "/C")
+            } else {
+                ("sh", "-c")
+            };
             let mut command = Command::new(program);
             command.arg(flag).arg(script);
             command
@@ -230,7 +245,12 @@ mod tests {
         }
     }
 
-    fn request(mode: ExecMode, command: &[&str], members: Vec<MemberEntry>, continue_on_fail: bool) -> ExecRequest {
+    fn request(
+        mode: ExecMode,
+        command: &[&str],
+        members: Vec<MemberEntry>,
+        continue_on_fail: bool,
+    ) -> ExecRequest {
         ExecRequest {
             meta: gwz_core::RequestMeta::default(),
             mode,
@@ -244,7 +264,12 @@ mod tests {
     fn argv_substitutes_at_token() {
         // `test repos/app = repos/app` → exit 0, proving `{@}` → member path.
         let results = run_forall(
-            &request(ExecMode::Argv, &["test", "{@}", "=", "repos/app"], vec![member("mem_app", "repos/app")], false),
+            &request(
+                ExecMode::Argv,
+                &["test", "{@}", "=", "repos/app"],
+                vec![member("mem_app", "repos/app")],
+                false,
+            ),
             true,
             "/root",
         );
@@ -256,17 +281,31 @@ mod tests {
     fn shell_sees_member_env() {
         let script = r#"[ "$GWZ_MEMBER_PATH" = "repos/app" ] && [ "$GWZ_MEMBER_ID" = "mem_app" ] && [ "$GWZ_ROOT" = "/root" ]"#;
         let results = run_forall(
-            &request(ExecMode::Shell, &[script], vec![member("mem_app", "repos/app")], false),
+            &request(
+                ExecMode::Shell,
+                &[script],
+                vec![member("mem_app", "repos/app")],
+                false,
+            ),
             true,
             "/root",
         );
-        assert_eq!(results[0].exit_code, Some(0), "GWZ_MEMBER_* / GWZ_ROOT are exported");
+        assert_eq!(
+            results[0].exit_code,
+            Some(0),
+            "GWZ_MEMBER_* / GWZ_ROOT are exported"
+        );
     }
 
     #[test]
     fn spawn_failure_is_recorded() {
         let results = run_forall(
-            &request(ExecMode::Argv, &["definitely-not-a-real-binary-zzz"], vec![member("mem_app", "repos/app")], false),
+            &request(
+                ExecMode::Argv,
+                &["definitely-not-a-real-binary-zzz"],
+                vec![member("mem_app", "repos/app")],
+                false,
+            ),
             true,
             "/root",
         );
@@ -278,7 +317,12 @@ mod tests {
     #[test]
     fn non_zero_exit_is_a_failure() {
         let results = run_forall(
-            &request(ExecMode::Argv, &["false"], vec![member("mem_app", "repos/app")], false),
+            &request(
+                ExecMode::Argv,
+                &["false"],
+                vec![member("mem_app", "repos/app")],
+                false,
+            ),
             true,
             "/root",
         );
@@ -288,24 +332,42 @@ mod tests {
 
     #[test]
     fn filter_projects_matches_id_or_path_and_errors_on_unknown() {
-        let members = vec![member("mem_app", "repos/app"), member("mem_lib", "repos/lib")];
-        assert_eq!(filter_projects(members.clone(), &[]).unwrap().len(), 2, "empty = all");
+        let members = vec![
+            member("mem_app", "repos/app"),
+            member("mem_lib", "repos/lib"),
+        ];
+        assert_eq!(
+            filter_projects(members.clone(), &[]).unwrap().len(),
+            2,
+            "empty = all"
+        );
         let by_id = filter_projects(members.clone(), &["mem_app".to_owned()]).unwrap();
         assert_eq!(by_id.len(), 1);
         assert_eq!(by_id[0].id, "mem_app");
         let by_path = filter_projects(members.clone(), &["repos/lib".to_owned()]).unwrap();
         assert_eq!(by_path[0].id, "mem_lib", "matched by path");
-        assert!(filter_projects(members, &["nope".to_owned()]).is_err(), "unknown project errors");
+        assert!(
+            filter_projects(members, &["nope".to_owned()]).is_err(),
+            "unknown project errors"
+        );
     }
 
     #[test]
     fn stops_at_first_failure_unless_continue() {
         let two = || vec![member("mem_a", "a"), member("mem_b", "b")];
         // First member runs `false` (exit 1); default stops → only one result.
-        let stopped = run_forall(&request(ExecMode::Argv, &["false"], two(), false), true, "/root");
+        let stopped = run_forall(
+            &request(ExecMode::Argv, &["false"], two(), false),
+            true,
+            "/root",
+        );
         assert_eq!(stopped.len(), 1, "stopped at the first failure");
         // continue_on_fail runs the rest.
-        let all = run_forall(&request(ExecMode::Argv, &["false"], two(), true), true, "/root");
+        let all = run_forall(
+            &request(ExecMode::Argv, &["false"], two(), true),
+            true,
+            "/root",
+        );
         assert_eq!(all.len(), 2, "continue_on_fail runs every member");
     }
 }

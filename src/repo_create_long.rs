@@ -1,4 +1,3 @@
-
 pub(crate) const REPO_CREATE_LONG: &str = "\
 Create a new local repository member and register it with the workspace.
 

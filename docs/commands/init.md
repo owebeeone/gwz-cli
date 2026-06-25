@@ -11,12 +11,19 @@ it creates the workspace, adds those repositories as initial members, and
 materializes them from their heads.
 
 GWZ writes workspace metadata under `gwz.conf/`, including the manifest
-`gwz.conf/gwz.yml` and lock `gwz.conf/gwz.lock.yml`.
+`gwz.conf/gwz.yml` and lock `gwz.conf/gwz.lock.yml`. It also writes the
+root-only `AGENTS_GWZ.md` bootstrap file.
+
+Use `gwz init --update` in an existing workspace root to refresh GWZ-managed
+bootstrap files. GWZ overwrites `AGENTS_GWZ.md` automatically only when its
+managed SHA-256 header still matches the file body; use global `--force` to
+replace a locally edited file.
 
 ## Options
 
 | Option | Meaning |
 | --- | --- |
+| `--update` | Refresh root-only GWZ-managed bootstrap files, including `AGENTS_GWZ.md`. |
 | `--path <path-prefix>` | Workspace-relative prefix for initialized source repositories. Defaults to an empty prefix. |
 
 Global options such as `--dry-run`, `--partial`, `--force`, `--sync`,
@@ -41,6 +48,12 @@ Place initialized repositories under a prefix:
 
 ```sh
 gwz init --path repos git@github.com:org/app.git
+```
+
+Refresh the root bootstrap file:
+
+```sh
+gwz init --update
 ```
 
 ## Notes

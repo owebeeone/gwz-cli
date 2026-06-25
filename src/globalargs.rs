@@ -6,7 +6,7 @@ use crate::*;
 
 #[cfg(test)]
 pub(crate) fn usage_text() -> String {
-    Cli::command().render_help().to_string()
+    Cli::command().render_long_help().to_string()
 }
 
 #[derive(Clone, Debug, Parser)]
@@ -253,6 +253,13 @@ pub(crate) enum CommandArgs {
 #[derive(Clone, Debug, Args)]
 pub(crate) struct InitArgs {
     #[arg(
+        long,
+        help = "Refresh GWZ-managed root bootstrap files",
+        long_help = "Refresh GWZ-managed root bootstrap files in the current workspace root, including AGENTS_GWZ.md. Refuses locally edited files unless global --force is supplied."
+    )]
+    pub(crate) update: bool,
+
+    #[arg(
         long = "path",
         default_value = "",
         value_name = "path-prefix",
@@ -445,6 +452,15 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         CliRequest::CreateWorkspace(request) => {
             gwz_core::workspace_ops::handle_create_workspace(request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
+        }
+        CliRequest::UpdateBootstrap { meta } => {
+            gwz_core::workspace_ops::handle_update_workspace_bootstrap(
+                &backend,
+                start,
+                meta.clone(),
+                operation_id,
+            )
+            .map(CliResponse::envelope)
         }
         CliRequest::InitFromSources(request) => gwz_core::workspace_ops::handle_init_from_sources(
             &backend,

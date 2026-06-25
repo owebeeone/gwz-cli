@@ -1,4 +1,3 @@
-
 pub(crate) const CLONE_AFTER: &str = "\
 Examples:
   gwz clone git@github.com:org/workspace.git

@@ -151,6 +151,9 @@ pub(crate) struct CliInvocation {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum CliRequest {
     CreateWorkspace(gwz_core::CreateWorkspaceRequest),
+    UpdateBootstrap {
+        meta: gwz_core::RequestMeta,
+    },
     CloneWorkspace {
         meta: gwz_core::RequestMeta,
         url: String,
@@ -202,6 +205,7 @@ pub(crate) fn operation_label(request: &CliRequest) -> &'static str {
         CliRequest::CloneWorkspace { .. } => "cloning",
         CliRequest::Materialize(_) => "materializing",
         CliRequest::InitFromSources(_) => "initializing",
+        CliRequest::UpdateBootstrap { .. } => "updating",
         CliRequest::PullSnapshot(_) => "pulling",
         _ => "working",
     }
@@ -419,7 +423,17 @@ impl InitArgs {
         meta: gwz_core::RequestMeta,
         workspace_root: String,
     ) -> Result<CliRequest, CliError> {
-        if self.urls.is_empty() {
+        if self.update {
+            if !self.urls.is_empty() {
+                return Err(CliError::new(
+                    "--update cannot be combined with source URLs",
+                ));
+            }
+            if !self.path_prefix.trim().is_empty() {
+                return Err(CliError::new("--update cannot be combined with --path"));
+            }
+            Ok(CliRequest::UpdateBootstrap { meta })
+        } else if self.urls.is_empty() {
             Ok(CliRequest::CreateWorkspace(
                 gwz_core::CreateWorkspaceRequest {
                     meta,

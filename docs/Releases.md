@@ -93,11 +93,22 @@ From the development workspace:
 cargo fmt --check
 cargo test
 cargo run -q -p gwz -- --help
+python scripts/generate_cli_reference.py --check
 ```
 
-When changing docs, also verify command help for each documented command:
+When changing command docs, inspect the generated reference and spot-check
+command help for the affected commands:
 
 ```sh
 cargo run -q -p gwz -- help status
 cargo run -q -p gwz -- help tag
+```
+
+`scripts/release.py` runs the generated CLI reference check by default before it
+commits the release worktree. If the release must proceed while docs are being
+reconciled separately, pass `--no-doc-check`; otherwise update the reference
+with:
+
+```sh
+python scripts/generate_cli_reference.py --write
 ```

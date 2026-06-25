@@ -1,4 +1,3 @@
-
 pub(crate) fn git_transfer_progress_json(
     progress: &gwz_core::GitTransferProgress,
 ) -> serde_json::Value {

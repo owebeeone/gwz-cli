@@ -1,4 +1,3 @@
-
 pub(crate) const TAG_LONG: &str = "\
 Manage real git tags across the workspace's member repositories — the multi-repo
 `git tag`, fanned out the way `gwz commit` fans out `git commit`.

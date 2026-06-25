@@ -1,4 +1,3 @@
-
 pub(crate) const REPO_CREATE_AFTER: &str = "\
 Examples:
   gwz repo create repos/new-service

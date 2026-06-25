@@ -1,4 +1,3 @@
-
 pub(crate) fn parse_non_negative_i64(value: &str) -> Result<i64, String> {
     let parsed = value
         .parse::<i64>()

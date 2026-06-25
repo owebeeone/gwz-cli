@@ -8,9 +8,6 @@ pub(crate) struct LsArgs {
     )]
     pub(crate) local: bool,
 
-    #[arg(
-        long,
-        help = "Include configured-but-unmaterialized members"
-    )]
+    #[arg(long, help = "Include configured-but-unmaterialized members")]
     pub(crate) unmaterialized: bool,
 }

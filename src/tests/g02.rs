@@ -1,4 +1,3 @@
-
 use super::*;
 
 #[test]
@@ -15,7 +14,12 @@ pub(crate) fn error_path_renders_structured_json_envelope() {
         json["errors"][0]["message"],
         "member has uncommitted changes"
     );
-    assert!(json["errors"][0]["code"].as_str().unwrap().contains("Dirty"));
+    assert!(
+        json["errors"][0]["code"]
+            .as_str()
+            .unwrap()
+            .contains("Dirty")
+    );
     assert_eq!(
         error.human_message(),
         "DirtyMember: member has uncommitted changes"
@@ -25,7 +29,10 @@ pub(crate) fn error_path_renders_structured_json_envelope() {
     let plain = CliError::new("--json and --jsonl are mutually exclusive");
     let json: serde_json::Value = serde_json::from_str(&render_error_json(&plain)).unwrap();
     assert!(json["errors"][0]["code"].is_null());
-    assert_eq!(plain.human_message(), "--json and --jsonl are mutually exclusive");
+    assert_eq!(
+        plain.human_message(),
+        "--json and --jsonl are mutually exclusive"
+    );
 }
 
 #[test]
@@ -139,10 +146,7 @@ pub(crate) fn exit_code_mapping_distinguishes_success_rejected_and_failed() {
 pub(crate) fn no_files_still_surfaces_dirty_member_counts() {
     // F16: `--no-files` suppresses the per-file list (empty `file_changes`), but a dirty
     // member must still surface via its first-class counts — not silently vanish.
-    let mut envelope = sample_response(
-        gwz_core::AggregateStatus::Ok,
-        gwz_core::MemberStatus::Ok,
-    );
+    let mut envelope = sample_response(gwz_core::AggregateStatus::Ok, gwz_core::MemberStatus::Ok);
     envelope.members[0].git_status = Some(dirty_git_status("mem_app", 0, 2, 1));
     let cli = CliResponse::envelope(envelope);
     let workspace = empty_workspace_git_status();
@@ -160,11 +164,7 @@ pub(crate) fn no_files_still_surfaces_dirty_member_counts() {
     let mut clean = sample_response(gwz_core::AggregateStatus::Ok, gwz_core::MemberStatus::Ok);
     clean.members[0].git_status = Some(dirty_git_status("mem_app", 0, 0, 0));
     let mut clean_lines = Vec::new();
-    append_suppressed_dirty_summary(
-        &mut clean_lines,
-        &CliResponse::envelope(clean),
-        &workspace,
-    );
+    append_suppressed_dirty_summary(&mut clean_lines, &CliResponse::envelope(clean), &workspace);
     assert!(clean_lines.is_empty());
 }
 

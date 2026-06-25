@@ -1,4 +1,3 @@
-
 pub(crate) const STAGE_LONG: &str = "\
 Stage file contents across the workspace's member repositories.
 

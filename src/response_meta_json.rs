@@ -1,4 +1,3 @@
-
 pub(crate) fn response_meta_json(meta: &gwz_core::ResponseMeta) -> serde_json::Value {
     serde_json::json!({
         "request_id": meta.request_id,
