@@ -356,6 +356,13 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             operation_id,
         )
         .map(|response| CliResponse::envelope(response.response)),
+        CliRequest::RepoSync(request) => gwz_core::workspace_ops::handle_repo_sync(
+            &backend,
+            start,
+            request.clone(),
+            operation_id,
+        )
+        .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Materialize(request) => gwz_core::workspace_ops::handle_materialize(
             &backend,
             start,

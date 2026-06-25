@@ -297,6 +297,15 @@ pub(crate) fn parses_command_matrix() {
         CliRequest::CreateRepo(_)
     ));
     assert!(matches!(
+        parse(strings(["repo", "sync"])).request,
+        CliRequest::RepoSync(_)
+    ));
+    assert!(matches!(
+        parse(strings(["repo", "sync", "repos/app"])).request,
+        CliRequest::RepoSync(ref request)
+            if request.meta.selection.as_ref().unwrap().paths == vec!["repos/app"]
+    ));
+    assert!(matches!(
         parse(strings(["materialize", "--lock"])).request,
         CliRequest::Materialize(_)
     ));
@@ -342,6 +351,16 @@ pub(crate) fn rejects_invalid_command_combinations_before_core_execution() {
     assert!(parse_result(strings(["--json", "forall", "--", "echo"])).is_err());
     assert!(parse_result(strings(["--jsonl", "forall", "--", "echo"])).is_err());
     assert!(parse_result(strings(["push", "--no-combined"])).is_err());
+    assert!(
+        parse_result(strings([
+            "--member",
+            "mem_app",
+            "repo",
+            "sync",
+            "repos/app"
+        ]))
+        .is_err()
+    );
     assert!(parse_result(strings(["materialize", "--snapshot"])).is_err());
     assert!(parse_result(strings(["pull", "--lock"])).is_err());
     assert!(parse_result(strings(["unknown"])).is_err());

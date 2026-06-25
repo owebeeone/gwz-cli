@@ -42,6 +42,12 @@ pub(crate) enum RepoCommandArgs {
         after_long_help = REPO_CREATE_AFTER
     )]
     Create(RepoCreateArgs),
+    #[command(
+        about = "Refresh member metadata from local git config",
+        long_about = REPO_SYNC_LONG,
+        after_long_help = REPO_SYNC_AFTER
+    )]
+    Sync(RepoSyncArgs),
 }
 
 #[derive(Clone, Debug, Args)]
@@ -51,6 +57,15 @@ pub(crate) struct RepoCreateArgs {
         help = "Workspace-relative path for the new repository member"
     )]
     pub(crate) member_path: String,
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub(crate) struct RepoSyncArgs {
+    #[arg(
+        value_name = "member-path",
+        help = "Workspace-relative member path to sync"
+    )]
+    pub(crate) member_path: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Args)]
@@ -137,6 +152,7 @@ pub(crate) enum CliRequest {
     InitFromSources(gwz_core::InitFromSourcesRequest),
     AddExistingRepo(gwz_core::AddExistingRepoRequest),
     CreateRepo(gwz_core::CreateRepoRequest),
+    RepoSync(gwz_core::RepoSyncRequest),
     Materialize(gwz_core::MaterializeRequest),
     Status(gwz_core::StatusRequest),
     Ls {
@@ -462,7 +478,25 @@ impl RepoArgs {
                     source_id: None,
                 }))
             }
+            RepoCommandArgs::Sync(args) => args.request(meta),
         }
+    }
+}
+
+impl RepoSyncArgs {
+    pub(crate) fn request(&self, mut meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        if let Some(member_path) = &self.member_path {
+            if meta.selection.is_some() {
+                return Err(CliError::new(
+                    "repo sync member path cannot be combined with global selection",
+                ));
+            }
+            meta.selection = Some(gwz_core::Selection {
+                paths: vec![member_path.clone()],
+                ..Default::default()
+            });
+        }
+        Ok(CliRequest::RepoSync(gwz_core::RepoSyncRequest { meta }))
     }
 }
 

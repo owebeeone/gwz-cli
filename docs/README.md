@@ -36,7 +36,7 @@ Examples in these docs usually omit it.
 - [init](commands/init.md): create an empty workspace or initialize from source
   URLs.
 - [clone](commands/clone.md): clone a workspace root and materialize members.
-- [repo](commands/repo.md): add an existing repository or create a new member.
+- [repo](commands/repo.md): add, create, or sync repository members.
 - [ls](commands/ls.md): list materialized and configured members.
 - [status](commands/status.md): inspect workspace Git state.
 - [add](commands/add.md): stage file contents across workspace repositories.

@@ -96,6 +96,7 @@ See [commands/clone.md](commands/clone.md).
 gwz repo [OPTIONS] <COMMAND>
 gwz repo add [OPTIONS] <repo-path>
 gwz repo create [OPTIONS] <member-path>
+gwz repo sync [member-path]
 ```
 
 Subcommands:
@@ -104,6 +105,9 @@ Subcommands:
 | --- | --- |
 | `add` | Add an existing local Git repository as a member. |
 | `create` | Create a new local repository member. |
+| `sync` | Refresh manifest metadata from local Git config. |
+
+`repo sync` does not fetch, push, check out branches, or rewrite the lock.
 
 See [commands/repo.md](commands/repo.md).
 

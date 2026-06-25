@@ -83,6 +83,8 @@ gwz forall -- git remote -v
 Recovery:
 
 - Add or fix the remote in the affected member repository.
+- Run `gwz repo sync <member-path>` after adding a remote outside GWZ so the
+  workspace manifest records it.
 - Use `--remote <name>` when the operation should use a non-default remote.
 
 ## SSH Or Credential Failure
