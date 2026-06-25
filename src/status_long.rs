@@ -1,4 +1,3 @@
-
 pub(crate) const STATUS_LONG: &str = "\
 Show git status across workspace members.
 

@@ -1,4 +1,3 @@
-
 pub(crate) const TAG_AFTER: &str = "\
 Examples:
   gwz tag v1                      create v1 across members (and the committed root)

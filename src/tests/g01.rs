@@ -22,6 +22,53 @@ pub(crate) fn parses_init_workspace_with_root() {
 }
 
 #[test]
+pub(crate) fn parses_init_update_bootstrap_with_root() {
+    let invocation = parse_args_with_request_id(
+        strings(["--root", "/tmp/gwz-test", "init", "--update"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+
+    assert_eq!(invocation.output, OutputMode::Human);
+    let CliRequest::UpdateBootstrap { meta } = invocation.request else {
+        panic!("expected update bootstrap");
+    };
+    assert_eq!(meta.request_id, "req_test");
+    assert_eq!(
+        meta.workspace.unwrap().root,
+        Some("/tmp/gwz-test".to_owned())
+    );
+}
+
+#[test]
+pub(crate) fn init_update_rejects_sources_and_path_prefix() {
+    let with_source = parse_args_with_request_id(
+        strings(["init", "--update", "git@github.com:org/repo.git"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap_err();
+    assert!(
+        with_source
+            .message
+            .contains("--update cannot be combined with source URLs")
+    );
+
+    let with_path = parse_args_with_request_id(
+        strings(["init", "--update", "--path", "repos"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap_err();
+    assert!(
+        with_path
+            .message
+            .contains("--update cannot be combined with --path")
+    );
+}
+
+#[test]
 pub(crate) fn parses_init_sources_from_plain_urls() {
     let invocation = parse_args_with_request_id(
         strings([

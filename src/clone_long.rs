@@ -1,4 +1,3 @@
-
 pub(crate) const CLONE_LONG: &str = "\
 Clone a GWZ workspace from its root repository URL.
 

@@ -1,4 +1,3 @@
-
 pub(crate) fn workspace_git_status_json(
     status: &gwz_core::WorkspaceGitStatus,
 ) -> serde_json::Value {

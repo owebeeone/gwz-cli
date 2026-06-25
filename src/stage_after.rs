@@ -1,4 +1,3 @@
-
 pub(crate) const STAGE_AFTER: &str = "\
 Examples:
   gwz add src/main.rs

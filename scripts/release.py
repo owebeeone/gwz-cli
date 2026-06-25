@@ -14,8 +14,9 @@ pinned ``git`` + ``tag``. This script automates RELEASE.md steps 2-4 for a given
      version to match.
   4. ``cargo build`` + ``cargo test`` in that standalone worktree -- this refreshes
      Cargo.lock against gwz-core@``<tag>`` (and the script then asserts the lock really
-     pins the git tag) and proves gwz-cli compiles against the pinned release -- then
-     commit the merge as ``chore(release): gwz-cli X.Y.Z (pins gwz-core vX.Y.Z)``.
+     pins the git tag), proves gwz-cli compiles against the pinned release, and checks
+     the generated CLI reference is current -- then commit the merge as
+     ``chore(release): gwz-cli X.Y.Z (pins gwz-core vX.Y.Z)``.
   5. Tag that commit ``<tag>`` (lightweight). An existing tag is NEVER moved -- if ``<tag>``
      already points elsewhere the script aborts rather than re-pointing a release tag.
 
@@ -32,6 +33,7 @@ Usage:
     python scripts/release.py vX.Y.Z              # reconcile + verify + commit + tag (no push)
     python scripts/release.py vX.Y.Z --push       # also push the release branch + tag to origin
     python scripts/release.py vX.Y.Z --no-test    # skip `cargo test` (still builds)
+    python scripts/release.py vX.Y.Z --no-doc-check  # skip generated CLI reference freshness check
 """
 
 from __future__ import annotations
@@ -195,6 +197,24 @@ def verify_locked_git_pin(worktree, tag: str):
     log(f"verified Cargo.lock pins gwz-core via {source}")
 
 
+def verify_cli_reference_docs(worktree):
+    """The release branch must not ship stale generated CLI reference docs."""
+    script = worktree / "scripts" / "generate_cli_reference.py"
+    result = run([sys.executable, script, "--check"], cwd=worktree, capture=True, check=False)
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, file=sys.stderr, end="")
+    if result.returncode != 0:
+        fail(
+            "generated CLI reference is out of date. Run "
+            "`python scripts/generate_cli_reference.py --write` from the gwz-cli repo, "
+            "commit the updated docs/CLI.md, then rerun the release. "
+            "Use `--no-doc-check` only to bypass this check intentionally."
+        )
+    log("verified docs/CLI.md matches current Clap help")
+
+
 def ensure_tag(tag: str, target: str):
     """Create the lightweight tag `tag` at commit `target`, or no-op if it already points there.
     NEVER moves an existing tag -- released tags are immutable."""
@@ -239,6 +259,8 @@ def main():
     parser.add_argument("--main", default="main", help="source branch to merge from (default: main)")
     parser.add_argument("--release", default="release", help="release branch to reconcile (default: release)")
     parser.add_argument("--no-test", action="store_true", help="skip `cargo test` (still runs `cargo build`)")
+    parser.add_argument("--no-doc-check", action="store_true",
+                        help="skip the generated docs/CLI.md freshness check")
     parser.add_argument("--push", action="store_true", help="also push the release branch + tag to origin")
     parser.add_argument("--keep-worktree", action="store_true",
                         help="leave the temp worktree in place (you must `git worktree remove` it before re-running)")
@@ -287,6 +309,8 @@ def main():
             if not args.no_test:
                 run(["cargo", "test"], cwd=worktree)
             verify_locked_git_pin(worktree, tag)
+            if not args.no_doc_check:
+                verify_cli_reference_docs(worktree)
             git_wt(worktree, ["add", "-A"])
             message = (
                 f"chore(release): gwz-cli {version} (pins gwz-core {tag})\n\n"
@@ -299,6 +323,8 @@ def main():
         else:
             log(f"{args.release} already reconciled for {tag}; no new commit needed")
             verify_locked_git_pin(worktree, tag)  # only ever tag a commit whose lock pins the git tag
+            if not args.no_doc_check:
+                verify_cli_reference_docs(worktree)
 
         # Tag the worktree's HEAD (== release HEAD). The tag was confirmed absent above, so this
         # creates it; ensure_tag still refuses to move a tag if one raced in concurrently.

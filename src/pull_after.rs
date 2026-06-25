@@ -1,4 +1,3 @@
-
 pub(crate) const PULL_AFTER: &str = "\
 Examples:
   gwz pull --head

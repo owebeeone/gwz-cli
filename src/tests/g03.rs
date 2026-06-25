@@ -1,4 +1,3 @@
-
 use super::*;
 
 pub(crate) fn progress_event(

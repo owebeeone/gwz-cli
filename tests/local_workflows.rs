@@ -64,6 +64,51 @@ fn init_help_explains_gwz_workspace_basics() {
 }
 
 #[test]
+fn init_update_manages_root_agent_bootstrap_safely() {
+    let temp = TempDir::new("init-update-bootstrap");
+    let init = gwz(temp.path())
+        .args(["--root", temp.path_str(), "init"])
+        .output()
+        .unwrap();
+    assert_success(&init);
+    let bootstrap_path = temp.path().join("AGENTS_GWZ.md");
+    let generated = fs::read_to_string(&bootstrap_path).unwrap();
+    assert!(generated.starts_with("<!-- gwz-managed-file: sha256="));
+    assert!(generated.contains("# GWZ Workspace"));
+
+    let noop = gwz(temp.path())
+        .args(["--root", temp.path_str(), "init", "--update"])
+        .output()
+        .unwrap();
+    assert_success(&noop);
+    assert!(String::from_utf8_lossy(&noop.stdout).contains("Noop"));
+
+    fs::write(&bootstrap_path, "# Local agent notes\n").unwrap();
+    let rejected = gwz(temp.path())
+        .args(["--root", temp.path_str(), "init", "--update"])
+        .output()
+        .unwrap();
+    assert!(
+        !rejected.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&rejected.stdout),
+        String::from_utf8_lossy(&rejected.stderr)
+    );
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("local edits"));
+    assert_eq!(
+        fs::read_to_string(&bootstrap_path).unwrap(),
+        "# Local agent notes\n"
+    );
+
+    let forced = gwz(temp.path())
+        .args(["--root", temp.path_str(), "--force", "init", "--update"])
+        .output()
+        .unwrap();
+    assert_success(&forced);
+    assert_eq!(fs::read_to_string(&bootstrap_path).unwrap(), generated);
+}
+
+#[test]
 fn every_command_help_has_semantics_and_examples() {
     let temp = TempDir::new("all-help");
     for command in [
@@ -449,7 +494,13 @@ fn add_create_and_dry_run_commands_work() {
     create_repo_with_commit(&existing);
     assert_success(
         &gwz(temp.path())
-            .args(["--root", temp.path_str(), "repo", "add", existing.to_str().unwrap()])
+            .args([
+                "--root",
+                temp.path_str(),
+                "repo",
+                "add",
+                existing.to_str().unwrap(),
+            ])
             .output()
             .unwrap(),
     );
@@ -818,10 +869,21 @@ fn add_stages_into_owning_member_and_root() {
     std::fs::write(temp.path().join("top.txt"), "t\n").unwrap();
 
     // gwz() sets cwd to the workspace, so pathspecs resolve like `git add`.
-    assert_success(&gwz(temp.path()).args(["add", "lib/x.rs", "top.txt"]).output().unwrap());
+    assert_success(
+        &gwz(temp.path())
+            .args(["add", "lib/x.rs", "top.txt"])
+            .output()
+            .unwrap(),
+    );
 
-    assert!(index_has_new(&temp.path().join("lib"), "x.rs"), "x.rs staged in the member");
-    assert!(index_has_new(temp.path(), "top.txt"), "top.txt staged in the root");
+    assert!(
+        index_has_new(&temp.path().join("lib"), "x.rs"),
+        "x.rs staged in the member"
+    );
+    assert!(
+        index_has_new(temp.path(), "top.txt"),
+        "top.txt staged in the root"
+    );
 }
 
 fn index_has_new(repo: &Path, path: &str) -> bool {

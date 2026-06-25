@@ -1,4 +1,3 @@
-
 pub(crate) const PUSH_AFTER: &str = "\
 Examples:
   gwz push

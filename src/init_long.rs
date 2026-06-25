@@ -1,4 +1,3 @@
-
 pub(crate) const INIT_LONG: &str = "\
 Create a workspace or initialize one from source URLs.
 
@@ -9,4 +8,9 @@ workspace reproducible.
 
 Running `gwz init` with no URLs creates an empty workspace at `--root` or the
 current directory. Passing one or more URLs creates the workspace and adds those
-repositories as initial members, materialized from their heads.";
+repositories as initial members, materialized from their heads.
+
+Running `gwz init --update` refreshes root-only GWZ-managed bootstrap files in
+an existing workspace, including `AGENTS_GWZ.md`. Managed files are overwritten
+only when their digest header still matches their body; use global `--force` to
+replace a locally edited bootstrap file.";

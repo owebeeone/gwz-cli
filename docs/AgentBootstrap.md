@@ -4,10 +4,9 @@
 repository. It should tell an agent how to install `gwz`, finish materializing a
 workspace, inspect status, and find the full docs.
 
-This v0.3.0 documentation page describes the intended bootstrap content and how
-to use it when present. The current CLI help in this workspace does not expose
-an implemented `gwz init --update` command, so automatic creation, update, and
-overwrite behavior are not documented as available CLI behavior here.
+`gwz init` creates this file in new workspace roots, and `gwz init --update`
+refreshes it in an existing workspace root. The file is root-only: GWZ does not
+write `AGENTS_GWZ.md` into member repositories.
 
 Hosted docs URL for bootstrap files:
 https://github.com/owebeeone/gwz-cli/tree/main/docs
@@ -27,9 +26,11 @@ Keep it deliberately brief:
 - A status check.
 - Links to `gwz --help` and the hosted docs.
 
-## Suggested Template
+## Generated Template
 
 ````md
+<!-- gwz-managed-file: sha256=<template-body-sha256> -->
+
 # GWZ Workspace
 
 This repository is managed by GWZ, a multi-repository workspace tool.
@@ -68,19 +69,24 @@ Docs:
 
 ## Managed-File Updates
 
-A future managed bootstrap writer should be safe around local edits. A robust
-scheme is to include a managed-file header with a digest of the Markdown body
-after the header and separator line, then overwrite automatically only when the
-current body still matches that digest.
+GWZ includes a managed-file header with a digest of the Markdown body after the
+header and separator line:
 
-Example header shape:
-
-```html
+```md
 <!-- gwz-managed-file: sha256=<template-body-sha256> -->
 ```
 
-When the header is missing or the body no longer matches the recorded digest,
-an updater should skip the file or require an explicit force flag.
+`gwz init --update` overwrites `AGENTS_GWZ.md` automatically only when the
+current body still matches the digest in that header. When the header is missing
+or the body no longer matches, GWZ refuses to overwrite the file. Use global
+`--force` to replace a locally edited bootstrap file:
+
+```sh
+gwz --force init --update
+```
+
+The update command discovers the workspace root from the current directory, or
+uses global `--root <path>` when supplied.
 
 ## What Not To Put Here
 

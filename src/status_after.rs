@@ -1,4 +1,3 @@
-
 pub(crate) const STATUS_AFTER: &str = "\
 Examples:
   gwz status

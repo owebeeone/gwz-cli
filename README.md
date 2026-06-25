@@ -58,6 +58,7 @@ cargo run -q -p gwz -- help status
 cargo fmt
 cargo test
 cargo fmt --check
+python scripts/generate_cli_reference.py --check
 cargo run -q -p gwz -- --version
 ```
 

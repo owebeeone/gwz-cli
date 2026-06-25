@@ -1,7 +1,7 @@
 # GWZ CLI Documentation
 
 This directory is the user-facing documentation set for the `gwz` command line.
-It tracks the implemented v0.3.0 command surface exposed by `gwz --help`.
+It tracks the implemented command surface exposed by `gwz --help`.
 
 Hosted docs URL:
 https://github.com/owebeeone/gwz-cli/tree/main/docs
@@ -18,8 +18,8 @@ Examples in these docs usually omit it.
   multi-repository workflow.
 - [Concepts](Concepts.md): workspace roots, members, manifests, locks,
   snapshots, tags, selections, remotes, and progress.
-- [CLI Reference](CLI.md): command tree, global options, command synopsis, and
-  help-derived option tables.
+- [CLI Reference](CLI.md): generated root and command help from the Clap
+  command definitions.
 - [Workflows](Workflows.md): task-oriented flows across commands.
 - [Machine Output](MachineOutput.md): `--json`, `--jsonl`, status porcelain,
   listings, and exit codes.
@@ -45,6 +45,9 @@ Examples in these docs usually omit it.
 - [capture](commands/capture.md): record the live worktree state into the lock.
 - [snapshot](commands/snapshot.md): record or list workspace snapshots.
 - [tag](commands/tag.md): manage real Git tags across the workspace.
+- [branch](commands/branch.md): manage local branches across selected members.
+- [stash](commands/stash.md): manage coordinated stash bundles across selected
+  members.
 - [materialize](commands/materialize.md): check out lock, head, snapshot, or tag
   targets.
 - [pull](commands/pull.md): move members forward to head or snapshot targets.
@@ -53,8 +56,16 @@ Examples in these docs usually omit it.
 
 ## Source Of Truth
 
-Terminal help comes from the Clap command definitions in the CLI. When behavior
-or options are unclear, prefer:
+Terminal help comes from the Clap command definitions in the CLI. The generated
+[CLI Reference](CLI.md) is checked against those definitions by `cargo test`.
+Regenerate or check it directly with:
+
+```sh
+python scripts/generate_cli_reference.py --write
+python scripts/generate_cli_reference.py --check
+```
+
+When behavior or options are unclear, prefer:
 
 ```sh
 cargo run -q -p gwz -- --help

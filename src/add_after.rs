@@ -1,4 +1,3 @@
-
 pub(crate) const ADD_AFTER: &str = "\
 Examples:
   gwz repo add repos/app
