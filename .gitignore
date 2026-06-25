@@ -14,7 +14,7 @@ scratch/
 *-old.py
 
 # Rust (Cargo) build output
-/target
+/target/
 
 # Bazel/Razel convenience symlinks and caches
 bazel-*
@@ -23,6 +23,7 @@ bazel-*
 /razel-testlogs
 .claude/
 .razel-cache/
+/bazel-gwz-dev
 
 # Compiled Rust artifacts left in the tree
 *.rlib
