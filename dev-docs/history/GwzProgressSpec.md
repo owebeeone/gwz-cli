@@ -1,6 +1,11 @@
 # GWZ CLI Progress Reporting
 
-Status: draft
+Status: historical / mostly implemented (2026-06-25)
+
+As built, progress uses core `OperationEvent::MemberProgress` events carrying
+`GitTransferProgress`, a TTY-gated `StderrProgressSink`, JSONL event streaming,
+and the global `--progress-interval` coalescing flag. The planned `--quiet` and
+forced `--progress` flags were not implemented.
 
 Scope: terminal progress for long-running `gwz` workspace operations. Applies to
 `gwz-cli` rendering and the `gwz-core` event/Git surfaces it consumes.

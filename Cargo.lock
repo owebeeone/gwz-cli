@@ -212,7 +212,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clap",
  "console",
@@ -223,8 +223,8 @@ dependencies = [
 
 [[package]]
 name = "gwz-core"
-version = "0.3.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v0.3.0#7486aacc4f8dfaa7568dd7a1ef58032994399950"
+version = "0.4.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v0.4.0#53700e0d3f74b5a28cf83f976b258b7d415cbf08"
 dependencies = [
  "git2",
  "serde",

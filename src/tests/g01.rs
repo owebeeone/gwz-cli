@@ -269,13 +269,134 @@ pub(crate) fn parses_command_matrix() {
         parse(strings(["tag", "--list", "--remote", "origin"])).request,
         CliRequest::Tag(ref r) if r.remote.as_deref() == Some("origin")
     ));
-    assert!(matches!(parse(strings(["snapshot"])).request, CliRequest::ListSnapshots));
-    assert!(matches!(parse(strings(["snapshot", "snap"])).request, CliRequest::Snapshot(_)));
+    assert!(matches!(
+        parse(strings(["branch"])).request,
+        CliRequest::Branch(ref r) if matches!(r.op, gwz_core::BranchOp::List)
+    ));
+    assert!(matches!(
+        parse(strings(["branch", "--list"])).request,
+        CliRequest::Branch(ref r) if matches!(r.op, gwz_core::BranchOp::List)
+    ));
+    assert!(matches!(
+        parse(strings(["branch", "--create", "feature/login"])).request,
+        CliRequest::Branch(ref r)
+            if matches!(r.op, gwz_core::BranchOp::Create)
+                && r.name.as_deref() == Some("feature/login")
+                && r.start_ref.as_deref() == Some("HEAD")
+                && r.switch_after_create.is_none()
+    ));
+    assert!(matches!(
+        parse(strings([
+            "branch",
+            "--create",
+            "feature/login",
+            "--from",
+            "main",
+            "--switch"
+        ]))
+        .request,
+        CliRequest::Branch(ref r)
+            if matches!(r.op, gwz_core::BranchOp::Create)
+                && r.name.as_deref() == Some("feature/login")
+                && r.start_ref.as_deref() == Some("main")
+                && r.switch_after_create == Some(true)
+    ));
+    assert!(matches!(
+        parse(strings(["branch", "--delete", "feature/login"])).request,
+        CliRequest::Branch(ref r)
+            if matches!(r.op, gwz_core::BranchOp::Delete)
+                && r.name.as_deref() == Some("feature/login")
+    ));
+    assert!(matches!(
+        parse(strings(["branch", "--merge", "feature/source"])).request,
+        CliRequest::Branch(ref r)
+            if matches!(r.op, gwz_core::BranchOp::Merge)
+                && r.name.is_none()
+                && r.start_ref.as_deref() == Some("feature/source")
+    ));
+    assert!(matches!(
+        parse(strings(["stash", "push"])).request,
+        CliRequest::Stash(ref r)
+            if matches!(r.op, gwz_core::StashOp::Push)
+                && r.include_untracked.is_none()
+                && r.include_ignored.is_none()
+    ));
+    assert!(matches!(
+        parse(strings(["stash", "push", "-u", "-m", "wip"])).request,
+        CliRequest::Stash(ref r)
+            if matches!(r.op, gwz_core::StashOp::Push)
+                && r.include_untracked == Some(true)
+                && r.message.as_deref() == Some("wip")
+    ));
+    assert!(matches!(
+        parse(strings(["stash", "push", "-a"])).request,
+        CliRequest::Stash(ref r)
+            if matches!(r.op, gwz_core::StashOp::Push)
+                && r.include_ignored == Some(true)
+                && r.include_untracked.is_none()
+    ));
+    assert!(matches!(
+        parse(strings(["stash", "list", "--expanded"])).request,
+        CliRequest::Stash(ref r)
+            if matches!(r.op, gwz_core::StashOp::List)
+                && r.expanded == Some(true)
+    ));
+    assert!(matches!(
+        parse(strings(["stash", "apply"])).request,
+        CliRequest::Stash(ref r)
+            if matches!(r.op, gwz_core::StashOp::Apply)
+                && r.stash_id.is_none()
+    ));
+    assert!(matches!(
+        parse(strings(["stash", "pop", "stash_one"])).request,
+        CliRequest::Stash(ref r)
+            if matches!(r.op, gwz_core::StashOp::Pop)
+                && r.stash_id.as_deref() == Some("stash_one")
+    ));
+    assert!(matches!(
+        parse(strings(["stash", "drop", "stash_one"])).request,
+        CliRequest::Stash(ref r)
+            if matches!(r.op, gwz_core::StashOp::Drop)
+                && r.stash_id.as_deref() == Some("stash_one")
+    ));
+    assert!(matches!(
+        parse(strings(["snapshot"])).request,
+        CliRequest::ListSnapshots
+    ));
+    assert!(matches!(
+        parse(strings(["snapshot", "snap"])).request,
+        CliRequest::Snapshot(ref r) if r.source.is_none()
+    ));
+    assert!(matches!(
+        parse(strings(["snapshot", "snap", "--branch"])).request,
+        CliRequest::Snapshot(ref r)
+            if matches!(
+                r.source.as_ref(),
+                Some(gwz_core::SnapshotSource {
+                    kind: gwz_core::SnapshotSourceKind::Current,
+                    branch: None,
+                })
+            )
+    ));
+    assert!(matches!(
+        parse(strings(["snapshot", "snap", "--branch", "main"])).request,
+        CliRequest::Snapshot(ref r)
+            if matches!(
+                r.source.as_ref(),
+                Some(gwz_core::SnapshotSource {
+                    kind: gwz_core::SnapshotSourceKind::Branch,
+                    branch: Some(branch),
+                }) if branch == "main"
+            )
+    ));
     assert!(matches!(
         parse(strings(["ls"])).request,
         CliRequest::Ls { local: false, ref request } if request.include_unmaterialized.is_none()
     ));
-    assert!(matches!(parse(strings(["ls", "--local"])).request, CliRequest::Ls { local: true, .. }));
+    assert!(matches!(
+        parse(strings(["ls", "--local"])).request,
+        CliRequest::Ls { local: true, .. }
+    ));
     assert!(matches!(
         parse(strings(["ls", "--unmaterialized"])).request,
         CliRequest::Ls { ref request, .. } if request.include_unmaterialized == Some(true)
@@ -286,7 +407,10 @@ pub(crate) fn parses_command_matrix() {
     ));
     assert!(matches!(
         parse(strings(["forall", "-c", "git status"])).request,
-        CliRequest::Forall { mode: gwz_core::ExecMode::Shell, .. }
+        CliRequest::Forall {
+            mode: gwz_core::ExecMode::Shell,
+            ..
+        }
     ));
     assert!(matches!(
         parse(strings(["forall", "app", "lib", "--", "git"])).request,
@@ -297,12 +421,28 @@ pub(crate) fn parses_command_matrix() {
         CliRequest::CreateRepo(_)
     ));
     assert!(matches!(
+        parse(strings(["repo", "sync"])).request,
+        CliRequest::RepoSync(_)
+    ));
+    assert!(matches!(
+        parse(strings(["repo", "sync", "repos/app"])).request,
+        CliRequest::RepoSync(ref request)
+            if request.meta.selection.as_ref().unwrap().paths == vec!["repos/app"]
+    ));
+    assert!(matches!(
         parse(strings(["materialize", "--lock"])).request,
         CliRequest::Materialize(_)
     ));
     assert!(matches!(
         parse(strings(["materialize", "--snapshot", "snap_one"])).request,
         CliRequest::Materialize(_)
+    ));
+    assert!(matches!(
+        parse(strings(["materialize", "--switch", "feature/login"])).request,
+        CliRequest::Materialize(ref r)
+            if r.target.kind == gwz_core::MaterializeTargetKind::Branch
+                && r.target.name.as_deref() == Some("feature/login")
+                && r.target.commit.is_none()
     ));
     assert!(matches!(
         parse(strings(["pull", "--head"])).request,
@@ -342,7 +482,39 @@ pub(crate) fn rejects_invalid_command_combinations_before_core_execution() {
     assert!(parse_result(strings(["--json", "forall", "--", "echo"])).is_err());
     assert!(parse_result(strings(["--jsonl", "forall", "--", "echo"])).is_err());
     assert!(parse_result(strings(["push", "--no-combined"])).is_err());
+    assert!(
+        parse_result(strings([
+            "--member",
+            "mem_app",
+            "repo",
+            "sync",
+            "repos/app"
+        ]))
+        .is_err()
+    );
     assert!(parse_result(strings(["materialize", "--snapshot"])).is_err());
+    assert!(
+        parse_result(strings([
+            "materialize",
+            "--lock",
+            "--switch",
+            "feature/login"
+        ]))
+        .is_err()
+    );
+    assert!(parse_result(strings(["materialize", "--switch"])).is_err());
+    assert!(parse_result(strings(["snapshot", "--branch"])).is_err());
+    assert!(parse_result(strings(["snapshot", "--list", "--branch"])).is_err());
+    assert!(parse_result(strings(["branch", "--list", "--create", "work"])).is_err());
+    assert!(parse_result(strings(["branch", "--create", "work", "--delete", "work"])).is_err());
+    assert!(parse_result(strings(["branch", "--merge", "source", "--create", "work"])).is_err());
+    assert!(parse_result(strings(["branch", "--merge", "source", "--delete", "work"])).is_err());
+    assert!(parse_result(strings(["branch", "--merge", "source", "--list"])).is_err());
+    assert!(parse_result(strings(["branch", "--merge", "source", "--switch"])).is_err());
+    assert!(parse_result(strings(["branch", "--delete", "work", "--switch"])).is_err());
+    assert!(parse_result(strings(["branch", "--from", "main"])).is_err());
+    assert!(parse_result(strings(["stash", "push", "-u", "-a"])).is_err());
+    assert!(parse_result(strings(["stash", "drop"])).is_err());
     assert!(parse_result(strings(["pull", "--lock"])).is_err());
     assert!(parse_result(strings(["unknown"])).is_err());
 }

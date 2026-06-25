@@ -1,6 +1,6 @@
 # GWZ Stash Implementation Plan
 
-Status: draft
+Status: proposed / not implemented
 
 Related spec: `dev-docs/GwzStashSpec.md`
 
@@ -136,8 +136,7 @@ Work:
   clean worktree can still conflict with a stash. The operation MUST stop on
   first conflict, keep unattempted members pending, and return a typed partial
   result naming the failing member.
-- Clarify that stale project spelling in docs currently blocks the rename guard;
-  Step 1 MUST clean those docs before full verification can pass.
+- Keep docs clear of stale project spellings so the rename guard remains green.
 
 Verification:
 

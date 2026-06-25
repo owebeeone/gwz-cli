@@ -1,6 +1,11 @@
 # GWZ Member Git: Selection, Commit, and Git Execution
 
-Status: draft
+Status: historical / superseded (2026-06-25)
+
+Current state: `gwz commit` and `gwz forall` shipped. The planned `gwz run`
+escape hatch was replaced by `gwz forall` in
+`gwz-core/dev-docs/history/GWZForallPlan.md`; stash and config follow the active
+`GwzStashSpec.md` / `GwzStashPlan.md` and `GwzRcSpec.md` docs.
 
 Scope: running git (and git-shaped) work on **subsets** of workspace members with
 GWZ-consistent policy. Covers the libgit2 vs `git` CLI split, `gwz commit`, and
@@ -168,7 +173,7 @@ Add `CommitRequest` / `CommitResponse` to taut (`ActionKind::commit`) with
 ## `gwz run`
 
 > **Superseded (2026-06-24):** replaced by **`gwz forall`** — see
-> `gwz-core/dev-docs/GWZForallPlan.md`. Net deltas: the verb is `forall`; the executor is
+> `gwz-core/dev-docs/history/GWZForallPlan.md`. Net deltas: the verb is `forall`; the executor is
 > **CLI-only** (no in-core `GitCliRunner`); v0 is **sequential** (`--jobs`/parallel deferred);
 > `--partial` still means continue, default stops at the first failure. The text below is historical.
 
@@ -254,7 +259,7 @@ GWZ only chooses **which repos** and **how parallel**.
 
 ## Related
 
-- `GwzStashSpec.md` — coordinated stash bundles
-- `GwzRcSpec.md` — `alias.ph = pull --head`, etc.
-- `GwzProgressSpec.md` — progress on long commit/push/pull
+- `../GwzStashSpec.md` — coordinated stash bundles
+- `../GwzRcSpec.md` — `alias.ph = pull --head`, etc.
+- `GwzProgressSpec.md` — historical progress plan
 - `gwz-core/src/git/mod.rs` — `GitBackend` trait today

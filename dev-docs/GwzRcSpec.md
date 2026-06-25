@@ -1,6 +1,6 @@
 # GWZ Config and Aliases (`.gwzconfig`)
 
-Status: draft
+Status: proposed / not implemented
 
 Scope: user configuration and command aliases for `gwz-cli`. Mirrors Git’s
 `gitconfig` model (`~/.gitconfig`, `.git/config`); aliases expand **before**
@@ -140,9 +140,11 @@ GWZ globals that MUST be skipped before resolving the command token:
 | `--sync` | yes |
 | `--remote` | yes |
 | `--jobs` | yes |
+| `--max-per-host` | yes |
 | `--json` / `--jsonl` | no |
-| `--quiet` / `--progress` | no |
-| `-c` / `--config` | yes (when implemented) |
+| `--progress-interval` | yes |
+| `--ssh-timeout` | yes |
+| `-c` / `--config` | yes (planned config override; not implemented) |
 
 Example:
 
@@ -167,9 +169,9 @@ Keys the CLI reads after merge (extensible):
 | Section | Key | Type | Default | Effect |
 |---------|-----|------|---------|--------|
 | `core` | `jobs` | int | — | Default `--jobs` when flag omitted |
-| `core` | `progress` | `auto\|on\|off` | `auto` | Progress mode (`GwzProgressSpec.md`) |
+| `core` | `progress` | `auto\|on\|off` | `auto` | Planned progress mode override |
 | `pull` | `sync` | sync enum | `ff-only` | Default `--sync` for pull |
-| `progress` | `interval-ms` | int | `500` | stderr refresh cadence |
+| `progress` | `interval-ms` | int | `100` | Default `--progress-interval` event coalescing |
 
 Unset keys leave clap defaults unchanged. Explicit CLI flags always override
 config.
@@ -253,6 +255,6 @@ small PR for `gwz config` list/get.
 
 ## Related
 
-- `GwzProgressSpec.md` — `core.progress`, `progress.interval-ms`
+- `history/GwzProgressSpec.md` — historical progress implementation plan
 - `GwzStashSpec.md` — alias example `wip = stash push …`
 - `gwz-cli/src/main.rs` — clap `Parser` / `try_parse_from` entry point
