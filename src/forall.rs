@@ -260,13 +260,47 @@ mod tests {
         }
     }
 
+    #[cfg(windows)]
+    fn substitution_command() -> Vec<&'static str> {
+        vec![
+            "cmd",
+            "/C",
+            r#"if "{@}"=="repos/app" (exit /B 0) else (exit /B 1)"#,
+        ]
+    }
+
+    #[cfg(not(windows))]
+    fn substitution_command() -> Vec<&'static str> {
+        vec!["test", "{@}", "=", "repos/app"]
+    }
+
+    #[cfg(windows)]
+    fn member_env_script() -> &'static str {
+        r#"if "%GWZ_MEMBER_PATH%"=="repos/app" if "%GWZ_MEMBER_ID%"=="mem_app" if "%GWZ_ROOT%"=="/root" exit /B 0 & exit /B 1"#
+    }
+
+    #[cfg(not(windows))]
+    fn member_env_script() -> &'static str {
+        r#"[ "$GWZ_MEMBER_PATH" = "repos/app" ] && [ "$GWZ_MEMBER_ID" = "mem_app" ] && [ "$GWZ_ROOT" = "/root" ]"#
+    }
+
+    #[cfg(windows)]
+    fn failure_command() -> Vec<&'static str> {
+        vec!["cmd", "/C", "exit /B 1"]
+    }
+
+    #[cfg(not(windows))]
+    fn failure_command() -> Vec<&'static str> {
+        vec!["false"]
+    }
+
     #[test]
     fn argv_substitutes_at_token() {
-        // `test repos/app = repos/app` → exit 0, proving `{@}` → member path.
+        // The child checks its argv, proving `{@}` is replaced with the member path.
         let results = run_forall(
             &request(
                 ExecMode::Argv,
-                &["test", "{@}", "=", "repos/app"],
+                &substitution_command(),
                 vec![member("mem_app", "repos/app")],
                 false,
             ),
@@ -279,11 +313,10 @@ mod tests {
 
     #[test]
     fn shell_sees_member_env() {
-        let script = r#"[ "$GWZ_MEMBER_PATH" = "repos/app" ] && [ "$GWZ_MEMBER_ID" = "mem_app" ] && [ "$GWZ_ROOT" = "/root" ]"#;
         let results = run_forall(
             &request(
                 ExecMode::Shell,
-                &[script],
+                &[member_env_script()],
                 vec![member("mem_app", "repos/app")],
                 false,
             ),
@@ -319,7 +352,7 @@ mod tests {
         let results = run_forall(
             &request(
                 ExecMode::Argv,
-                &["false"],
+                &failure_command(),
                 vec![member("mem_app", "repos/app")],
                 false,
             ),
@@ -355,16 +388,16 @@ mod tests {
     #[test]
     fn stops_at_first_failure_unless_continue() {
         let two = || vec![member("mem_a", "a"), member("mem_b", "b")];
-        // First member runs `false` (exit 1); default stops → only one result.
+        // First member exits 1; default stops after one result.
         let stopped = run_forall(
-            &request(ExecMode::Argv, &["false"], two(), false),
+            &request(ExecMode::Argv, &failure_command(), two(), false),
             true,
             "/root",
         );
         assert_eq!(stopped.len(), 1, "stopped at the first failure");
         // continue_on_fail runs the rest.
         let all = run_forall(
-            &request(ExecMode::Argv, &["false"], two(), true),
+            &request(ExecMode::Argv, &failure_command(), two(), true),
             true,
             "/root",
         );
