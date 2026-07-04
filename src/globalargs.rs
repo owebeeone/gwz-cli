@@ -203,65 +203,45 @@ pub(crate) struct GlobalArgs {
 #[derive(Clone, Debug, Subcommand)]
 pub(crate) enum CommandArgs {
     #[command(
-        about = "Create a workspace or initialize one from source URLs",
-        long_about = INIT_LONG,
-        after_long_help = INIT_AFTER
-    )]
-    Init(InitArgs),
-    #[command(
-        about = "Clone a workspace and materialize its members",
-        long_about = CLONE_LONG,
-        after_long_help = CLONE_AFTER
-    )]
-    Clone(CloneArgs),
-    #[command(
         about = "Stage file contents across workspace repos (multi-repo git add)",
         long_about = STAGE_LONG,
         after_long_help = STAGE_AFTER
     )]
     Add(StageArgs),
     #[command(
-        about = "Manage workspace repositories (add an existing repo, or create one)",
-        long_about = REPO_LONG,
-        after_long_help = REPO_AFTER
-    )]
-    Repo(RepoArgs),
-    #[command(
-        about = "Show workspace git status",
-        long_about = STATUS_LONG,
-        after_long_help = STATUS_AFTER
-    )]
-    Status(StatusArgs),
-    #[command(about = "List workspace targets (id, path; absolute or --local)")]
-    Ls(LsArgs),
-    #[command(
-        about = "Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c <string>"
-    )]
-    Forall(ForallArgs),
-    #[command(
-        about = "Record the current workspace selection",
-        long_about = SNAPSHOT_LONG,
-        after_long_help = SNAPSHOT_AFTER
-    )]
-    Snapshot(SnapshotArgs),
-    #[command(
-        about = "Manage git tags across workspace repos (create/list/delete)",
-        long_about = TAG_LONG,
-        after_long_help = TAG_AFTER
-    )]
-    Tag(TagArgs),
-    #[command(
         about = "Manage git branches across workspace members",
         long_about = BRANCH_LONG,
         after_long_help = BRANCH_AFTER
     )]
     Branch(BranchArgs),
+    #[command(about = "Record the live worktree state into the lock (no mutation)")]
+    Capture,
     #[command(
-        about = "Manage coordinated git stashes across workspace members",
-        long_about = STASH_LONG,
-        after_long_help = STASH_AFTER
+        about = "Clone a workspace and materialize its members",
+        long_about = CLONE_LONG,
+        after_long_help = CLONE_AFTER
     )]
-    Stash(StashArgs),
+    Clone(CloneArgs),
+    #[command(about = "Commit staged changes across members and the workspace root")]
+    Commit(CommitArgs),
+    #[command(
+        about = "Show workspace changes as one unified diff (multi-repo git diff)",
+        long_about = DIFF_LONG,
+        after_long_help = DIFF_AFTER
+    )]
+    Diff(DiffArgs),
+    #[command(
+        about = "Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c <string>"
+    )]
+    Forall(ForallArgs),
+    #[command(
+        about = "Create a workspace or initialize one from source URLs",
+        long_about = INIT_LONG,
+        after_long_help = INIT_AFTER
+    )]
+    Init(InitArgs),
+    #[command(about = "List workspace targets (id, path; absolute or --local)")]
+    Ls(LsArgs),
     #[command(
         about = "Materialize workspace members to a target",
         long_about = MATERIALIZE_LONG,
@@ -280,10 +260,36 @@ pub(crate) enum CommandArgs {
         after_long_help = PUSH_AFTER
     )]
     Push,
-    #[command(about = "Record the live worktree state into the lock (no mutation)")]
-    Capture,
-    #[command(about = "Commit staged changes across members and the workspace root")]
-    Commit(CommitArgs),
+    #[command(
+        about = "Manage workspace repositories (add an existing repo, or create one)",
+        long_about = REPO_LONG,
+        after_long_help = REPO_AFTER
+    )]
+    Repo(RepoArgs),
+    #[command(
+        about = "Record the current workspace selection",
+        long_about = SNAPSHOT_LONG,
+        after_long_help = SNAPSHOT_AFTER
+    )]
+    Snapshot(SnapshotArgs),
+    #[command(
+        about = "Manage coordinated git stashes across workspace members",
+        long_about = STASH_LONG,
+        after_long_help = STASH_AFTER
+    )]
+    Stash(StashArgs),
+    #[command(
+        about = "Show workspace git status",
+        long_about = STATUS_LONG,
+        after_long_help = STATUS_AFTER
+    )]
+    Status(StatusArgs),
+    #[command(
+        about = "Manage git tags across workspace repos (create/list/delete)",
+        long_about = TAG_LONG,
+        after_long_help = TAG_AFTER
+    )]
+    Tag(TagArgs),
 }
 
 #[derive(Clone, Debug, Args)]
@@ -638,6 +644,11 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         CliRequest::Stage(request) => {
             gwz_core::workspace_ops::handle_stage(&backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
+        }
+        CliRequest::Diff(_) => {
+            // Diff is dispatched in `run()` before this function (it streams patch
+            // bytes and owns its exit code); it never reaches the envelope path.
+            unreachable!("diff is handled by diff_exec::run_diff, not execute_invocation")
         }
         CliRequest::ListSnapshots(request) => {
             gwz_core::workspace_ops::handle_list_snapshots(start, request.clone(), operation_id)
