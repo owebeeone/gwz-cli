@@ -249,6 +249,66 @@ fn stat_reports_a_diffstat_summary_line() {
     assert!(stdout.contains("1 file changed"), "{stdout}");
 }
 
+// ── D5 bare-operand classification (git's rev/path split) ────────────────────
+
+#[test]
+fn bare_file_operand_diffs_the_file_without_dashdash() {
+    // The user's exact repro shape: `gwz diff <path>` with no `--` must classify
+    // the path as a pathspec, not a revspec, and diff that file.
+    let ws = Workspace::new("bare-file");
+    ws.dirty_member("one\ntwo\n");
+    ws.dirty_root("roottop\nmore\n");
+
+    let out = ws.diff(&["lib/x.txt"]);
+    assert_success(&out);
+    let stdout = stdout(&out);
+    // Only the named member file diffs; the root change is out of scope.
+    assert!(
+        stdout.contains("diff --git a/lib/x.txt b/lib/x.txt"),
+        "{stdout}"
+    );
+    assert!(
+        !stdout.contains("top.txt"),
+        "root file out of scope:\n{stdout}"
+    );
+}
+
+#[test]
+fn bare_file_operand_matches_dashdash_form() {
+    let ws = Workspace::new("bare-eq-dd");
+    ws.dirty_member("one\ntwo\n");
+
+    let bare = stdout(&ws.diff(&["lib/x.txt"]));
+    let dashdash = stdout(&ws.diff(&["--", "lib/x.txt"]));
+    assert_eq!(
+        bare, dashdash,
+        "bare operand must equal the `-- <file>` form"
+    );
+}
+
+#[test]
+fn mixed_revision_and_bare_file_operand() {
+    // `gwz diff HEAD lib/x.txt` — a revision then a bare file, no `--`.
+    let ws = Workspace::new("mixed-cli");
+    ws.dirty_member("one\ntwo\n");
+
+    let out = ws.diff(&["HEAD", "lib/x.txt"]);
+    assert_success(&out);
+    assert!(stdout(&out).contains("diff --git a/lib/x.txt b/lib/x.txt"));
+}
+
+#[test]
+fn nonexistent_bare_operand_fails_with_dashdash_hint() {
+    let ws = Workspace::new("bad-operand");
+    let out = ws.diff(&["definitely-not-a-thing"]);
+    assert!(!out.status.success(), "unknown operand must fail");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("unknown revision or path") && stderr.contains("--"),
+        "stderr should hint at `--`:\n{stderr}"
+    );
+}
+
 // ── workspace fixture ────────────────────────────────────────────────────────
 
 /// A materialized GWZ workspace: root repo + one Git member `lib`, each with a
