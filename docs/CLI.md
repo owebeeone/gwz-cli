@@ -702,6 +702,9 @@ Options:
   -M, --find-renames [<n>]
           Detect renames; optional similarity threshold (e.g. -M90 or -M90%)
 
+      --no-renames
+          Disable rename detection, overriding the default
+
       --stat
           Show a diffstat instead of a patch
 
@@ -728,6 +731,27 @@ Options:
 
   -U, --unified <n>
           Generate diffs with <n> lines of context
+
+      --inter-hunk-context <n>
+          Show context between nearby hunks, up to <n> lines
+
+      --binary
+          Emit binary patch literals
+
+      --text
+          Treat all files as text
+
+  -w
+          Ignore all whitespace changes
+
+  -b
+          Ignore changes in amount of whitespace
+
+      --ignore-space-at-eol
+          Ignore whitespace changes at end of line
+
+      --ignore-blank-lines
+          Ignore changes whose lines are all blank
 
       --src-prefix <prefix>
           Show the given source prefix instead of "a/"

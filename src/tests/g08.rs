@@ -133,6 +133,83 @@ pub(crate) fn find_renames_threshold_lowers_to_options() {
 }
 
 #[test]
+pub(crate) fn no_renames_lowers_to_explicit_false_and_conflicts_with_find_renames() {
+    let diff = diff_invocation(strings(["diff", "--no-renames"]));
+    let options = diff.request.options.unwrap();
+    assert_eq!(options.find_renames, Some(false));
+    assert_eq!(options.rename_threshold, None);
+
+    for find_arg in ["-M", "--find-renames"] {
+        let err = parse_args_with_request_id(
+            strings(["diff", "--no-renames", find_arg]),
+            "req_test",
+            Path::new("/cwd"),
+        )
+        .unwrap_err();
+        assert!(
+            err.message.contains("mutually exclusive"),
+            "{find_arg}: {}",
+            err.message
+        );
+        assert_eq!(err.code, Some(gwz_core::model::ErrorCode::InvalidRequest));
+    }
+}
+
+#[test]
+pub(crate) fn patch_shaping_flags_lower_to_options() {
+    let diff = diff_invocation(strings([
+        "diff",
+        "--inter-hunk-context=7",
+        "--binary",
+        "--text",
+    ]));
+    let options = diff.request.options.unwrap();
+    assert_eq!(options.interhunk_lines, Some(7));
+    assert_eq!(options.binary, Some(true));
+    assert_eq!(options.text, Some(true));
+}
+
+#[test]
+pub(crate) fn whitespace_flags_lower_to_wire_modes() {
+    let cases = [
+        ("-w", gwz_core::DiffWhitespaceMode::IgnoreAll),
+        ("-b", gwz_core::DiffWhitespaceMode::IgnoreChange),
+        (
+            "--ignore-space-at-eol",
+            gwz_core::DiffWhitespaceMode::IgnoreEol,
+        ),
+        (
+            "--ignore-blank-lines",
+            gwz_core::DiffWhitespaceMode::IgnoreBlankLines,
+        ),
+    ];
+    for (flag, mode) in cases {
+        let diff = diff_invocation(strings(["diff", flag]));
+        assert_eq!(
+            diff.request.options.unwrap().whitespace,
+            Some(mode),
+            "{flag}"
+        );
+    }
+}
+
+#[test]
+pub(crate) fn multiple_whitespace_modes_are_rejected() {
+    let err = parse_args_with_request_id(
+        strings(["diff", "-w", "--ignore-space-at-eol"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap_err();
+    assert!(
+        err.message.contains("mutually exclusive"),
+        "{}",
+        err.message
+    );
+    assert_eq!(err.code, Some(gwz_core::model::ErrorCode::InvalidRequest));
+}
+
+#[test]
 pub(crate) fn prefix_and_line_prefix_flags_lower_to_options() {
     let diff = diff_invocation(strings([
         "diff",

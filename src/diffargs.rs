@@ -48,6 +48,12 @@ pub(crate) struct DiffArgs {
     )]
     pub(crate) find_renames: Option<String>,
 
+    #[arg(
+        long = "no-renames",
+        help = "Disable rename detection, overriding the default"
+    )]
+    pub(crate) no_renames: bool,
+
     // ── output format (mutually-exclusive porcelain selectors) ───────────────
     #[arg(long = "stat", help = "Show a diffstat instead of a patch")]
     pub(crate) stat: bool,
@@ -87,6 +93,37 @@ pub(crate) struct DiffArgs {
         help = "Generate diffs with <n> lines of context"
     )]
     pub(crate) unified: Option<i64>,
+
+    #[arg(
+        long = "inter-hunk-context",
+        value_name = "n",
+        help = "Show context between nearby hunks, up to <n> lines"
+    )]
+    pub(crate) inter_hunk_context: Option<i64>,
+
+    #[arg(long = "binary", help = "Emit binary patch literals")]
+    pub(crate) binary: bool,
+
+    #[arg(long = "text", help = "Treat all files as text")]
+    pub(crate) text: bool,
+
+    #[arg(short = 'w', help = "Ignore all whitespace changes")]
+    pub(crate) ignore_all_space: bool,
+
+    #[arg(short = 'b', help = "Ignore changes in amount of whitespace")]
+    pub(crate) ignore_space_change: bool,
+
+    #[arg(
+        long = "ignore-space-at-eol",
+        help = "Ignore whitespace changes at end of line"
+    )]
+    pub(crate) ignore_space_at_eol: bool,
+
+    #[arg(
+        long = "ignore-blank-lines",
+        help = "Ignore changes whose lines are all blank"
+    )]
+    pub(crate) ignore_blank_lines: bool,
 
     #[arg(
         long = "src-prefix",
@@ -164,6 +201,7 @@ impl DiffArgs {
         let exit_code = self.exit_code || quiet;
 
         let (find_renames, rename_threshold) = self.rename_options()?;
+        let whitespace = self.whitespace_options()?;
 
         // --quiet answers purely from the manifest via any_difference (fast path).
         let manifest_mode = if quiet {
@@ -181,8 +219,12 @@ impl DiffArgs {
         let options = gwz_core::DiffOptions {
             output_format: effective_format,
             context_lines: self.unified,
+            interhunk_lines: self.inter_hunk_context,
+            whitespace,
             find_renames,
             rename_threshold,
+            binary: self.binary.then_some(true),
+            text: self.text.then_some(true),
             null_terminated: self.null_terminated.then_some(true),
             src_prefix: self.src_prefix.clone(),
             dst_prefix: self.dst_prefix.clone(),
@@ -249,6 +291,14 @@ impl DiffArgs {
     /// Map `-M[<n>]` onto `find_renames` + `rename_threshold`. `-M` with no value
     /// enables detection at the default threshold; `-M90` / `-M90%` sets 90.
     fn rename_options(&self) -> Result<(Option<bool>, Option<i64>), CliError> {
+        if self.no_renames && self.find_renames.is_some() {
+            return Err(CliError::invalid_request(
+                "--no-renames and --find-renames are mutually exclusive",
+            ));
+        }
+        if self.no_renames {
+            return Ok((Some(false), None));
+        }
         let Some(spec) = &self.find_renames else {
             return Ok((None, None));
         };
@@ -265,6 +315,32 @@ impl DiffArgs {
             )));
         }
         Ok((Some(true), Some(threshold)))
+    }
+
+    /// Resolve the single wire whitespace mode. The v0 protocol models these as
+    /// an enum, so combinations are rejected instead of silently choosing one.
+    fn whitespace_options(&self) -> Result<Option<gwz_core::DiffWhitespaceMode>, CliError> {
+        use gwz_core::DiffWhitespaceMode as W;
+        let mut chosen: Vec<(&str, W)> = Vec::new();
+        if self.ignore_all_space {
+            chosen.push(("-w", W::IgnoreAll));
+        }
+        if self.ignore_space_change {
+            chosen.push(("-b", W::IgnoreChange));
+        }
+        if self.ignore_space_at_eol {
+            chosen.push(("--ignore-space-at-eol", W::IgnoreEol));
+        }
+        if self.ignore_blank_lines {
+            chosen.push(("--ignore-blank-lines", W::IgnoreBlankLines));
+        }
+        match chosen.as_slice() {
+            [] => Ok(None),
+            [(_, mode)] => Ok(Some(*mode)),
+            [(a, _), (b, _), ..] => Err(CliError::invalid_request(format!(
+                "{a} and {b} are mutually exclusive"
+            ))),
+        }
     }
 }
 

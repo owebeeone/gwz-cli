@@ -249,6 +249,56 @@ fn stat_reports_a_diffstat_summary_line() {
     assert!(stdout.contains("1 file changed"), "{stdout}");
 }
 
+#[test]
+fn whitespace_flag_ignores_whitespace_only_changes() {
+    let ws = Workspace::new("ignore-space");
+    ws.dirty_member("one   \n");
+
+    let plain = ws.diff(&[]);
+    assert_success(&plain);
+    assert!(stdout(&plain).contains("diff --git a/lib/x.txt"));
+
+    let ignored = ws.diff(&["-w"]);
+    assert_success(&ignored);
+    assert!(
+        stdout(&ignored).is_empty(),
+        "-w should suppress whitespace-only hunks:\n{}",
+        stdout(&ignored)
+    );
+}
+
+#[test]
+fn inter_hunk_context_merges_nearby_zero_context_hunks() {
+    let ws = Workspace::new("inter-hunk");
+    ws.write_member("a\nb\nc\nd\ne\n");
+    git(&ws.member_path(), &["add", "-A"]);
+    git_commit(&ws.member_path(), "expand member baseline");
+
+    ws.dirty_member("a\nB\nc\nd\nE\n");
+
+    let split = stdout(&ws.diff(&["-U0"]));
+    assert_eq!(hunk_header_count(&split), 2, "{split}");
+
+    let merged = stdout(&ws.diff(&["-U0", "--inter-hunk-context=2"]));
+    assert_eq!(hunk_header_count(&merged), 1, "{merged}");
+}
+
+#[test]
+fn binary_flag_emits_binary_patch_marker_without_large_golden() {
+    let ws = Workspace::new("binary");
+    std::fs::write(ws.member_path().join("bin.dat"), [0, 1, 2, 3, 0]).unwrap();
+    git(&ws.member_path(), &["add", "-A"]);
+    git_commit(&ws.member_path(), "seed binary");
+
+    std::fs::write(ws.member_path().join("bin.dat"), [0, 1, 9, 3, 0, 4]).unwrap();
+
+    let out = ws.diff(&["--binary"]);
+    assert_success(&out);
+    let stdout = stdout(&out);
+    assert!(stdout.contains("diff --git a/lib/bin.dat b/lib/bin.dat"));
+    assert!(stdout.contains("GIT binary patch"), "{stdout}");
+}
+
 // ── D5 bare-operand classification (git's rev/path split) ────────────────────
 
 #[test]
@@ -443,6 +493,10 @@ fn git_stdout(dir: &Path, args: &[&str]) -> String {
 
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).replace("\r\n", "\n")
+}
+
+fn hunk_header_count(text: &str) -> usize {
+    text.lines().filter(|line| line.starts_with("@@ ")).count()
 }
 
 fn assert_success(output: &Output) {
