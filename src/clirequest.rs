@@ -123,6 +123,19 @@ pub(crate) struct CommitArgs {
         help = "Stage tracked modifications first (git commit -a)"
     )]
     pub(crate) all: bool,
+
+    #[arg(
+        long = "commit-marker",
+        conflicts_with = "no_commit_marker",
+        help = "Create and persist a GWZ commit marker"
+    )]
+    pub(crate) commit_marker: bool,
+
+    #[arg(
+        long = "no-commit-marker",
+        help = "Disable GWZ commit marker creation for this commit"
+    )]
+    pub(crate) no_commit_marker: bool,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -757,6 +770,13 @@ impl CommitArgs {
             meta,
             message: self.message.clone(),
             all: self.all.then_some(true),
+            commit_marker: if self.commit_marker {
+                Some(true)
+            } else if self.no_commit_marker {
+                Some(false)
+            } else {
+                None
+            },
         }))
     }
 }

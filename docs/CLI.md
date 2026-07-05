@@ -581,6 +581,12 @@ Options:
   -a, --all
           Stage tracked modifications first (git commit -a)
 
+      --commit-marker
+          Create and persist a GWZ commit marker
+
+      --no-commit-marker
+          Disable GWZ commit marker creation for this commit
+
   -h, --help
           Print help (see a summary with '-h')
 

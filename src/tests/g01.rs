@@ -220,6 +220,58 @@ pub(crate) fn capture_verb_parses_with_selection() {
 }
 
 #[test]
+pub(crate) fn commit_marker_flags_parse_to_tristate() {
+    let default = parse_args_with_request_id(
+        strings(["commit", "-m", "message"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+    let CliRequest::Commit(request) = default.request else {
+        panic!("expected commit");
+    };
+    assert_eq!(request.message, "message");
+    assert_eq!(request.commit_marker, None);
+
+    let enabled = parse_args_with_request_id(
+        strings(["commit", "-m", "message", "--commit-marker"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+    let CliRequest::Commit(request) = enabled.request else {
+        panic!("expected commit");
+    };
+    assert_eq!(request.commit_marker, Some(true));
+
+    let disabled = parse_args_with_request_id(
+        strings(["commit", "-m", "message", "--no-commit-marker"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+    let CliRequest::Commit(request) = disabled.request else {
+        panic!("expected commit");
+    };
+    assert_eq!(request.commit_marker, Some(false));
+
+    assert!(
+        parse_args_with_request_id(
+            strings([
+                "commit",
+                "-m",
+                "message",
+                "--commit-marker",
+                "--no-commit-marker",
+            ]),
+            "req_test",
+            Path::new("/cwd"),
+        )
+        .is_err()
+    );
+}
+
+#[test]
 pub(crate) fn parses_all_with_target_exclusion_for_ls() {
     let invocation = parse_args_with_request_id(
         strings(["--all", "--no-target", "@root", "ls"]),
