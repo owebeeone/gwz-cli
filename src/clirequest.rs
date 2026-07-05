@@ -123,6 +123,19 @@ pub(crate) struct CommitArgs {
         help = "Stage tracked modifications first (git commit -a)"
     )]
     pub(crate) all: bool,
+
+    #[arg(
+        long = "commit-marker",
+        conflicts_with = "no_commit_marker",
+        help = "Create and persist a GWZ commit marker"
+    )]
+    pub(crate) commit_marker: bool,
+
+    #[arg(
+        long = "no-commit-marker",
+        help = "Disable GWZ commit marker creation for this commit"
+    )]
+    pub(crate) no_commit_marker: bool,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -187,7 +200,10 @@ pub(crate) enum CliRequest {
     Capture(gwz_core::CaptureRequest),
     Commit(gwz_core::CommitRequest),
     Stage(gwz_core::StageRequest),
-    ListSnapshots,
+    ListSnapshots(gwz_core::ListSnapshotsRequest),
+    /// Diff is special: it streams patch bytes and owns its own exit code rather
+    /// than returning a rendered response envelope. Boxed to keep the enum small.
+    Diff(Box<DiffInvocation>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -222,6 +238,16 @@ impl CliError {
         Self {
             message: message.into(),
             code: None,
+        }
+    }
+
+    /// A rejected-request error carrying the `InvalidRequest` code, so `--json`/
+    /// `--jsonl` render it structured (used by the diff argument parser to reject
+    /// unsupported git options per D0).
+    pub(crate) fn invalid_request(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            code: Some(gwz_core::model::ErrorCode::InvalidRequest),
         }
     }
 
@@ -385,7 +411,9 @@ impl Cli {
                 _ if args.branch.is_some() => Err(CliError::new(
                     "--branch requires a snapshot name and cannot be combined with --list",
                 )),
-                _ => Ok(CliRequest::ListSnapshots),
+                _ => Ok(CliRequest::ListSnapshots(gwz_core::ListSnapshotsRequest {
+                    meta,
+                })),
             },
             CommandArgs::Tag(args) => {
                 let op = if args.push {
@@ -420,7 +448,29 @@ impl Cli {
             })),
             CommandArgs::Capture => Ok(CliRequest::Capture(gwz_core::CaptureRequest { meta })),
             CommandArgs::Commit(args) => args.request(meta),
+            CommandArgs::Diff(args) => {
+                let workspace_cwd = workspace_relative_cwd(&workspace_root, current_dir);
+                args.request(meta, workspace_cwd)
+            }
         }
+    }
+}
+
+/// The workspace-relative logical cwd (AD10): the physical cwd expressed relative
+/// to the workspace root, so path operands resolve remote-safely. Returns `""`
+/// when cwd is the root (or cannot be expressed under it — the safe default).
+pub(crate) fn workspace_relative_cwd(
+    workspace_root: &str,
+    current_dir: &std::path::Path,
+) -> String {
+    let root = std::path::Path::new(workspace_root);
+    // Canonicalize both sides where possible so `..`/symlinks compare correctly;
+    // fall back to the raw paths if canonicalization fails (e.g. non-existent).
+    let root_abs = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    let cwd_abs = std::fs::canonicalize(current_dir).unwrap_or_else(|_| current_dir.to_path_buf());
+    match cwd_abs.strip_prefix(&root_abs) {
+        Ok(rel) => rel.to_string_lossy().replace('\\', "/"),
+        Err(_) => String::new(),
     }
 }
 
@@ -720,6 +770,13 @@ impl CommitArgs {
             meta,
             message: self.message.clone(),
             all: self.all.then_some(true),
+            commit_marker: if self.commit_marker {
+                Some(true)
+            } else if self.no_commit_marker {
+                Some(false)
+            } else {
+                None
+            },
         }))
     }
 }

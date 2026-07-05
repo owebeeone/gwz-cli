@@ -72,6 +72,41 @@ pub(crate) fn jsonl_renderer_emits_response_event_and_result_in_order() {
 }
 
 #[test]
+pub(crate) fn branch_listing_groups_by_branch_and_current_marker() {
+    let response = CliResponse::branch(gwz_core::BranchResponse {
+        response: branch_response_envelope(),
+        repos: Some(vec![
+            branch_repo("mem_cli", "gwz-cli", "main", "main"),
+            branch_repo("mem_cli", "gwz-cli", "release", "main"),
+            branch_repo("mem_core", "gwz-core", "main", "main"),
+            branch_repo("mem_py", "gwz-py", "main", "release"),
+            branch_repo("mem_py", "gwz-py", "release", "release"),
+        ]),
+    });
+
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "*main: gwz-cli gwz-core\nmain: gwz-py\n*release: gwz-py\nrelease: gwz-cli"
+    );
+}
+
+#[test]
+pub(crate) fn branch_listing_uses_member_path_when_short_name_is_ambiguous() {
+    let response = CliResponse::branch(gwz_core::BranchResponse {
+        response: branch_response_envelope(),
+        repos: Some(vec![
+            branch_repo("mem_app", "apps/app", "main", "main"),
+            branch_repo("mem_vendor_app", "vendor/app", "main", "main"),
+        ]),
+    });
+
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "*main: apps/app vendor/app"
+    );
+}
+
+#[test]
 pub(crate) fn human_renderer_smoke_covers_success_rejection_and_member_failure() {
     let success = render_response(
         &CliResponse::envelope(sample_response(
@@ -99,6 +134,48 @@ pub(crate) fn human_renderer_smoke_covers_success_rejection_and_member_failure()
         OutputMode::Human,
     );
     assert!(failed.contains("RemoteRejected"));
+}
+
+fn branch_response_envelope() -> gwz_core::ResponseEnvelope {
+    gwz_core::ResponseEnvelope {
+        meta: gwz_core::ResponseMeta {
+            request_id: "req_branch".to_owned(),
+            schema_version: "gwz.protocol/v0".to_owned(),
+            action: gwz_core::ActionKind::Branch,
+            aggregate_status: gwz_core::AggregateStatus::Ok,
+            operation_id: Some("op_branch".to_owned()),
+            message: None,
+            attribution: None,
+        },
+        members: Vec::new(),
+        errors: Vec::new(),
+    }
+}
+
+fn branch_repo(
+    member_id: &str,
+    member_path: &str,
+    branch: &str,
+    current_branch: &str,
+) -> gwz_core::BranchRepoSummary {
+    gwz_core::BranchRepoSummary {
+        member_id: member_id.to_owned(),
+        member_path: member_path.to_owned(),
+        source_kind: gwz_core::SourceKind::Git,
+        result: gwz_core::BranchActionResult::Listed,
+        branch: Some(branch.to_owned()),
+        current_branch: Some(current_branch.to_owned()),
+        detached: false,
+        unborn: false,
+        head: Some("abc123".to_owned()),
+        upstream: None,
+        ahead: Some(0),
+        behind: Some(0),
+        source_ref: None,
+        target_branch: None,
+        resulting_commit: None,
+        conflict_paths: Vec::new(),
+    }
 }
 
 #[test]

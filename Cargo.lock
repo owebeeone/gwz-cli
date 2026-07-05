@@ -260,7 +260,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "0.6.0"
+version = "0.8.1"
 dependencies = [
  "clap",
  "console",
@@ -271,13 +271,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-core"
-version = "0.6.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v0.6.0#ad955a7ebce796ecb27589b1b0a0d017df957412"
+version = "0.8.1"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v0.8.1#99d25c41d82b12afe31141ee887dfa98f19b7dcd"
 dependencies = [
+ "getrandom",
  "git2",
  "serde",
  "serde_yaml",
  "sha2",
+ "taut-shape",
  "url",
 ]
 
@@ -698,6 +700,11 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "taut-shape"
+version = "0.0.0"
+source = "git+https://github.com/owebeeone/taut-shape-rs?rev=7fd171b737f25cb6c356845eb68164d35326ffb0#7fd171b737f25cb6c356845eb68164d35326ffb0"
 
 [[package]]
 name = "terminal_size"

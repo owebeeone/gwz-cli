@@ -1,9 +1,10 @@
 use crate::*;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ArtifactListing {
     Tags(Vec<gwz_core::TagInfo>),
-    Snapshots(Vec<gwz_core::artifact::SnapshotArtifact>),
+    Snapshots(Vec<gwz_core::SnapshotInfo>),
     Members {
         entries: Vec<gwz_core::MemberEntry>,
         local: bool,
@@ -59,23 +60,9 @@ impl CliResponse {
         }
     }
 
-    /// A read-only tag/snapshot listing — carries a trivial Ok envelope (no operation ran);
-    /// `render_response` renders the `listing` rather than the envelope.
-    pub(crate) fn listing(listing: ArtifactListing) -> Self {
+    pub(crate) fn listing(response: gwz_core::ResponseEnvelope, listing: ArtifactListing) -> Self {
         Self {
-            envelope: gwz_core::ResponseEnvelope {
-                meta: gwz_core::ResponseMeta {
-                    request_id: String::new(),
-                    schema_version: String::new(),
-                    action: gwz_core::ActionKind::Status,
-                    aggregate_status: gwz_core::AggregateStatus::Ok,
-                    operation_id: None,
-                    message: None,
-                    attribution: None,
-                },
-                members: Vec::new(),
-                errors: Vec::new(),
-            },
+            envelope: response,
             workspace_git_status: None,
             status_mode: None,
             listing: Some(listing),
@@ -117,11 +104,11 @@ pub(crate) fn render_listing_text(listing: &ArtifactListing) -> String {
             for snapshot in snapshots {
                 lines.push(format!(
                     "  {}\t{}\t{}\t({} member{})",
-                    snapshot.snapshot_id,
+                    snapshot.name,
                     snapshot.created_at,
-                    snapshot.created_by.actor_id,
-                    snapshot.members.len(),
-                    plural(snapshot.members.len())
+                    snapshot.created_by,
+                    snapshot.members,
+                    plural(snapshot.members as usize)
                 ));
             }
             lines.join("\n")
@@ -157,10 +144,10 @@ pub(crate) fn listing_json(listing: &ArtifactListing) -> serde_json::Value {
             "entries": snapshots
                 .iter()
                 .map(|snapshot| json!({
-                    "name": snapshot.snapshot_id,
+                    "name": snapshot.name,
                     "created_at": snapshot.created_at,
-                    "created_by": snapshot.created_by.actor_id,
-                    "members": snapshot.members.len(),
+                    "created_by": snapshot.created_by,
+                    "members": snapshot.members,
                 }))
                 .collect::<Vec<_>>(),
         }),
@@ -235,6 +222,13 @@ pub(crate) fn render_branch_response(
     response: &CliResponse,
     repos: &[gwz_core::BranchRepoSummary],
 ) -> String {
+    if repos
+        .iter()
+        .all(|repo| repo.result == gwz_core::BranchActionResult::Listed)
+    {
+        return render_branch_listing_response(response, repos);
+    }
+
     let mut lines = vec![format!(
         "status: {:?}",
         response.envelope.meta.aggregate_status
@@ -267,6 +261,91 @@ pub(crate) fn render_branch_response(
         lines.push(format!("{:?}: {}", error.code, error.message));
     }
     lines.join("\n")
+}
+
+pub(crate) fn render_branch_listing_response(
+    response: &CliResponse,
+    repos: &[gwz_core::BranchRepoSummary],
+) -> String {
+    let mut lines = branch_listing_lines(repos);
+    if response.envelope.meta.aggregate_status != gwz_core::AggregateStatus::Ok {
+        lines.insert(
+            0,
+            format!("status: {:?}", response.envelope.meta.aggregate_status),
+        );
+    }
+    for error in &response.envelope.errors {
+        lines.push(format!("{:?}: {}", error.code, error.message));
+    }
+    lines.join("\n")
+}
+
+pub(crate) fn branch_listing_lines(repos: &[gwz_core::BranchRepoSummary]) -> Vec<String> {
+    if repos.is_empty() {
+        return vec!["no branches".to_owned()];
+    }
+
+    let short_name_counts = branch_repo_short_name_counts(repos);
+    let mut groups: BTreeMap<(String, bool), BTreeSet<String>> = BTreeMap::new();
+    for repo in repos {
+        let branch = repo
+            .branch
+            .as_deref()
+            .or(repo.current_branch.as_deref())
+            .unwrap_or("(detached)");
+        let is_current = repo.current_branch.as_deref() == Some(branch);
+        groups
+            .entry((branch.to_owned(), is_current))
+            .or_default()
+            .insert(branch_repo_label(repo, &short_name_counts));
+    }
+
+    let mut grouped = groups.into_iter().collect::<Vec<_>>();
+    grouped.sort_by(
+        |((left_branch, left_current), _), ((right_branch, right_current), _)| {
+            left_branch
+                .cmp(right_branch)
+                .then_with(|| right_current.cmp(left_current))
+        },
+    );
+    grouped
+        .into_iter()
+        .map(|((branch, is_current), labels)| {
+            format!(
+                "{}{}: {}",
+                if is_current { "*" } else { "" },
+                branch,
+                labels.into_iter().collect::<Vec<_>>().join(" ")
+            )
+        })
+        .collect()
+}
+
+fn branch_repo_short_name_counts(repos: &[gwz_core::BranchRepoSummary]) -> BTreeMap<String, usize> {
+    let mut paths = BTreeSet::new();
+    for repo in repos {
+        paths.insert(repo.member_path.as_str());
+    }
+
+    let mut counts = BTreeMap::new();
+    for path in paths {
+        *counts
+            .entry(member_short_name(path).to_owned())
+            .or_insert(0) += 1;
+    }
+    counts
+}
+
+fn branch_repo_label(
+    repo: &gwz_core::BranchRepoSummary,
+    short_name_counts: &BTreeMap<String, usize>,
+) -> String {
+    let short = member_short_name(&repo.member_path);
+    if short_name_counts.get(short).copied().unwrap_or(0) > 1 {
+        repo.member_path.clone()
+    } else {
+        short.to_owned()
+    }
 }
 
 pub(crate) fn render_stash_response(

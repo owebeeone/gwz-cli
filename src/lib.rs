@@ -12,6 +12,11 @@ pub mod cli_reference;
 mod clirequest;
 mod clone_after;
 mod clone_long;
+mod diff_after;
+mod diff_exec;
+mod diff_long;
+mod diff_render;
+mod diffargs;
 mod forall;
 mod git_status_json;
 mod git_transfer_progress_json;
@@ -23,6 +28,7 @@ mod lsargs;
 mod materialize_after;
 mod materialize_long;
 mod nameargs;
+mod pager;
 mod parse_non_negative_i64;
 mod parse_positive_i64;
 mod progress_detail;
@@ -63,6 +69,9 @@ pub(crate) use cli_long::*;
 pub(crate) use clirequest::*;
 pub(crate) use clone_after::*;
 pub(crate) use clone_long::*;
+pub(crate) use diff_after::*;
+pub(crate) use diff_long::*;
+pub(crate) use diffargs::*;
 pub(crate) use forall::*;
 pub(crate) use git_status_json::*;
 pub(crate) use git_transfer_progress_json::*;
@@ -119,28 +128,53 @@ pub fn run() {
     };
 
     match invocation_from_cli(cli, &new_request_id(), &cwd) {
-        Ok(invocation) => match execute_invocation(&invocation) {
-            Ok(response) => {
-                let rendered = render_response(&response, invocation.output);
-                if !rendered.is_empty() {
-                    println!("{rendered}");
-                }
-                std::process::exit(exit_code_for_response(&response.envelope));
-            }
-            Err(error) => {
-                // F9: structured machine output keeps errors on the same channel
-                // and shape as success; human/porcelain stay on stderr.
-                match invocation.output {
-                    OutputMode::Json | OutputMode::Jsonl => {
-                        println!("{}", render_error_json(&error));
+        Ok(invocation) => {
+            // Diff owns its whole lifecycle: it streams patch bytes and computes
+            // its own exit code, so it never flows through the response renderer.
+            if let CliRequest::Diff(diff) = &invocation.request {
+                match diff_exec::run_diff(
+                    diff,
+                    invocation.output,
+                    invocation.start_dir.as_path(),
+                    new_operation_id(),
+                ) {
+                    Ok(exit) => std::process::exit(exit.code),
+                    Err(error) => {
+                        match invocation.output {
+                            OutputMode::Json | OutputMode::Jsonl => {
+                                println!("{}", render_error_json(&error));
+                            }
+                            OutputMode::Human | OutputMode::Porcelain => {
+                                eprintln!("gwz: {}", error.human_message());
+                            }
+                        }
+                        std::process::exit(1);
                     }
-                    OutputMode::Human | OutputMode::Porcelain => {
-                        eprintln!("gwz: {}", error.human_message());
-                    }
                 }
-                std::process::exit(1);
             }
-        },
+            match execute_invocation(&invocation) {
+                Ok(response) => {
+                    let rendered = render_response(&response, invocation.output);
+                    if !rendered.is_empty() {
+                        println!("{rendered}");
+                    }
+                    std::process::exit(exit_code_for_response(&response.envelope));
+                }
+                Err(error) => {
+                    // F9: structured machine output keeps errors on the same channel
+                    // and shape as success; human/porcelain stay on stderr.
+                    match invocation.output {
+                        OutputMode::Json | OutputMode::Jsonl => {
+                            println!("{}", render_error_json(&error));
+                        }
+                        OutputMode::Human | OutputMode::Porcelain => {
+                            eprintln!("gwz: {}", error.human_message());
+                        }
+                    }
+                    std::process::exit(1);
+                }
+            }
+        }
         Err(error) => {
             eprintln!("gwz: {}", error.human_message());
             std::process::exit(2);
