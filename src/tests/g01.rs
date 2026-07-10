@@ -117,6 +117,104 @@ pub(crate) fn parses_clone_with_explicit_and_derived_target() {
 }
 
 #[test]
+pub(crate) fn parses_repo_lifecycle_commands_and_identity_overrides() {
+    let cloned = parse(strings([
+        "--dry-run",
+        "repo",
+        "clone",
+        "git@example.invalid:org/shared.git",
+        "libs/shared",
+        "--member-id",
+        "mem_shared_v2",
+        "--source-id",
+        "src_shared",
+    ]));
+    let CliRequest::CloneRepoMember(request) = cloned.request else {
+        panic!("expected clone repo member");
+    };
+    assert_eq!(request.source.url, "git@example.invalid:org/shared.git");
+    assert_eq!(request.source.path.as_deref(), Some("libs/shared"));
+    assert_eq!(request.member_id.as_deref(), Some("mem_shared_v2"));
+    assert_eq!(request.source_id.as_deref(), Some("src_shared"));
+    assert_eq!(request.meta.dry_run, Some(true));
+    assert_eq!(
+        operation_label(&CliRequest::CloneRepoMember(request)),
+        "cloning"
+    );
+
+    let detached = parse(strings(["repo", "detach", "libs/shared"]));
+    let CliRequest::DetachRepoMember(request) = detached.request else {
+        panic!("expected detach repo member");
+    };
+    assert_eq!(request.meta.selection.unwrap().targets, vec!["libs/shared"]);
+
+    let attached = parse(strings(["repo", "attach", "mem_shared"]));
+    let CliRequest::AttachRepoMember(request) = attached.request else {
+        panic!("expected attach repo member");
+    };
+    assert_eq!(request.meta.selection.unwrap().targets, vec!["mem_shared"]);
+
+    let added = parse(strings([
+        "repo",
+        "add",
+        "libs/shared",
+        "--member-id",
+        "mem_shared_v2",
+        "--source-id",
+        "src_shared",
+    ]));
+    let CliRequest::AddExistingRepo(request) = added.request else {
+        panic!("expected add existing repo");
+    };
+    assert_eq!(request.member_id.as_deref(), Some("mem_shared_v2"));
+    assert_eq!(request.source_id.as_deref(), Some("src_shared"));
+
+    let created = parse(strings([
+        "repo",
+        "create",
+        "libs/shared",
+        "--member-id",
+        "mem_shared_v2",
+        "--source-id",
+        "src_shared",
+    ]));
+    let CliRequest::CreateRepo(request) = created.request else {
+        panic!("expected create repo");
+    };
+    assert_eq!(request.member_id.as_deref(), Some("mem_shared_v2"));
+    assert_eq!(request.source_id.as_deref(), Some("src_shared"));
+}
+
+#[test]
+pub(crate) fn repo_detach_and_attach_reject_global_selection() {
+    for args in [
+        strings(["--member", "mem_other", "repo", "detach", "mem_shared"]),
+        strings(["--no-target", "@root", "repo", "detach", "mem_shared"]),
+        strings(["--all", "repo", "attach", "mem_shared"]),
+        strings([
+            "--member-path",
+            "libs/other",
+            "repo",
+            "attach",
+            "mem_shared",
+        ]),
+    ] {
+        let error = parse_result(args).unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("cannot be combined with global selection")
+        );
+    }
+}
+
+#[test]
+pub(crate) fn repo_attach_rejects_non_member_id_operand() {
+    let error = parse_result(strings(["repo", "attach", "libs/shared"])).unwrap_err();
+    assert!(error.message.contains("member id"));
+}
+
+#[test]
 pub(crate) fn clone_rejects_dry_run() {
     let error = parse_args_with_request_id(
         strings(["--dry-run", "clone", "https://github.com/org/workspace.git"]),

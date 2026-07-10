@@ -195,6 +195,9 @@ pub(crate) fn render_human_response(response: &CliResponse) -> String {
         "status: {:?}",
         response.envelope.meta.aggregate_status
     )];
+    if let Some(message) = &response.envelope.meta.message {
+        lines.push(message.clone());
+    }
     for member in &response.envelope.members {
         let mut line = format!(
             "{} {} {:?}",

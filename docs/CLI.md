@@ -46,7 +46,7 @@ Commands:
   materialize  Materialize workspace members to a target
   pull         Update workspace members to an explicit target
   push         Push workspace target refs
-  repo         Manage workspace repositories (add an existing repo, or create one)
+  repo         Manage workspace repository members
   snapshot     Record the current workspace selection
   stash        Manage coordinated git stashes across workspace members
   status       Show workspace git status
@@ -1508,16 +1508,19 @@ Command page: [repo](commands/repo.md).
 Manage repository members inside a workspace.
 
 Repository commands bring member repositories into a workspace and manage their
-manifest metadata. This group exposes `add` (register an existing repository as
-a member), `create` (initialize a new member from scratch), and `sync` (refresh
-metadata from local git config); use top-level commands such as `gwz status`,
-`gwz pull`, and `gwz push` for workspace-wide operations.
+manifest metadata. Clone or create a new member, add an existing checkout,
+detach a designation from the current composition, attach an inactive
+designation, or sync metadata from local git config. Use top-level commands
+such as `gwz status`, `gwz pull`, and `gwz push` for workspace-wide operations.
 
 Usage: gwz repo [OPTIONS] <COMMAND>
 
 Commands:
   add     Add an existing git repository as a member
+  clone   Clone and register a new repository member
   create  Create a new repository member
+  detach  Detach a repository member without deleting its checkout
+  attach  Reattach an inactive repository designation
   sync    Refresh member metadata from local git config
   help    Print this message or the help of the given subcommand(s)
 
@@ -1599,7 +1602,10 @@ Global Options:
           hang forever. 0 disables the timeout. Defaults to 3.
 
 Examples:
+  gwz repo clone git@github.com:org/shared-lib.git libs/shared
   gwz repo create repos/new-service
+  gwz repo detach libs/shared
+  gwz repo attach mem_shared
   gwz repo sync gwz-py
   gwz help repo create
 ```
@@ -1622,6 +1628,12 @@ Arguments:
           Path to an existing local git repository
 
 Options:
+      --member-id <member-id>
+          Explicit member designation id
+
+      --source-id <source-id>
+          Explicit logical source id
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -1700,7 +1712,120 @@ Global Options:
 
 Examples:
   gwz repo add repos/app
+  gwz repo add libs/shared --member-id mem_shared_v2 --source-id src_shared
   gwz --root /work/demo repo add /src/local-lib
+```
+
+### `gwz repo clone`
+
+Command page: [repo](commands/repo.md).
+
+```text
+Clone a Git repository into the current workspace and register it as an active
+member.
+
+The optional member path controls where the checkout is created. Without it,
+GWZ derives the path from the repository URL. `--member-id` and `--source-id`
+override the derived designation and logical source identities. Dry-run plans
+the clone without creating the checkout or changing workspace artifacts.
+
+Usage: gwz repo clone [OPTIONS] <url> [member-path]
+
+Arguments:
+  <url>
+          Git URL of the repository to clone
+
+  [member-path]
+          Workspace-relative target path; defaults from the URL
+
+Options:
+      --member-id <member-id>
+          Explicit member designation id
+
+      --source-id <source-id>
+          Explicit logical source id
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes.
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz repo clone git@github.com:org/shared-lib.git
+  gwz repo clone git@github.com:org/shared-lib.git libs/shared
+  gwz --dry-run repo clone git@github.com:org/shared-lib.git libs/shared
+  gwz repo clone git@github.com:org/replacement.git libs/shared --member-id mem_replacement
 ```
 
 ### `gwz repo create`
@@ -1719,6 +1844,113 @@ Usage: gwz repo create [OPTIONS] <member-path>
 Arguments:
   <member-path>
           Workspace-relative path for the new repository member
+
+Options:
+      --member-id <member-id>
+          Explicit member designation id
+
+      --source-id <source-id>
+          Explicit logical source id
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes.
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz repo create repos/new-service
+  gwz repo create repos/new-service --member-id mem_service --source-id src_service
+  gwz --root /work/demo repo create packages/experiment
+```
+
+### `gwz repo detach`
+
+Command page: [repo](commands/repo.md).
+
+```text
+Stop managing an active member in the current workspace composition.
+
+GWZ marks the manifest designation inactive and removes it from the current
+lock. The checkout, snapshots, and markers remain in place. Select exactly one
+member by id or workspace-relative path; global selection flags cannot be
+combined with the positional member.
+
+Usage: gwz repo detach [OPTIONS] <member>
+
+Arguments:
+  <member>
+          Active member id or workspace-relative path
 
 Options:
   -h, --help
@@ -1798,8 +2030,110 @@ Global Options:
           hang forever. 0 disables the timeout. Defaults to 3.
 
 Examples:
-  gwz repo create repos/new-service
-  gwz --root /work/demo repo create packages/experiment
+  gwz repo detach mem_shared
+  gwz repo detach libs/shared
+  gwz --dry-run repo detach libs/shared
+```
+
+### `gwz repo attach`
+
+Command page: [repo](commands/repo.md).
+
+```text
+Reactivate an inactive repository designation in the current workspace while
+preserving its member and source identities.
+
+Attach requires the historical member id and retained checkout. Every
+snapshot or marker commit recorded for that member must exist in the checkout.
+If no historical evidence exists, explicit attach proceeds with a warning.
+
+Usage: gwz repo attach [OPTIONS] <member-id>
+
+Arguments:
+  <member-id>
+          Inactive member designation id
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes.
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz repo detach mem_shared
+  gwz repo attach mem_shared
+  gwz --dry-run repo attach mem_shared
 ```
 
 ### `gwz repo sync`
