@@ -127,7 +127,7 @@ Read-only listing commands render listing objects with `--json` or `--jsonl`.
   "kind": "tags",
   "entries": [
     {
-      "name": "v0.3.0",
+      "name": "v0.9.0",
       "members": 3
     }
   ]

@@ -4,6 +4,18 @@ GWZ can manage the development root workspace and other GWZ-managed roots. A
 root workspace is the repository that owns `gwz.conf/` and coordinates member
 repositories through the manifest, lock, snapshots, and tags.
 
+Clone the complete GWZ development workspace with GWZ itself:
+
+```sh
+gwz clone https://github.com/owebeeone/gwz-dev.git gwz-dev
+cd gwz-dev
+gwz status
+cargo test --workspace
+```
+
+If you are learning the product rather than contributing to it, start with the
+[Quick Start](QuickStart.md).
+
 In the `gwz-dev` development workspace, the main member directories are:
 
 - `gwz-cli/`: the `gwz` binary, CLI docs, release scripts, and CLI tests.
@@ -112,19 +124,19 @@ gwz --all --no-target @root push
 Create an annotated tag:
 
 ```sh
-gwz tag v0.3.0 -m "GWZ v0.3.0"
+gwz tag v0.9.0 -m "GWZ v0.9.0"
 ```
 
 Push the tag to member remotes:
 
 ```sh
-gwz tag --push v0.3.0
+gwz tag --push v0.9.0
 ```
 
 Check out that tag later:
 
 ```sh
-gwz materialize --tag v0.3.0
+gwz materialize --tag v0.9.0
 ```
 
 ## Practical Rules

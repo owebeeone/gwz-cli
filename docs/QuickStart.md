@@ -1,10 +1,44 @@
 # Quick Start
 
-This flow shows the normal GWZ lifecycle with the implemented commands.
+GWZ coordinates several ordinary Git repositories as one workspace. The root
+repository records which member repositories belong to the workspace and the
+exact revisions that make up a reproducible state; each member remains a normal
+Git repository.
 
-## Create A Workspace
+This guide gets you through the first useful workflow. Use the
+[repository lifecycle guide](RepoLifecycle.md) when you need the full identity
+and recovery rules.
 
-Create an empty workspace:
+## 1. Install GWZ
+
+On macOS or Linux:
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.sh | sh
+```
+
+On Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.ps1 | iex"
+```
+
+Confirm the installation:
+
+```sh
+gwz --version
+gwz --help
+```
+
+See [Install](Install.md) for pinned versions, source installs, and release
+verification.
+
+## 2. Choose How To Start
+
+### Create A New Workspace
+
+Create an empty Git repository that will own the workspace metadata:
 
 ```sh
 mkdir demo
@@ -12,214 +46,169 @@ cd demo
 gwz init
 ```
 
-Initialize a workspace from existing source URLs:
+Then grow it using the command that matches the repository you have:
+
+| Situation | Command |
+| --- | --- |
+| The remote repository already exists | `gwz repo clone <url> [path]` |
+| The local Git repository already exists | `gwz repo add <path>` |
+| The repository does not exist yet | `gwz repo create <path>` |
+
+Create one new local member for this walkthrough:
 
 ```sh
-gwz init git@github.com:org/app.git git@github.com:org/lib.git
-```
-
-Put initialized repositories under a prefix:
-
-```sh
-gwz init --path repos git@github.com:org/app.git
-```
-
-## Clone A Workspace
-
-Clone the root workspace repository and materialize members from the lock:
-
-```sh
-gwz clone git@github.com:org/workspace.git work/demo
-cd work/demo
+gwz repo create services/api --member-id mem_api
 gwz status
 ```
 
-If the root was cloned with plain `git clone`, complete the workspace:
+In another workspace, the corresponding remote-clone or existing-local-repo
+forms would be:
 
 ```sh
-gwz materialize --lock
+gwz repo clone git@github.com:org/shared.git libs/shared
+gwz repo add tools/local-helper
 ```
 
-## Inspect Members
-
-List materialized member paths:
+Commit the root metadata after checking the result. If a local repository was
+registered with `repo add`, explicitly include the manifest:
 
 ```sh
-gwz ls
+gwz add gwz.conf
+gwz commit -m "Define the workspace"
 ```
 
-Print workspace-relative paths:
+!!! note "Two pairs of commands sound similar"
+
+    - `gwz clone` clones an entire **workspace root** and materializes its
+      members. `gwz repo clone` adds one **member repository** to the workspace
+      you are already in.
+    - `gwz add` stages **file content** across repositories. `gwz repo add`
+      registers an existing **Git repository** as a member.
+
+### Clone An Existing Workspace
+
+If somebody has already published a GWZ workspace, clone its root and
+materialize the locked member revisions in one operation:
 
 ```sh
+gwz clone https://github.com/org/workspace.git work/workspace
+cd work/workspace
+gwz status
 gwz ls --local
 ```
 
-Include configured members that are not yet materialized:
+If the root was cloned with plain `git clone`, finish it with:
 
 ```sh
-gwz ls --unmaterialized
-```
-
-## Add Or Create Members
-
-Register an existing local Git repository:
-
-```sh
-gwz repo add repos/local-lib
-```
-
-Create a new member repository:
-
-```sh
-gwz repo create repos/new-service
-```
-
-Check the resulting workspace state:
-
-```sh
+gwz materialize --lock
 gwz status
 ```
 
-## Stage And Commit
+## 3. Work Across The Repositories
 
-Stage specific paths across the workspace:
-
-```sh
-gwz add gwz-cli/README.md gwz-core/src/lib.rs
-```
-
-Stage all changes:
+The everyday loop is intentionally Git-like:
 
 ```sh
-gwz add -A
+gwz status
+gwz diff
+gwz add path/to/file another/member/file
+gwz diff --cached
+gwz commit -m "Update the shared API"
+gwz status
 ```
 
-Commit staged changes across members and the workspace root:
+Commands discover the workspace from the current directory, including when
+run inside a member. Use `--root <path>` only when you need to override that
+discovery.
 
-```sh
-gwz commit -m "Update workspace docs"
-```
-
-Stage tracked modifications as part of commit:
-
-```sh
-gwz commit -a -m "Refresh generated files"
-```
-
-## Snapshot And Restore
-
-Record a named snapshot before risky work:
-
-```sh
-gwz snapshot before-refactor
-```
-
-List snapshots:
-
-```sh
-gwz snapshot --list
-```
-
-Return members to a snapshot:
-
-```sh
-gwz materialize --snapshot before-refactor
-```
-
-## Tags
-
-Create a real Git tag across selected members and the committed workspace root:
-
-```sh
-gwz tag v0.3.0
-```
-
-Create an annotated tag:
-
-```sh
-gwz tag v0.3.0 -m "GWZ v0.3.0"
-```
-
-List local tags:
-
-```sh
-gwz tag
-```
-
-Push one tag to member remotes:
-
-```sh
-gwz tag --push v0.3.0
-```
-
-Materialize all selected members at the tag:
-
-```sh
-gwz materialize --tag v0.3.0
-```
-
-## Run A Command In Members
-
-Run a portable argv command in every member:
+Run the same command in members when a change spans several repositories:
 
 ```sh
 gwz forall -- git status --short
+gwz forall gwz-cli gwz-core -- cargo test
 ```
 
-Run a shell command string:
+Record a named checkpoint before a broad or risky change:
 
 ```sh
-gwz forall -c 'printf "%s\n" "$GWZ_MEMBER_PATH"'
+gwz snapshot before-refactor
+# Later, if needed:
+gwz materialize --snapshot before-refactor
 ```
 
-Run in selected members by id or path:
-
-```sh
-gwz forall gwz-cli taut -- cargo test
-```
-
-## Pull And Push
-
-Move members forward to repository heads with fast-forward behavior by default:
-
-```sh
-gwz pull --head
-```
-
-Preview a pull:
+Preview broad mutations before applying them:
 
 ```sh
 gwz --dry-run pull --head
-```
-
-Push member refs:
-
-```sh
+gwz pull --head
 gwz push
 ```
 
-Select a remote:
+## 4. Publish A Member Created Locally
+
+`gwz repo create` creates a local repository; it does not create a repository
+on GitHub or another hosting service. When an empty hosted repository is ready,
+add its `origin` with Git and synchronize that configuration into the GWZ
+manifest:
 
 ```sh
-gwz --remote origin push
+git -C services/api remote add origin git@github.com:org/api.git
+gwz repo sync services/api
+
+printf '# API service\n' > services/api/README.md
+gwz add services/api/README.md gwz.conf
+gwz commit -m "Create API service"
+gwz --member mem_api push
 ```
 
-## Machine Consumers
+`repo sync` records the observed remote and desired branch. It does not create
+the hosted repository, fetch, push, change branches, or rewrite the lock. Its
+manifest change is currently unstaged, so the example explicitly stages
+`gwz.conf`. The member needs at least one commit before its first push.
 
-Use one JSON response:
+If the hosted repository already contains history that must be preserved, use
+`gwz repo clone` instead of this publish-later flow.
+
+## 5. Detach And Reattach A Member
+
+Detach removes a member from the active composition without deleting its
+checkout or historical designation:
 
 ```sh
-gwz --json status
+gwz repo detach mem_shared
+gwz repo attach mem_shared
 ```
 
-Use newline-delimited JSON records for streaming operation consumers:
+Attach verifies that every commit previously recorded for the member in
+snapshots and markers exists in the checkout. It fails before changing metadata
+when that evidence is missing. If no historical commit evidence exists,
+explicit attach proceeds with a warning because you named the designation;
+automatic `repo add` will not infer an identity from empty evidence.
+
+See [Repository Member Lifecycle](RepoLifecycle.md) before replacing a member,
+reattaching a shallow checkout, or reusing a source identity.
+
+## Develop GWZ Itself
+
+The `gwz-dev` workspace is the complete coordinated development checkout:
 
 ```sh
-gwz --jsonl pull --head
+gwz clone https://github.com/owebeeone/gwz-dev.git gwz-dev
+cd gwz-dev
+gwz status
+cargo test --workspace
 ```
 
-Use stable status porcelain:
+Continue with [Root Workspaces](RootWorkspace.md) for the contributor workflow.
 
-```sh
-gwz status --porcelain
-```
+## Where To Go Next
+
+- [Concepts](Concepts.md) explains manifests, locks, snapshots, selections, and
+  remotes.
+- [Workflows](Workflows.md) contains release, maintenance, pull, and scripting
+  recipes.
+- [CLI Reference](CLI.md) and the [command pages](commands/status.md) document
+  every option.
+- [Machine Output](MachineOutput.md) covers JSON, JSONL, porcelain, and exit
+  codes.
+- [Troubleshooting](Troubleshooting.md) covers common failures and recovery.

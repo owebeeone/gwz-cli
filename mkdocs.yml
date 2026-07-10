@@ -1,0 +1,89 @@
+site_name: GWZ
+site_description: >-
+  Coordinate multiple ordinary Git repositories as one reproducible,
+  inspectable workspace.
+site_url: https://owebeeone.github.io/gwz-cli/
+repo_url: https://github.com/owebeeone/gwz-cli
+repo_name: owebeeone/gwz-cli
+edit_uri: edit/main/docs/
+copyright: GPL-2.0-only
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+
+exclude_docs: |
+  agent_bootstrap.md
+
+nav:
+  - Home: README.md
+  - Quick Start: QuickStart.md
+  - Install: Install.md
+  - Guides:
+      - Concepts: Concepts.md
+      - Workflows: Workflows.md
+      - Repository Member Lifecycle: RepoLifecycle.md
+      - Root Workspaces: RootWorkspace.md
+      - Troubleshooting: Troubleshooting.md
+      - Agent Bootstrap: AgentBootstrap.md
+  - Reference:
+      - CLI Reference: CLI.md
+      - Machine Output: MachineOutput.md
+      - Commands:
+          - init: commands/init.md
+          - clone: commands/clone.md
+          - repo: commands/repo.md
+          - ls: commands/ls.md
+          - status: commands/status.md
+          - diff: commands/diff.md
+          - add: commands/add.md
+          - commit: commands/commit.md
+          - capture: commands/capture.md
+          - snapshot: commands/snapshot.md
+          - tag: commands/tag.md
+          - branch: commands/branch.md
+          - stash: commands/stash.md
+          - materialize: commands/materialize.md
+          - pull: commands/pull.md
+          - push: commands/push.md
+          - forall: commands/forall.md
+  - Releases: Releases.md

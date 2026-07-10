@@ -36,6 +36,49 @@ artifacts:
 gwz --dry-run repo clone git@github.com:org/shared.git libs/shared
 ```
 
+## Publish A Repository Created Locally
+
+`gwz repo create` creates and registers a local Git repository. It does not
+create a repository on GitHub or another host, and the new member initially has
+no remote:
+
+```sh
+gwz repo create services/api --member-id mem_api
+```
+
+If the remote repository already contains history that should be preserved,
+use `gwz repo clone` instead. Use the following flow when the local member is
+the new source of truth and an empty hosted repository is created later.
+
+First create the empty remote through the hosting service, then associate the
+local member with it using normal Git:
+
+```sh
+git -C services/api remote add origin git@github.com:org/api.git
+```
+
+GWZ does not infer out-of-band Git configuration changes. Synchronize the
+observed remote and current desired branch into the workspace manifest:
+
+```sh
+gwz repo sync services/api
+```
+
+`repo sync` changes manifest metadata only. It does not fetch, push, check out
+a branch, or rewrite the lock. The current implementation also does not stage
+the rewritten manifest, so include `gwz.conf` when staging the initial change:
+
+```sh
+printf '# API service\n' > services/api/README.md
+gwz add services/api/README.md gwz.conf
+gwz commit -m "Create API service"
+gwz --member mem_api push
+```
+
+The selected push sends the member's current branch to the recorded `origin`
+without also trying to push the workspace root. A branch must have at least one
+commit before it can be pushed.
+
 ## Detach Without Deleting
 
 Remove an active member from the current workspace composition without deleting

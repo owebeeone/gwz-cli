@@ -31,4 +31,5 @@ gwz status
 Docs:
 
 - `gwz --help`
-- https://github.com/owebeeone/gwz-cli/tree/main/docs
+- Quick Start: https://owebeeone.github.io/gwz-cli/QuickStart/
+- Full documentation: https://owebeeone.github.io/gwz-cli/

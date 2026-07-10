@@ -6,4 +6,4 @@ tracked `gwz.conf/` directory. Commands operate on the workspace as a whole,
 so a single request can initialize, inspect, snapshot, materialize, pull, or
 push a coordinated set of repositories.
 
-Documentation: https://github.com/owebeeone/gwz-cli/tree/main/docs";
+Documentation: https://owebeeone.github.io/gwz-cli/";

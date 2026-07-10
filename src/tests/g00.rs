@@ -13,7 +13,7 @@ pub(crate) fn usage_text_covers_standard_help_and_commands() {
 #[test]
 pub(crate) fn root_help_advertises_hosted_docs_near_top_and_at_end() {
     let usage = usage_text();
-    let docs_url = "https://github.com/owebeeone/gwz-cli/tree/main/docs";
+    let docs_url = "https://owebeeone.github.io/gwz-cli/";
 
     let positions = usage
         .match_indices(docs_url)

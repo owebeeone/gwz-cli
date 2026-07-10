@@ -61,7 +61,7 @@ Remote push, fetch, list, and delete operations span member repositories.
 Tags are checked out through materialization:
 
 ```sh
-gwz materialize --tag v0.3.0
+gwz materialize --tag v0.9.0
 ```
 
 ## Selection
