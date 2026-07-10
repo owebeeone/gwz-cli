@@ -21,6 +21,8 @@ Examples in these docs usually omit it.
 - [CLI Reference](CLI.md): generated root and command help from the Clap
   command definitions.
 - [Workflows](Workflows.md): task-oriented flows across commands.
+- [Repository Member Lifecycle](RepoLifecycle.md): clone, detach, attach,
+  evidence-backed re-add, and historical identity verification.
 - [Machine Output](MachineOutput.md): `--json`, `--jsonl`, status porcelain,
   listings, and exit codes.
 - [Root Workspaces](RootWorkspace.md): using GWZ to manage a GWZ-managed root
@@ -36,7 +38,8 @@ Examples in these docs usually omit it.
 - [init](commands/init.md): create an empty workspace or initialize from source
   URLs.
 - [clone](commands/clone.md): clone a workspace root and materialize members.
-- [repo](commands/repo.md): add, create, or sync repository members.
+- [repo](commands/repo.md): add, clone, create, detach, attach, or sync
+  repository members.
 - [ls](commands/ls.md): list materialized and configured members.
 - [status](commands/status.md): inspect workspace Git state.
 - [add](commands/add.md): stage file contents across workspace repositories.

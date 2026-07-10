@@ -26,6 +26,16 @@ pub(crate) struct AddArgs {
         help = "Path to an existing local git repository"
     )]
     pub(crate) repo_path: String,
+
+    #[arg(
+        long,
+        value_name = "member-id",
+        help = "Explicit member designation id"
+    )]
+    pub(crate) member_id: Option<String>,
+
+    #[arg(long, value_name = "source-id", help = "Explicit logical source id")]
+    pub(crate) source_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -37,11 +47,29 @@ pub(crate) enum RepoCommandArgs {
     )]
     Add(AddArgs),
     #[command(
+        about = "Clone and register a new repository member",
+        long_about = REPO_CLONE_LONG,
+        after_long_help = REPO_CLONE_AFTER
+    )]
+    Clone(RepoCloneArgs),
+    #[command(
         about = "Create a new repository member",
         long_about = REPO_CREATE_LONG,
         after_long_help = REPO_CREATE_AFTER
     )]
     Create(RepoCreateArgs),
+    #[command(
+        about = "Detach a repository member without deleting its checkout",
+        long_about = REPO_DETACH_LONG,
+        after_long_help = REPO_DETACH_AFTER
+    )]
+    Detach(RepoDetachArgs),
+    #[command(
+        about = "Reattach an inactive repository designation",
+        long_about = REPO_ATTACH_LONG,
+        after_long_help = REPO_ATTACH_AFTER
+    )]
+    Attach(RepoAttachArgs),
     #[command(
         about = "Refresh member metadata from local git config",
         long_about = REPO_SYNC_LONG,
@@ -57,6 +85,53 @@ pub(crate) struct RepoCreateArgs {
         help = "Workspace-relative path for the new repository member"
     )]
     pub(crate) member_path: String,
+
+    #[arg(
+        long,
+        value_name = "member-id",
+        help = "Explicit member designation id"
+    )]
+    pub(crate) member_id: Option<String>,
+
+    #[arg(long, value_name = "source-id", help = "Explicit logical source id")]
+    pub(crate) source_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Args)]
+pub(crate) struct RepoCloneArgs {
+    #[arg(value_name = "url", help = "Git URL of the repository to clone")]
+    pub(crate) url: String,
+
+    #[arg(
+        value_name = "member-path",
+        help = "Workspace-relative target path; defaults from the URL"
+    )]
+    pub(crate) member_path: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "member-id",
+        help = "Explicit member designation id"
+    )]
+    pub(crate) member_id: Option<String>,
+
+    #[arg(long, value_name = "source-id", help = "Explicit logical source id")]
+    pub(crate) source_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Args)]
+pub(crate) struct RepoDetachArgs {
+    #[arg(
+        value_name = "member",
+        help = "Active member id or workspace-relative path"
+    )]
+    pub(crate) member: String,
+}
+
+#[derive(Clone, Debug, Args)]
+pub(crate) struct RepoAttachArgs {
+    #[arg(value_name = "member-id", help = "Inactive member designation id")]
+    pub(crate) member_id: String,
 }
 
 #[derive(Clone, Debug, Default, Args)]
@@ -176,6 +251,9 @@ pub(crate) enum CliRequest {
     AddExistingRepo(gwz_core::AddExistingRepoRequest),
     CreateRepo(gwz_core::CreateRepoRequest),
     RepoSync(gwz_core::RepoSyncRequest),
+    CloneRepoMember(gwz_core::CloneRepoMemberRequest),
+    DetachRepoMember(gwz_core::DetachRepoMemberRequest),
+    AttachRepoMember(gwz_core::AttachRepoMemberRequest),
     Materialize(gwz_core::MaterializeRequest),
     Status(gwz_core::StatusRequest),
     Ls {
@@ -219,6 +297,7 @@ pub(crate) enum OutputMode {
 pub(crate) fn operation_label(request: &CliRequest) -> &'static str {
     match request {
         CliRequest::CloneWorkspace { .. } => "cloning",
+        CliRequest::CloneRepoMember(_) => "cloning",
         CliRequest::Materialize(_) => "materializing",
         CliRequest::InitFromSources(_) => "initializing",
         CliRequest::UpdateBootstrap { .. } => "updating",
@@ -549,8 +628,8 @@ impl AddArgs {
                 meta,
                 repository_path: self.repo_path.clone(),
                 member_path: None,
-                member_id: None,
-                source_id: None,
+                member_id: self.member_id.clone(),
+                source_id: self.source_id.clone(),
             },
         ))
     }
@@ -560,18 +639,79 @@ impl RepoArgs {
     pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
         match &self.command {
             RepoCommandArgs::Add(args) => args.request(meta),
+            RepoCommandArgs::Clone(args) => args.request(meta),
             RepoCommandArgs::Create(args) => {
                 Ok(CliRequest::CreateRepo(gwz_core::CreateRepoRequest {
                     meta,
                     member_path: args.member_path.clone(),
                     initial_branch: None,
-                    member_id: None,
-                    source_id: None,
+                    member_id: args.member_id.clone(),
+                    source_id: args.source_id.clone(),
                 }))
             }
+            RepoCommandArgs::Detach(args) => args.request(meta),
+            RepoCommandArgs::Attach(args) => args.request(meta),
             RepoCommandArgs::Sync(args) => args.request(meta),
         }
     }
+}
+
+impl RepoCloneArgs {
+    pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        Ok(CliRequest::CloneRepoMember(
+            gwz_core::CloneRepoMemberRequest {
+                meta,
+                source: gwz_core::SourceUrl {
+                    url: self.url.clone(),
+                    path: self.member_path.clone(),
+                    remote_name: None,
+                    branch: None,
+                },
+                member_id: self.member_id.clone(),
+                source_id: self.source_id.clone(),
+            },
+        ))
+    }
+}
+
+impl RepoDetachArgs {
+    pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        let meta = single_repo_lifecycle_selector(meta, &self.member, "repo detach")?;
+        Ok(CliRequest::DetachRepoMember(
+            gwz_core::DetachRepoMemberRequest { meta },
+        ))
+    }
+}
+
+impl RepoAttachArgs {
+    pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        gwz_core::model::MemberId::parse_str(&self.member_id).map_err(|_| {
+            CliError::new(
+                "repo attach requires a member id starting with mem_ and portable characters",
+            )
+        })?;
+        let meta = single_repo_lifecycle_selector(meta, &self.member_id, "repo attach")?;
+        Ok(CliRequest::AttachRepoMember(
+            gwz_core::AttachRepoMemberRequest { meta },
+        ))
+    }
+}
+
+fn single_repo_lifecycle_selector(
+    mut meta: gwz_core::RequestMeta,
+    selector: &str,
+    command: &str,
+) -> Result<gwz_core::RequestMeta, CliError> {
+    if meta.selection.is_some() {
+        return Err(CliError::new(format!(
+            "{command} member cannot be combined with global selection"
+        )));
+    }
+    meta.selection = Some(gwz_core::Selection {
+        targets: vec![selector.to_owned()],
+        ..Default::default()
+    });
+    Ok(meta)
 }
 
 impl RepoSyncArgs {

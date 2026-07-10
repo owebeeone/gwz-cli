@@ -136,6 +136,17 @@ pub(crate) fn human_renderer_smoke_covers_success_rejection_and_member_failure()
     assert!(failed.contains("RemoteRejected"));
 }
 
+#[test]
+pub(crate) fn human_renderer_surfaces_response_messages() {
+    let mut response = sample_response(gwz_core::AggregateStatus::Ok, gwz_core::MemberStatus::Ok);
+    response.meta.message =
+        Some("attached mem_shared; no snapshot or marker commit evidence was available".to_owned());
+
+    let rendered = render_response(&CliResponse::envelope(response), OutputMode::Human);
+
+    assert!(rendered.contains("no snapshot or marker commit evidence was available"));
+}
+
 fn branch_response_envelope() -> gwz_core::ResponseEnvelope {
     gwz_core::ResponseEnvelope {
         meta: gwz_core::ResponseMeta {

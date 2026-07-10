@@ -116,7 +116,10 @@ fn every_command_help_has_semantics_and_examples() {
         &["add"][..],
         &["repo"][..],
         &["repo", "add"][..],
+        &["repo", "clone"][..],
         &["repo", "create"][..],
+        &["repo", "detach"][..],
+        &["repo", "attach"][..],
         &["status"][..],
         &["snapshot"][..],
         &["tag"][..],
@@ -533,6 +536,90 @@ fn add_create_and_dry_run_commands_work() {
         .unwrap();
     assert_success(&dry_run);
     assert_eq!(json(&dry_run)["meta"]["aggregate_status"], "Accepted");
+}
+
+#[test]
+fn repo_clone_detach_and_attach_work_through_cli() {
+    let temp = TempDir::new("repo-lifecycle");
+    let remote = RemoteFixture::new("repo-lifecycle-source");
+    remote.commit_and_push("README.md", "one", "initial");
+    assert_success(
+        &gwz(temp.path())
+            .args(["--root", temp.path_str(), "init"])
+            .output()
+            .unwrap(),
+    );
+
+    let dry_run = gwz(temp.path())
+        .args([
+            "--root",
+            temp.path_str(),
+            "--dry-run",
+            "--json",
+            "repo",
+            "clone",
+            remote.url(),
+            "libs/shared",
+            "--member-id",
+            "mem_shared",
+            "--source-id",
+            "src_shared",
+        ])
+        .output()
+        .unwrap();
+    assert_success(&dry_run);
+    assert_eq!(json(&dry_run)["meta"]["aggregate_status"], "Accepted");
+    assert!(!temp.path().join("libs/shared").exists());
+
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                temp.path_str(),
+                "repo",
+                "clone",
+                remote.url(),
+                "libs/shared",
+                "--member-id",
+                "mem_shared",
+                "--source-id",
+                "src_shared",
+            ])
+            .output()
+            .unwrap(),
+    );
+    assert!(temp.path().join("libs/shared/.git").is_dir());
+
+    assert_success(
+        &gwz(temp.path())
+            .args(["--root", temp.path_str(), "repo", "detach", "libs/shared"])
+            .output()
+            .unwrap(),
+    );
+    assert!(temp.path().join("libs/shared/.git").is_dir());
+
+    let attached = gwz(temp.path())
+        .args(["--root", temp.path_str(), "repo", "attach", "mem_shared"])
+        .output()
+        .unwrap();
+    assert_success(&attached);
+    assert!(
+        String::from_utf8_lossy(&attached.stdout)
+            .contains("no snapshot or marker commit evidence was available")
+    );
+
+    let status = gwz(temp.path())
+        .args([
+            "--root",
+            temp.path_str(),
+            "--json",
+            "status",
+            "--no-combined",
+        ])
+        .output()
+        .unwrap();
+    assert_success(&status);
+    assert_eq!(json(&status)["members"][0]["member_id"], "mem_shared");
 }
 
 #[test]

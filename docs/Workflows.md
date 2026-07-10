@@ -48,6 +48,53 @@ gwz add -A
 gwz commit -m "Add local lib member"
 ```
 
+Clone a new member directly into the workspace:
+
+```sh
+gwz repo clone git@github.com:org/shared-lib.git repos/shared-lib
+gwz status
+```
+
+## Detach And Reattach A Member
+
+Temporarily remove a member from the active composition while retaining its
+checkout and historical identity:
+
+```sh
+gwz repo detach mem_shared
+# Later, after restoring the checkout at its recorded path:
+gwz repo attach mem_shared
+```
+
+Attach verifies every commit recorded for the member in snapshots and markers.
+GWZ does not fetch missing history. If verification reports
+`SourceIdentityMismatch`, fetch enough history into the retained checkout and
+retry attach.
+
+Bare add is a convenience when the detached checkout is still present:
+
+```sh
+gwz repo add libs/shared
+```
+
+It reactivates the old row only when exactly one inactive row at that path has
+non-empty, fully verified commit evidence. Use explicit `repo attach
+mem_shared` when no evidence was recorded or when the path has ambiguous
+history.
+
+To replace the member with a different repository, keep the old row inactive
+and create a new designation:
+
+```sh
+gwz repo detach mem_shared
+mv libs/shared ../shared-old
+gwz repo clone git@github.com:org/replacement.git libs/shared \
+  --member-id mem_replacement
+```
+
+See [Repository Member Lifecycle](RepoLifecycle.md) for the complete identity,
+warning, and recovery contract.
+
 ## Make A Multi-Repository Change
 
 ```sh

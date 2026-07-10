@@ -261,7 +261,7 @@ pub(crate) enum CommandArgs {
     )]
     Push,
     #[command(
-        about = "Manage workspace repositories (add an existing repo, or create one)",
+        about = "Manage workspace repository members",
         long_about = REPO_LONG,
         after_long_help = REPO_AFTER
     )]
@@ -533,6 +533,33 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             operation_id,
         )
         .map(|response| CliResponse::envelope(response.response)),
+        CliRequest::CloneRepoMember(request) => gwz_core::workspace_ops::handle_clone_repo_member(
+            &backend,
+            start,
+            request.clone(),
+            operation_id,
+            events,
+        )
+        .map(|response| CliResponse::envelope(response.response)),
+        CliRequest::DetachRepoMember(request) => {
+            gwz_core::workspace_ops::handle_detach_repo_member(
+                &backend,
+                start,
+                request.clone(),
+                operation_id,
+            )
+            .map(|response| CliResponse::envelope(response.response))
+        }
+        CliRequest::AttachRepoMember(request) => {
+            gwz_core::workspace_ops::handle_attach_repo_member(
+                &backend,
+                start,
+                request.clone(),
+                operation_id,
+                events,
+            )
+            .map(|response| CliResponse::envelope(response.response))
+        }
         CliRequest::Materialize(request) => gwz_core::workspace_ops::handle_materialize(
             &backend,
             start,
