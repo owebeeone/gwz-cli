@@ -1,15 +1,15 @@
 # gwz
 
-`gwz` is the command-line driver for GWZ multi-repository workspaces.
+`gwz` is the primary command-line interface for coordinating multiple ordinary
+Git repositories as one reproducible GWZ workspace. The root records the
+workspace composition and exact state while every member remains a normal Git
+repository.
 
-The CLI parses argv, builds GWZ requests, calls `gwz-core`, and renders
-human-readable, porcelain, JSON, or JSONL responses. User-facing command docs
-live in [docs/README.md](docs/README.md).
+Install this repository's CLI for normal terminal use. It is the primary and
+most thoroughly tested GWZ command implementation; applications and services
+can instead embed the message-driven [`gwz-core`](https://github.com/owebeeone/gwz-core).
 
-Hosted docs:
-https://github.com/owebeeone/gwz-cli/tree/main/docs
-
-## Install
+## Install And Start
 
 Install the latest release on macOS or Linux:
 
@@ -24,35 +24,33 @@ Install the latest release on Windows PowerShell:
 powershell -ExecutionPolicy Bypass -c "irm https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.ps1 | iex"
 ```
 
-Install from source:
+Then follow the [Quick Start](https://owebeeone.github.io/gwz-cli/QuickStart/).
+The [full user documentation](https://owebeeone.github.io/gwz-cli/) covers
+workflows, member lifecycle, troubleshooting, and generated command reference.
+Read [Why GWZ](https://github.com/owebeeone/gwz-core/blob/main/docs/WhyGwz.md)
+for the product model and its relationship to Git and repository fan-out tools.
 
-```sh
-cargo install --git https://github.com/owebeeone/gwz-cli
-```
+To build or change GWZ itself, clone the coordinated
+[`gwz-dev`](https://github.com/owebeeone/gwz-dev) workspace.
 
-See [docs/Install.md](docs/Install.md) for pinned installs, smoke tests,
-checksums, attestations, and local development usage.
-
-## Commands
-
-The implemented command surface is documented in [docs/CLI.md](docs/CLI.md) and
-the per-command pages under [docs/commands/](docs/commands/).
-
-For terminal help:
+## Command Help
 
 ```sh
 gwz --help
 gwz help status
 ```
 
-When working from source:
+The implemented surface is documented in the generated
+[CLI reference](docs/CLI.md) and the [command pages](docs/commands/status.md).
+The CLI parses arguments, sends typed requests to `gwz-core`, and renders human,
+porcelain, JSON, or JSONL output.
 
-```sh
-cargo run -q -p gwz -- --help
-cargo run -q -p gwz -- help status
-```
+See [Install](docs/Install.md) for pinned installs, source installs, checksums,
+attestations, and smoke tests.
 
 ## Development
+
+When this repository is checked out inside `gwz-dev`:
 
 ```sh
 cargo fmt

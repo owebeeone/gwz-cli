@@ -38,7 +38,7 @@ gwz materialize --snapshot before-refactor
 Materialize a tag:
 
 ```sh
-gwz materialize --tag v0.3.0
+gwz materialize --tag v0.9.0
 ```
 
 Switch selected members to an existing local branch:
@@ -50,7 +50,7 @@ gwz materialize --switch feature/refactor
 Allow required destructive behavior explicitly:
 
 ```sh
-gwz --force materialize --tag v0.3.0
+gwz --force materialize --tag v0.9.0
 ```
 
 ## Notes

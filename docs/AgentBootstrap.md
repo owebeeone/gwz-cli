@@ -9,7 +9,7 @@ refreshes it in an existing workspace root. The file is root-only: GWZ does not
 write `AGENTS_GWZ.md` into member repositories.
 
 Hosted docs URL for bootstrap files:
-https://github.com/owebeeone/gwz-cli/tree/main/docs
+https://owebeeone.github.io/gwz-cli/
 
 ## Intended File Scope
 
@@ -64,7 +64,8 @@ gwz status
 Docs:
 
 - `gwz --help`
-- https://github.com/owebeeone/gwz-cli/tree/main/docs
+- Quick Start: https://owebeeone.github.io/gwz-cli/QuickStart/
+- Full documentation: https://owebeeone.github.io/gwz-cli/
 ````
 
 ## Managed-File Updates

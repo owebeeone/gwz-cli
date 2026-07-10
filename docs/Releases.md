@@ -5,9 +5,9 @@ repository:
 
 https://github.com/owebeeone/gwz-cli/releases
 
-The documentation entry point for released CLI docs is:
-
-https://github.com/owebeeone/gwz-cli/tree/main/docs
+The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
+the tag of the most recently published release, so its command model matches
+the released CLI rather than unreleased work on `main`.
 
 ## Install Latest
 
@@ -29,8 +29,8 @@ powershell -ExecutionPolicy Bypass -c "irm https://github.com/owebeeone/gwz-cli/
 Replace `latest` with a concrete tag:
 
 ```text
-https://github.com/owebeeone/gwz-cli/releases/download/v0.3.0/gwz-installer.sh
-https://github.com/owebeeone/gwz-cli/releases/download/v0.3.0/gwz-installer.ps1
+https://github.com/owebeeone/gwz-cli/releases/download/v0.9.0/gwz-installer.sh
+https://github.com/owebeeone/gwz-cli/releases/download/v0.9.0/gwz-installer.ps1
 ```
 
 ## Verify Assets

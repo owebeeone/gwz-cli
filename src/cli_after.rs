@@ -5,4 +5,4 @@ Examples:
   gwz snapshot before-refactor
   gwz pull --head
 
-Documentation: https://github.com/owebeeone/gwz-cli/tree/main/docs";
+Documentation: https://owebeeone.github.io/gwz-cli/";

@@ -43,13 +43,13 @@ Use global `--remote <name>` for remote tag operations.
 Create a tag:
 
 ```sh
-gwz tag v0.3.0
+gwz tag v0.9.0
 ```
 
 Create an annotated tag:
 
 ```sh
-gwz tag v0.3.0 -m "GWZ v0.3.0"
+gwz tag v0.9.0 -m "GWZ v0.9.0"
 ```
 
 List local tags:
@@ -61,13 +61,13 @@ gwz tag
 Delete a local tag:
 
 ```sh
-gwz tag --delete v0.3.0
+gwz tag --delete v0.9.0
 ```
 
 Push a tag:
 
 ```sh
-gwz tag --push v0.3.0
+gwz tag --push v0.9.0
 ```
 
 Fetch tags:
@@ -85,7 +85,7 @@ gwz tag --list --remote origin
 Materialize the workspace at a tag:
 
 ```sh
-gwz materialize --tag v0.3.0
+gwz materialize --tag v0.9.0
 ```
 
 ## Notes

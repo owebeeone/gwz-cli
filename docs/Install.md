@@ -17,8 +17,8 @@ The `latest` release URL resolves to the newest non-prerelease GitHub Release.
 For pinned installs, replace `latest` with a concrete tag:
 
 ```text
-https://github.com/owebeeone/gwz-cli/releases/download/v0.3.0/gwz-installer.sh
-https://github.com/owebeeone/gwz-cli/releases/download/v0.3.0/gwz-installer.ps1
+https://github.com/owebeeone/gwz-cli/releases/download/v0.9.0/gwz-installer.sh
+https://github.com/owebeeone/gwz-cli/releases/download/v0.9.0/gwz-installer.ps1
 ```
 
 ## Install From Source
@@ -102,5 +102,5 @@ $exe = Join-Path $env:GWZ_UNMANAGED_INSTALL "gwz.exe"
 
 ## Documentation
 
-The hosted documentation entry point is:
-https://github.com/owebeeone/gwz-cli/tree/main/docs
+Continue with the hosted [Quick Start](https://owebeeone.github.io/gwz-cli/QuickStart/)
+or browse the [full user documentation](https://owebeeone.github.io/gwz-cli/).

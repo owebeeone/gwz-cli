@@ -2,7 +2,7 @@ use clap::{Command, CommandFactory};
 
 use crate::Cli;
 
-const DOCS_URL: &str = "https://github.com/owebeeone/gwz-cli/tree/main/docs";
+const DOCS_URL: &str = "https://owebeeone.github.io/gwz-cli/";
 const GENERATOR_COMMAND: &str = "python scripts/generate_cli_reference.py --write";
 const CHECK_COMMAND: &str = "python scripts/generate_cli_reference.py --check";
 const TERM_WIDTH: usize = 100;
@@ -120,6 +120,7 @@ fn command_page(path: &[String]) -> Option<&'static str> {
         Some("capture") => Some("capture"),
         Some("clone") => Some("clone"),
         Some("commit") => Some("commit"),
+        Some("diff") => Some("diff"),
         Some("forall") => Some("forall"),
         Some("init") => Some("init"),
         Some("ls") => Some("ls"),

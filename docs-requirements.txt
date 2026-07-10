@@ -1,0 +1,2 @@
+# Documentation site dependencies are separate from the Rust package build.
+mkdocs-material>=9.5,<10

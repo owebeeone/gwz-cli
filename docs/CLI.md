@@ -16,7 +16,7 @@ Check for drift:
 python scripts/generate_cli_reference.py --check
 ```
 
-Hosted docs: https://github.com/owebeeone/gwz-cli/tree/main/docs
+Hosted docs: https://owebeeone.github.io/gwz-cli/
 
 ## Root Help
 
@@ -28,7 +28,7 @@ tracked `gwz.conf/` directory. Commands operate on the workspace as a whole,
 so a single request can initialize, inspect, snapshot, materialize, pull, or
 push a coordinated set of repositories.
 
-Documentation: https://github.com/owebeeone/gwz-cli/tree/main/docs
+Documentation: https://owebeeone.github.io/gwz-cli/
 
 Usage: gwz [OPTIONS] <COMMAND>
 
@@ -139,7 +139,7 @@ Examples:
   gwz snapshot before-refactor
   gwz pull --head
 
-Documentation: https://github.com/owebeeone/gwz-cli/tree/main/docs
+Documentation: https://owebeeone.github.io/gwz-cli/
 ```
 
 ## Command Help
@@ -662,6 +662,8 @@ Global Options:
 ```
 
 ### `gwz diff`
+
+Command page: [diff](commands/diff.md).
 
 ```text
 Show changes across the GWZ workspace as one unified, workspace-relative diff.

@@ -109,6 +109,17 @@ git -C gwz-py remote add origin git@github.com:owebeeone/gwz-py.git
 gwz repo sync gwz-py
 ```
 
+This is also the publish-later path after `repo create`: create an empty remote
+on the hosting service, add it as `origin`, run `repo sync`, make at least one
+commit, then push the selected member. `repo sync` currently leaves its
+manifest rewrite unstaged, so stage `gwz.conf` before committing that metadata.
+
+```sh
+gwz add gwz.conf
+gwz commit -m "Record member origin"
+gwz --member mem_gwz_py push
+```
+
 ## Notes
 
 - Use `repo add` when the Git repository already exists on disk.
