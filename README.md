@@ -1,9 +1,9 @@
 # gwz
 
-`gwz` is the primary command-line interface for coordinating multiple ordinary
-Git repositories as one reproducible GWZ workspace. The root records the
-workspace composition and exact state while every member remains a normal Git
-repository.
+`gwz` is the primary command-line interface for GWZ (Git Workspace Zone). It
+coordinates multiple ordinary Git repositories as one reproducible workspace:
+the root records composition and exact state while every member remains a
+normal Git repository.
 
 Install this repository's CLI for normal terminal use. It is the primary and
 most thoroughly tested GWZ command implementation; applications and services

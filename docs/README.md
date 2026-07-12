@@ -1,8 +1,8 @@
 # GWZ Documentation
 
-GWZ coordinates multiple ordinary Git repositories as one reproducible,
-inspectable workspace. The workspace root records composition and exact state;
-member repositories remain normal Git repositories.
+GWZ (Git Workspace Zone) coordinates multiple ordinary Git repositories as one
+reproducible, inspectable workspace. The workspace root records composition and
+exact state; member repositories remain normal Git repositories.
 
 [Start with the Quick Start](QuickStart.md) to install `gwz`, create or clone a
 workspace, make a cross-repository change, and learn the repository lifecycle.

@@ -1,5 +1,5 @@
 pub(crate) const CLI_LONG: &str = "\
-GWZ manages a local workspace made from multiple git repositories.
+GWZ (Git Workspace Zone) manages a local workspace made from multiple git repositories.
 
 A workspace records its member repositories and exact revisions under the
 tracked `gwz.conf/` directory. Commands operate on the workspace as a whole,

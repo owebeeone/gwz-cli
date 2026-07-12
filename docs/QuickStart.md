@@ -1,9 +1,9 @@
 # Quick Start
 
-GWZ coordinates several ordinary Git repositories as one workspace. The root
-repository records which member repositories belong to the workspace and the
-exact revisions that make up a reproducible state; each member remains a normal
-Git repository.
+GWZ (Git Workspace Zone) coordinates several ordinary Git repositories as one
+workspace. The root repository records which member repositories belong to the
+workspace and the exact revisions that make up a reproducible state; each
+member remains a normal Git repository.
 
 This guide gets you through the first useful workflow. Use the
 [repository lifecycle guide](RepoLifecycle.md) when you need the full identity
@@ -57,7 +57,7 @@ Then grow it using the command that matches the repository you have:
 Create one new local member for this walkthrough:
 
 ```sh
-gwz repo create services/api --member-id mem_api
+gwz repo create services/api
 gwz status
 ```
 
