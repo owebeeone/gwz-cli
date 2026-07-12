@@ -348,6 +348,44 @@ fn mixed_revision_and_bare_file_operand() {
 }
 
 #[test]
+fn member_name_and_dot_pathspecs_diff_the_whole_member() {
+    // Regression: `gwz diff <member>` and `gwz diff .` must diff the whole
+    // member, not print nothing and exit 0. A pathspec naming a member root
+    // routes to the repo-root primitive `.`; the plan's whole-repo narrowing
+    // must become the *empty* pathspec list, because libgit2's diff matcher
+    // treats a literal "." as a path that matches no file. In v0.9.1 this
+    // printed nothing on a dirty member.
+    let ws = Workspace::new("member-name-pathspec");
+    ws.dirty_member("one\ntwo\n");
+
+    // `gwz diff lib` — bare operand naming the member root.
+    let by_name = ws.diff(&["lib"]);
+    assert_success(&by_name);
+    assert!(
+        stdout(&by_name).contains("diff --git a/lib/x.txt b/lib/x.txt"),
+        "`gwz diff lib` must diff the whole member, got:\n{}",
+        stdout(&by_name)
+    );
+
+    // `gwz diff .` at the workspace root — fans out to root + members.
+    let by_dot = ws.diff(&["."]);
+    assert_success(&by_dot);
+    assert!(
+        stdout(&by_dot).contains("diff --git a/lib/x.txt b/lib/x.txt"),
+        "`gwz diff .` must diff the member, got:\n{}",
+        stdout(&by_dot)
+    );
+
+    // The bare member-name operand equals the explicit `-- lib` form.
+    let dashdash = ws.diff(&["--", "lib"]);
+    assert_eq!(
+        stdout(&by_name),
+        stdout(&dashdash),
+        "bare member-name operand must equal the `-- lib` form"
+    );
+}
+
+#[test]
 fn nonexistent_bare_operand_fails_with_dashdash_hint() {
     let ws = Workspace::new("bad-operand");
     let out = ws.diff(&["definitely-not-a-thing"]);
