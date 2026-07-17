@@ -18,6 +18,7 @@ pub(crate) struct CliResponse {
     pub(crate) status_mode: Option<gwz_core::StatusMode>,
     pub(crate) listing: Option<ArtifactListing>,
     pub(crate) branch_repos: Option<Vec<gwz_core::BranchRepoSummary>>,
+    pub(crate) merge_response: Option<gwz_core::MergeResponse>,
     pub(crate) stash_bundles: Option<Vec<gwz_core::StashBundle>>,
     /// forall's trailing summary — rendered verbatim (it already streamed member output live).
     pub(crate) summary: Option<String>,
@@ -31,6 +32,7 @@ impl CliResponse {
             status_mode: None,
             listing: None,
             branch_repos: None,
+            merge_response: None,
             stash_bundles: None,
             summary: None,
         }
@@ -43,6 +45,20 @@ impl CliResponse {
             status_mode: None,
             listing: None,
             branch_repos: response.repos,
+            merge_response: None,
+            stash_bundles: None,
+            summary: None,
+        }
+    }
+
+    pub(crate) fn merge(response: gwz_core::MergeResponse) -> Self {
+        Self {
+            envelope: response.response.clone(),
+            workspace_git_status: None,
+            status_mode: None,
+            listing: None,
+            branch_repos: None,
+            merge_response: Some(response),
             stash_bundles: None,
             summary: None,
         }
@@ -55,6 +71,7 @@ impl CliResponse {
             status_mode: None,
             listing: None,
             branch_repos: None,
+            merge_response: None,
             stash_bundles: response.bundles,
             summary: None,
         }
@@ -67,6 +84,7 @@ impl CliResponse {
             status_mode: None,
             listing: Some(listing),
             branch_repos: None,
+            merge_response: None,
             stash_bundles: None,
             summary: None,
         }
@@ -181,6 +199,9 @@ impl gwz_core::operation::EventSink for JsonlSink {
 }
 
 pub(crate) fn render_human_response(response: &CliResponse) -> String {
+    if let Some(merge) = &response.merge_response {
+        return render_merge_response(merge);
+    }
     if let Some(workspace_status) = &response.workspace_git_status {
         return render_human_status_response(response, workspace_status);
     }
@@ -825,6 +846,7 @@ pub(crate) fn response_json(response: &CliResponse) -> serde_json::Value {
         "branch_repos": response.branch_repos.as_ref().map(|repos| {
             repos.iter().map(branch_repo_json).collect::<Vec<_>>()
         }),
+        "merge": response.merge_response.as_ref().map(merge_response_json),
         "stash_bundles": response.stash_bundles.as_ref().map(|bundles| {
             bundles.iter().map(stash_bundle_json).collect::<Vec<_>>()
         }),

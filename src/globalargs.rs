@@ -249,6 +249,11 @@ pub(crate) enum CommandArgs {
     )]
     Materialize(MaterializeArgs),
     #[command(
+        about = "Merge a source ref across selected workspace members",
+        override_usage = "gwz merge <source> [--dry-run]"
+    )]
+    Merge(MergeArgs),
+    #[command(
         about = "Update workspace members to an explicit target",
         long_about = PULL_LONG,
         after_long_help = PULL_AFTER
@@ -363,6 +368,34 @@ pub(crate) struct BranchArgs {
         help = "Merge a source ref into each selected member's current branch"
     )]
     pub(crate) merge: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub(crate) struct MergeArgs {
+    #[arg(
+        value_name = "source",
+        help = "Source ref resolved independently in each member"
+    )]
+    pub(crate) source: Option<String>,
+
+    // Reserved lifecycle and strategy flags are parsed but hidden until their
+    // milestones land. Core remains the single owner of their typed rejection.
+    #[arg(long = "continue", hide = true)]
+    pub(crate) resume: bool,
+    #[arg(long, hide = true)]
+    pub(crate) abort: bool,
+    #[arg(long, hide = true)]
+    pub(crate) status: bool,
+    #[arg(long, hide = true, requires = "abort")]
+    pub(crate) preserve: bool,
+    #[arg(long, hide = true, num_args = 0..=1)]
+    pub(crate) gc: Option<Option<String>>,
+    #[arg(long, hide = true)]
+    pub(crate) ff_only: bool,
+    #[arg(long, hide = true)]
+    pub(crate) no_ff: bool,
+    #[arg(short = 'm', long, hide = true)]
+    pub(crate) message: Option<String>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -576,6 +609,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                     status_mode: request.mode,
                     listing: None,
                     branch_repos: None,
+                    merge_response: None,
                     stash_bundles: None,
                     summary: None,
                 },
@@ -592,6 +626,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                         local: *local,
                     }),
                     branch_repos: None,
+                    merge_response: None,
                     stash_bundles: None,
                     summary: None,
                 },
@@ -631,6 +666,10 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         CliRequest::Branch(request) => {
             gwz_core::workspace_ops::handle_branch(&backend, start, request.clone(), operation_id)
                 .map(CliResponse::branch)
+        }
+        CliRequest::Merge(request) => {
+            gwz_core::workspace_ops::handle_merge(&backend, start, request.clone(), operation_id)
+                .map(CliResponse::merge)
         }
         CliRequest::Stash(request) => {
             gwz_core::workspace_ops::handle_stash(&backend, start, request.clone(), operation_id)
@@ -687,6 +726,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                         response.snapshots.unwrap_or_default(),
                     )),
                     branch_repos: None,
+                    merge_response: None,
                     stash_bundles: None,
                     summary: None,
                 })

@@ -81,6 +81,7 @@ nav:
           - snapshot: commands/snapshot.md
           - tag: commands/tag.md
           - branch: commands/branch.md
+          - merge: commands/merge.md
           - stash: commands/stash.md
           - materialize: commands/materialize.md
           - pull: commands/pull.md

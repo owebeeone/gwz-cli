@@ -72,6 +72,53 @@ pub(crate) fn jsonl_renderer_emits_response_event_and_result_in_order() {
 }
 
 #[test]
+pub(crate) fn merge_renderers_report_action_plan_results_and_m0_guidance() {
+    let mut response = gwz_core::MergeResponse {
+        response: sample_response(
+            gwz_core::AggregateStatus::Conflicted,
+            gwz_core::MemberStatus::Conflicted,
+        ),
+        ..Default::default()
+    };
+    response.response.meta.action = gwz_core::ActionKind::Merge;
+    response.repos = vec![
+        merge_repo("lib", gwz_core::MergeParticipantState::Merged),
+        merge_repo("docs", gwz_core::MergeParticipantState::Conflicted),
+    ];
+    response.repos[1].conflict_paths = vec!["guide.md".to_owned()];
+    let cli = CliResponse::merge(response);
+
+    let human = render_response(&cli, OutputMode::Human);
+    assert!(human.contains("action: merge"));
+    assert!(human.contains("feature/x -> main  merged"));
+    assert!(human.contains("ordinary Git commands in docs/"));
+    assert!(!human.contains("gwz merge --continue"));
+
+    let json = response_json(&cli);
+    assert_eq!(json["meta"]["action"], "Merge");
+    assert_eq!(json["merge"]["repos"][1]["state"], "Conflicted");
+    let jsonl = render_response(&cli, OutputMode::Jsonl);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&jsonl).unwrap()["meta"]["action"],
+        "Merge"
+    );
+}
+
+fn merge_repo(path: &str, state: gwz_core::MergeParticipantState) -> gwz_core::MergeRepoSummary {
+    gwz_core::MergeRepoSummary {
+        target_id: format!("mem_{path}"),
+        target_kind: gwz_core::TargetKind::Member,
+        path: path.to_owned(),
+        source_ref: "feature/x".to_owned(),
+        source_commit: "source123".to_owned(),
+        target_branch: "main".to_owned(),
+        before_commit: "before123".to_owned(),
+        state,
+        ..Default::default()
+    }
+}
+
+#[test]
 pub(crate) fn branch_listing_groups_by_branch_and_current_marker() {
     let response = CliResponse::branch(gwz_core::BranchResponse {
         response: branch_response_envelope(),

@@ -271,6 +271,7 @@ pub(crate) enum CliRequest {
     Snapshot(gwz_core::SnapshotRequest),
     Tag(gwz_core::TagRequest),
     Branch(gwz_core::BranchRequest),
+    Merge(gwz_core::MergeRequest),
     Stash(gwz_core::StashRequest),
     PullHead(gwz_core::PullHeadRequest),
     PullSnapshot(gwz_core::PullSnapshotRequest),
@@ -516,7 +517,12 @@ impl Cli {
                     all: None,
                 }))
             }
-            CommandArgs::Branch(args) => args.request(meta),
+            CommandArgs::Branch(args) => args.request(if args.merge.is_some() {
+                self.merge_meta(meta)
+            } else {
+                meta
+            }),
+            CommandArgs::Merge(args) => args.request(self.merge_meta(meta)),
             CommandArgs::Stash(args) => args.request(meta),
             CommandArgs::Materialize(args) => args.request(meta),
             CommandArgs::Pull(args) => args.request(meta),
@@ -532,6 +538,15 @@ impl Cli {
                 args.request(meta, workspace_cwd)
             }
         }
+    }
+
+    fn merge_meta(&self, mut meta: gwz_core::RequestMeta) -> gwz_core::RequestMeta {
+        if self.global.progress_interval.is_none()
+            && let Some(policy) = &mut meta.policy
+        {
+            policy.progress_min_interval_ms = None;
+        }
+        meta
     }
 }
 
@@ -749,12 +764,17 @@ impl BranchArgs {
             return Err(CliError::new("--from requires --create"));
         }
 
+        if let Some(source_ref) = &self.merge {
+            return Ok(CliRequest::Merge(merge_start_request(
+                meta,
+                source_ref.clone(),
+            )));
+        }
+
         let op = if self.create.is_some() {
             gwz_core::BranchOp::Create
         } else if self.delete.is_some() {
             gwz_core::BranchOp::Delete
-        } else if self.merge.is_some() {
-            gwz_core::BranchOp::Merge
         } else {
             gwz_core::BranchOp::List
         };
@@ -763,15 +783,64 @@ impl BranchArgs {
             meta,
             op,
             name: self.create.clone().or_else(|| self.delete.clone()),
-            start_ref: if self.create.is_some() {
-                Some(self.from.clone().unwrap_or_else(|| "HEAD".to_owned()))
-            } else if self.merge.is_some() {
-                self.merge.clone()
+            start_ref: self
+                .create
+                .as_ref()
+                .map(|_| self.from.clone().unwrap_or_else(|| "HEAD".to_owned())),
+            switch_after_create: self.switch.then_some(true),
+        }))
+    }
+}
+
+impl MergeArgs {
+    pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        let lifecycle_ops = usize::from(self.resume)
+            + usize::from(self.abort)
+            + usize::from(self.status)
+            + usize::from(self.gc.is_some());
+        if lifecycle_ops > 1 {
+            return Err(CliError::new("merge accepts only one lifecycle operation"));
+        }
+        if self.ff_only && self.no_ff {
+            return Err(CliError::new(
+                "--ff-only and --no-ff are mutually exclusive",
+            ));
+        }
+        let op = if self.resume {
+            gwz_core::MergeOp::Resume
+        } else if self.abort {
+            gwz_core::MergeOp::Abort
+        } else if self.status {
+            gwz_core::MergeOp::Status
+        } else if self.gc.is_some() {
+            gwz_core::MergeOp::Gc
+        } else {
+            gwz_core::MergeOp::Start
+        };
+        Ok(CliRequest::Merge(gwz_core::MergeRequest {
+            meta,
+            op,
+            source_ref: self.source.clone(),
+            merge_id: self.gc.clone().flatten(),
+            mode: if self.ff_only {
+                Some(gwz_core::MergeMode::FfOnly)
+            } else if self.no_ff {
+                Some(gwz_core::MergeMode::NoFf)
             } else {
                 None
             },
-            switch_after_create: self.switch.then_some(true),
+            message: self.message.clone(),
+            preserve: self.preserve.then_some(true),
         }))
+    }
+}
+
+fn merge_start_request(meta: gwz_core::RequestMeta, source_ref: String) -> gwz_core::MergeRequest {
+    gwz_core::MergeRequest {
+        meta,
+        op: gwz_core::MergeOp::Start,
+        source_ref: Some(source_ref),
+        ..gwz_core::MergeRequest::default()
     }
 }
 

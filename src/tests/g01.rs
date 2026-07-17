@@ -565,10 +565,9 @@ pub(crate) fn parses_command_matrix() {
     ));
     assert!(matches!(
         parse(strings(["branch", "--merge", "feature/source"])).request,
-        CliRequest::Branch(ref r)
-            if matches!(r.op, gwz_core::BranchOp::Merge)
-                && r.name.is_none()
-                && r.start_ref.as_deref() == Some("feature/source")
+        CliRequest::Merge(ref r)
+            if matches!(r.op, gwz_core::MergeOp::Start)
+                && r.source_ref.as_deref() == Some("feature/source")
     ));
     assert!(matches!(
         parse(strings(["stash", "push"])).request,
@@ -719,6 +718,39 @@ pub(crate) fn parses_command_matrix() {
     assert!(matches!(
         parse(strings(["push"])).request,
         CliRequest::Push(_)
+    ));
+}
+
+#[test]
+pub(crate) fn parses_first_class_merge_and_reserved_forms() {
+    let invocation = parse(strings([
+        "merge",
+        "feature/source",
+        "--dry-run",
+        "--target",
+        "mem_app",
+    ]));
+    let CliRequest::Merge(request) = invocation.request else {
+        panic!("expected merge request");
+    };
+    assert_eq!(request.op, gwz_core::MergeOp::Start);
+    assert_eq!(request.source_ref.as_deref(), Some("feature/source"));
+    assert_eq!(request.meta.dry_run, Some(true));
+    assert_eq!(request.meta.policy.unwrap().progress_min_interval_ms, None);
+
+    assert!(matches!(
+        parse(strings(["merge", "--continue"])).request,
+        CliRequest::Merge(ref r) if r.op == gwz_core::MergeOp::Resume
+    ));
+    assert!(matches!(
+        parse(strings(["merge", "feature/source", "--ff-only"])).request,
+        CliRequest::Merge(ref r) if r.mode == Some(gwz_core::MergeMode::FfOnly)
+    ));
+    assert!(matches!(
+        parse(strings(["merge", "feature/source", "--partial"])).request,
+        CliRequest::Merge(ref r)
+            if r.meta.policy.as_ref().and_then(|p| p.partial)
+                == Some(gwz_core::PartialBehavior::Partial)
     ));
 }
 

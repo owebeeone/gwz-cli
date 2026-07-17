@@ -125,6 +125,7 @@ fn command_page(path: &[String]) -> Option<&'static str> {
         Some("init") => Some("init"),
         Some("ls") => Some("ls"),
         Some("materialize") => Some("materialize"),
+        Some("merge") => Some("merge"),
         Some("pull") => Some("pull"),
         Some("push") => Some("push"),
         Some("repo") => Some("repo"),
