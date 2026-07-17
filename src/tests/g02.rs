@@ -345,6 +345,7 @@ pub(crate) fn sample_event() -> gwz_core::OperationEvent {
         error: None,
         attribution: None,
         progress: None,
+        merge_state: None,
     }
 }
 

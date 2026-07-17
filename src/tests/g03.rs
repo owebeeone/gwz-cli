@@ -20,6 +20,7 @@ pub(crate) fn progress_event(
         error: None,
         attribution: None,
         progress,
+        merge_state: None,
     }
 }
 
