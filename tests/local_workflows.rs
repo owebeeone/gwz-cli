@@ -369,6 +369,61 @@ fn pull_head_and_push_work_with_local_remote() {
 }
 
 #[test]
+fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
+    let temp = TempDir::new("merge-start");
+    let remote = RemoteFixture::new("merge-start-source");
+    let base = remote.commit_and_push("README.md", "one", "initial");
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                temp.path_str(),
+                "init",
+                "--path",
+                "repos",
+                remote.url(),
+            ])
+            .output()
+            .unwrap(),
+    );
+    let member = temp.path().join("repos/remote");
+    checkout_branch(&member, "feature/source");
+    let source = commit_file(&member, "source.txt", "source\n", "source");
+    switch_branch(&member, "main");
+
+    let planned = gwz(temp.path())
+        .args([
+            "--root",
+            temp.path_str(),
+            "--dry-run",
+            "--json",
+            "branch",
+            "--merge",
+            "feature/source",
+        ])
+        .output()
+        .unwrap();
+    assert_success(&planned);
+    assert_eq!(json(&planned)["meta"]["action"], "Merge");
+    assert_eq!(json(&planned)["merge"]["repos"][0]["state"], "Planned");
+    assert_eq!(repo_head(&member), Some(base));
+
+    let merged = gwz(temp.path())
+        .args([
+            "--root",
+            temp.path_str(),
+            "--json",
+            "merge",
+            "feature/source",
+        ])
+        .output()
+        .unwrap();
+    assert_success(&merged);
+    assert_eq!(json(&merged)["merge"]["repos"][0]["state"], "FastForwarded");
+    assert_eq!(repo_head(&member), Some(source));
+}
+
+#[test]
 fn pull_head_skips_member_without_fetch_remote_and_streams_events() {
     let temp = TempDir::new("pull-no-fetch-jsonl");
     assert_success(
@@ -1110,6 +1165,14 @@ fn checkout_branch(repo_path: &Path, branch: &str) {
     repo.set_head(&format!("refs/heads/{branch}")).unwrap();
     let mut checkout = git2::build::CheckoutBuilder::new();
     checkout.safe();
+    repo.checkout_head(Some(&mut checkout)).unwrap();
+}
+
+fn switch_branch(repo_path: &Path, branch: &str) {
+    let repo = git2::Repository::open(repo_path).unwrap();
+    repo.set_head(&format!("refs/heads/{branch}")).unwrap();
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force();
     repo.checkout_head(Some(&mut checkout)).unwrap();
 }
 
