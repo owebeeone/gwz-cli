@@ -386,7 +386,7 @@ pub(crate) struct MergeArgs {
     pub(crate) abort: bool,
     #[arg(long, hide = true)]
     pub(crate) status: bool,
-    #[arg(long, hide = true, requires = "abort")]
+    #[arg(long, hide = true)]
     pub(crate) preserve: bool,
     #[arg(long, hide = true, num_args = 0..=1)]
     pub(crate) gc: Option<Option<String>>,

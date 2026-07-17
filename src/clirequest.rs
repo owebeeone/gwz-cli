@@ -799,10 +799,12 @@ impl MergeArgs {
             + usize::from(self.status)
             + usize::from(self.gc.is_some());
         if lifecycle_ops > 1 {
-            return Err(CliError::new("merge accepts only one lifecycle operation"));
+            return Err(CliError::invalid_request(
+                "merge accepts only one lifecycle operation",
+            ));
         }
         if self.ff_only && self.no_ff {
-            return Err(CliError::new(
+            return Err(CliError::invalid_request(
                 "--ff-only and --no-ff are mutually exclusive",
             ));
         }

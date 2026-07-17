@@ -752,6 +752,20 @@ pub(crate) fn parses_first_class_merge_and_reserved_forms() {
             if r.meta.policy.as_ref().and_then(|p| p.partial)
                 == Some(gwz_core::PartialBehavior::Partial)
     ));
+    assert!(matches!(
+        parse(strings(["merge", "feature/source", "--preserve"])).request,
+        CliRequest::Merge(ref r) if r.preserve == Some(true)
+    ));
+
+    for args in [
+        strings(["merge", "--continue", "--abort"]),
+        strings(["merge", "feature/source", "--ff-only", "--no-ff"]),
+    ] {
+        assert_eq!(
+            parse_result(args).unwrap_err().code,
+            Some(gwz_core::model::ErrorCode::InvalidRequest)
+        );
+    }
 }
 
 #[test]
