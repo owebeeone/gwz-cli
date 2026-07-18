@@ -1,0 +1,44 @@
+action: merge
+status: Failed
+state: halted
+merge: merge-parity-1 (open)
+participants: total 6; planned 1; conflicted 1; failed 1; continued 1; aborted 1; rolled-back 1
+publication: verifying-publication
+recovery: participant eligibility shown below
+operation drift:
+  baseline-manifest-changed: manifest changed after planning
+participants:
+  lib (mem_lib)  planned (merge commit)
+    source: feature/x @ source123
+    recorded: branch main; before before123; result -
+    live: commit unknown
+    recovery: continue unknown; abort unknown
+  docs (mem_docs)  conflicted
+    source: feature/x @ source123
+    recorded: branch main; before before123; result -
+    live: commit before123
+    recovery: continue blocked; abort eligible
+    conflicts: guide.md
+    drift: head-advanced: HEAD advanced while merge was open
+  api (mem_api)  continued
+    source: feature/x @ source123
+    recorded: branch main; before before123; result continued123
+    live: commit continued123
+    recovery: continue blocked; abort blocked
+  tools (mem_tools)  aborted
+    source: feature/x @ source123
+    recorded: branch main; before before123; result before123
+    live: commit before123
+    recovery: continue blocked; abort blocked
+  web (mem_web)  rolled-back
+    source: feature/x @ source123
+    recorded: branch main; before before123; result before123
+    live: commit before123
+    recovery: continue blocked; abort blocked
+  worker (mem_worker)  failed
+    source: feature/x @ source123
+    recorded: branch main; before before123; result -
+    live: commit unknown
+    recovery: continue blocked; abort blocked
+    error: GitCommandFailed: member 'mem_worker' at 'worker': revspec 'feature/x' not found
+GitCommandFailed: member 'mem_worker' at 'worker': revspec 'feature/x' not found

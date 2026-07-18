@@ -512,6 +512,10 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         OutputMode::Human => &progress_sink,
         OutputMode::Json | OutputMode::Porcelain => &null_sink,
     };
+    if let Some((workspace, command)) = open_merge_gate_request(&invocation.request) {
+        gwz_core::workspace_ops::enforce_workspace_open_merge_gate(start, workspace, command)
+            .map_err(CliError::from_model)?;
+    }
     let response = match &invocation.request {
         CliRequest::CloneWorkspace { meta, url, target } => {
             gwz_core::workspace_ops::handle_clone_workspace(
@@ -667,10 +671,14 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             gwz_core::workspace_ops::handle_branch(&backend, start, request.clone(), operation_id)
                 .map(CliResponse::branch)
         }
-        CliRequest::Merge(request) => {
-            gwz_core::workspace_ops::handle_merge(&backend, start, request.clone(), operation_id)
-                .map(CliResponse::merge)
-        }
+        CliRequest::Merge(request) => gwz_core::workspace_ops::handle_merge_with_events(
+            &backend,
+            start,
+            request.clone(),
+            operation_id,
+            events,
+        )
+        .map(CliResponse::merge),
         CliRequest::Stash(request) => {
             gwz_core::workspace_ops::handle_stash(&backend, start, request.clone(), operation_id)
                 .map(CliResponse::stash)
@@ -733,6 +741,74 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         }
     };
     response.map_err(CliError::from_model)
+}
+
+fn open_merge_gate_request(
+    request: &CliRequest,
+) -> Option<(
+    Option<&gwz_core::WorkspaceRef>,
+    gwz_core::operation::OpenMergeCommand,
+)> {
+    use gwz_core::operation::OpenMergeCommand as Command;
+
+    let (meta, command) = match request {
+        CliRequest::CreateWorkspace(_) | CliRequest::CloneWorkspace { .. } => return None,
+        CliRequest::UpdateBootstrap { meta } => (meta, Command::InitUpdate),
+        CliRequest::InitFromSources(request) => (&request.meta, Command::InitExistingPlan),
+        CliRequest::AddExistingRepo(request) => (&request.meta, Command::RepoMutate),
+        CliRequest::CreateRepo(request) => (&request.meta, Command::RepoMutate),
+        CliRequest::RepoSync(request) => (&request.meta, Command::RepoMutate),
+        CliRequest::CloneRepoMember(request) => (&request.meta, Command::RepoMutate),
+        CliRequest::DetachRepoMember(request) => (&request.meta, Command::RepoMutate),
+        CliRequest::AttachRepoMember(request) => (&request.meta, Command::RepoMutate),
+        CliRequest::Materialize(request) => (&request.meta, Command::Materialize),
+        CliRequest::Status(request) => (&request.meta, Command::Status),
+        CliRequest::Ls { request, .. } => (&request.meta, Command::Ls),
+        CliRequest::Forall { meta, .. } => (meta, Command::Forall),
+        CliRequest::Snapshot(request) => (&request.meta, Command::Snapshot),
+        CliRequest::ListSnapshots(request) => (&request.meta, Command::SnapshotList),
+        CliRequest::Tag(request) => (
+            &request.meta,
+            if request.op == gwz_core::TagOp::List {
+                Command::TagList
+            } else {
+                Command::TagMutate
+            },
+        ),
+        CliRequest::Branch(request) => (
+            &request.meta,
+            if request.op == gwz_core::BranchOp::List {
+                Command::BranchList
+            } else {
+                Command::BranchMutate
+            },
+        ),
+        CliRequest::Merge(request) => (
+            &request.meta,
+            match request.op {
+                gwz_core::MergeOp::Start => Command::MergeStart,
+                gwz_core::MergeOp::Status => Command::MergeStatus,
+                gwz_core::MergeOp::Resume | gwz_core::MergeOp::Abort => Command::MergeRecovery,
+                gwz_core::MergeOp::Gc => Command::MergeGc,
+            },
+        ),
+        CliRequest::Stash(request) => (
+            &request.meta,
+            if request.op == gwz_core::StashOp::List {
+                Command::StashList
+            } else {
+                Command::StashMutate
+            },
+        ),
+        CliRequest::PullHead(request) => (&request.meta, Command::Pull),
+        CliRequest::PullSnapshot(request) => (&request.meta, Command::Pull),
+        CliRequest::Push(request) => (&request.meta, Command::Push),
+        CliRequest::Capture(request) => (&request.meta, Command::Capture),
+        CliRequest::Commit(request) => (&request.meta, Command::Commit),
+        CliRequest::Stage(request) => (&request.meta, Command::StageConflictResolution),
+        CliRequest::Diff(request) => (&request.request.meta, Command::Diff),
+    };
+    Some((meta.workspace.as_ref(), command))
 }
 
 pub(crate) fn render_response(response: &CliResponse, output: OutputMode) -> String {

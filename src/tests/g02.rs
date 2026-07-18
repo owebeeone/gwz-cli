@@ -87,17 +87,17 @@ pub(crate) fn jsonl_renderer_emits_response_event_and_result_in_order() {
 }
 
 #[test]
-pub(crate) fn merge_renderers_report_action_plan_results_and_interim_guidance() {
+pub(crate) fn merge_renderers_report_open_status_and_structured_drift() {
     let response = parity_merge_response();
     let cli = CliResponse::merge(response);
 
     let human = render_response(&cli, OutputMode::Human);
-    assert!(human.contains("action: merge"));
-    assert!(human.contains("feature/x -> main  planned (merge commit)"));
-    assert!(human.contains("ordinary Git commands in docs/"));
-    assert!(human.contains("coordinated continue and rollback are"));
-    assert!(!human.contains("M0"));
+    assert_eq!(
+        human,
+        include_str!("../../tests/fixtures/merge_status_human.txt").trim_end()
+    );
     assert!(!human.contains("gwz merge --continue"));
+    assert!(!human.contains("gwz merge --abort"));
 
     let fixture: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(canonical_merge_response_fixture()).unwrap())
@@ -108,6 +108,45 @@ pub(crate) fn merge_renderers_report_action_plan_results_and_interim_guidance() 
             serde_json::from_str(&render_response(&cli, mode)).unwrap();
         assert_eq!(rendered, fixture);
     }
+}
+
+#[test]
+pub(crate) fn merge_renderer_reports_idle_without_fabricating_an_operation() {
+    let response = gwz_core::MergeResponse {
+        response: gwz_core::ResponseEnvelope {
+            meta: gwz_core::ResponseMeta {
+                request_id: "req-idle".to_owned(),
+                schema_version: "gwz.protocol/v0".to_owned(),
+                action: gwz_core::ActionKind::Merge,
+                aggregate_status: gwz_core::AggregateStatus::Noop,
+                operation_id: Some("op-idle".to_owned()),
+                message: None,
+                attribution: None,
+            },
+            members: Vec::new(),
+            errors: Vec::new(),
+        },
+        state: gwz_core::MergeOperationState::Idle,
+        ..Default::default()
+    };
+    let cli = CliResponse::merge(response);
+
+    assert_eq!(
+        render_response(&cli, OutputMode::Human),
+        "action: merge\nstatus: Noop\nstate: idle\nNo coordinated merge is open."
+    );
+    let json = response_json(&cli);
+    assert!(json["merge"]["merge_id"].is_null());
+    assert_eq!(json["merge"]["state"], "Idle");
+    assert_eq!(json["merge"]["open"], false);
+    assert_eq!(json["merge"]["participant_counts"]["total"], 0);
+    assert!(json["merge"]["repos"].as_array().unwrap().is_empty());
+    assert!(
+        json["merge"]["operation_drift"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
 }
 
 fn canonical_merge_response_fixture() -> std::path::PathBuf {

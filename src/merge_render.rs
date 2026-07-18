@@ -4,55 +4,135 @@ pub(crate) fn render_merge_response(response: &gwz_core::MergeResponse) -> Strin
     let mut lines = vec![
         "action: merge".to_owned(),
         format!("status: {:?}", response.response.meta.aggregate_status),
+        format!("state: {}", debug_kebab(response.state)),
     ];
+
+    if response.state == gwz_core::MergeOperationState::Idle {
+        lines.push("No coordinated merge is open.".to_owned());
+        return lines.join("\n");
+    }
+
+    lines.push(format!(
+        "merge: {} ({})",
+        response.merge_id.as_deref().unwrap_or("unknown"),
+        if response.open { "open" } else { "closed" }
+    ));
+    lines.push(render_participant_counts(&response.participant_counts));
+    if let Some(step) = response.publication_step {
+        lines.push(format!("publication: {}", debug_kebab(step)));
+    }
+    lines.push("recovery: participant eligibility shown below".to_owned());
+
+    if !response.operation_drift.is_empty() {
+        lines.push("operation drift:".to_owned());
+        for drift in &response.operation_drift {
+            lines.push(format!("  {}: {}", debug_kebab(drift.kind), drift.message));
+        }
+    }
+
+    if !response.repos.is_empty() {
+        lines.push("participants:".to_owned());
+    }
     for repo in &response.repos {
-        let state = merge_state_label(repo.state);
-        let outcome = match repo.predicted {
-            Some(predicted) if repo.state == gwz_core::MergeParticipantState::Planned => {
-                format!("{state} ({})", merge_analysis_label(predicted))
-            }
-            _ => state.to_owned(),
-        };
         let mut line = format!(
-            "{}  {} -> {}  {}",
-            repo.path, repo.source_ref, repo.target_branch, outcome
+            "  {} ({})  {}",
+            repo.path,
+            repo.target_id,
+            merge_state_label(repo.state)
         );
-        if let Some(commit) = repo.resulting_commit.as_ref().or(repo.live_commit.as_ref()) {
-            line.push_str(&format!("  {commit}"));
-        }
-        if !repo.conflict_paths.is_empty() {
-            line.push_str(&format!("  {}", repo.conflict_paths.join(", ")));
-        }
-        if let Some(error) = &repo.error {
-            line.push_str(&format!("  {:?}: {}", error.code, error.message));
+        if repo.state == gwz_core::MergeParticipantState::Planned
+            && let Some(predicted) = repo.predicted
+        {
+            line.push_str(&format!(" ({})", merge_analysis_label(predicted)));
         }
         lines.push(line);
+        lines.push(format!(
+            "    source: {} @ {}",
+            repo.source_ref, repo.source_commit
+        ));
+        lines.push(format!(
+            "    recorded: branch {}; before {}; result {}",
+            repo.target_branch,
+            repo.before_commit,
+            repo.resulting_commit.as_deref().unwrap_or("-")
+        ));
+        lines.push(format!(
+            "    live: commit {}",
+            repo.live_commit.as_deref().unwrap_or("unknown"),
+        ));
+        lines.push(format!(
+            "    recovery: continue {}; abort {}",
+            eligibility_label(repo.continue_eligible),
+            eligibility_label(repo.abort_eligible)
+        ));
+        if !repo.conflict_paths.is_empty() {
+            lines.push(format!("    conflicts: {}", repo.conflict_paths.join(", ")));
+        }
+        for drift in &repo.drift {
+            lines.push(format!(
+                "    drift: {}: {}",
+                debug_kebab(drift.kind),
+                drift.message
+            ));
+        }
+        if let Some(error) = &repo.error {
+            lines.push(format!("    error: {:?}: {}", error.code, error.message));
+        }
     }
     for error in &response.response.errors {
         lines.push(format!("{:?}: {}", error.code, error.message));
     }
-    for repo in response
-        .repos
-        .iter()
-        .filter(|repo| repo.state == gwz_core::MergeParticipantState::Conflicted)
-    {
-        lines.push(String::new());
-        lines.push(format!(
-            "Resolve or abort this member with ordinary Git commands in {}/.",
-            repo.path.trim_end_matches('/')
-        ));
-    }
-    if response
-        .repos
-        .iter()
-        .any(|repo| repo.state == gwz_core::MergeParticipantState::Conflicted)
-    {
-        lines.push(
-            "Other members may already have changed; coordinated continue and rollback are".into(),
-        );
-        lines.push("not yet available. The workspace lock reflects clean member outcomes.".into());
-    }
     lines.join("\n")
+}
+
+fn render_participant_counts(counts: &gwz_core::MergeParticipantCounts) -> String {
+    let values = [
+        ("planned", counts.planned),
+        ("up-to-date", counts.up_to_date),
+        ("fast-forwarded", counts.fast_forwarded),
+        ("merged", counts.merged),
+        ("conflicted", counts.conflicted),
+        ("failed", counts.failed),
+        ("unattempted", counts.unattempted),
+        ("continued", counts.continued),
+        ("aborted", counts.aborted),
+        ("rolled-back", counts.rolled_back),
+    ];
+    let details = values
+        .into_iter()
+        .filter(|(_, count)| *count != 0)
+        .map(|(label, count)| format!("{label} {count}"))
+        .collect::<Vec<_>>();
+    if details.is_empty() {
+        format!("participants: total {}", counts.total)
+    } else {
+        format!(
+            "participants: total {}; {}",
+            counts.total,
+            details.join("; ")
+        )
+    }
+}
+
+fn eligibility_label(value: Option<bool>) -> &'static str {
+    match value {
+        Some(true) => "eligible",
+        Some(false) => "blocked",
+        None => "unknown",
+    }
+}
+
+fn debug_kebab(value: impl std::fmt::Debug) -> String {
+    format!("{value:?}")
+        .chars()
+        .enumerate()
+        .fold(String::new(), |mut label, (index, ch)| {
+            if index > 0 && ch.is_ascii_uppercase() {
+                label.push('-');
+            }
+            label.push(ch.to_ascii_lowercase());
+            label
+        })
 }
 
 pub(crate) fn merge_response_json(response: &gwz_core::MergeResponse) -> serde_json::Value {

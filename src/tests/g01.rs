@@ -743,6 +743,13 @@ pub(crate) fn parses_first_class_merge_and_reserved_forms() {
         CliRequest::Merge(ref r) if r.op == gwz_core::MergeOp::Resume
     ));
     assert!(matches!(
+        parse(strings(["merge", "--status"])).request,
+        CliRequest::Merge(ref r)
+            if r.op == gwz_core::MergeOp::Status
+                && r.source_ref.is_none()
+                && r.merge_id.is_none()
+    ));
+    assert!(matches!(
         parse(strings(["merge", "feature/source", "--ff-only"])).request,
         CliRequest::Merge(ref r) if r.mode == Some(gwz_core::MergeMode::FfOnly)
     ));
@@ -766,6 +773,21 @@ pub(crate) fn parses_first_class_merge_and_reserved_forms() {
             Some(gwz_core::model::ErrorCode::InvalidRequest)
         );
     }
+}
+
+#[test]
+pub(crate) fn merge_help_keeps_status_and_recovery_flags_hidden() {
+    use clap::CommandFactory;
+
+    let mut command = Cli::command();
+    let help = command
+        .find_subcommand_mut("merge")
+        .unwrap()
+        .render_long_help()
+        .to_string();
+    assert!(!help.contains("--status"), "{help}");
+    assert!(!help.contains("--continue"), "{help}");
+    assert!(!help.contains("--abort"), "{help}");
 }
 
 #[test]
