@@ -25,9 +25,9 @@ gwz merge feature/refactor --target mem_app --target mem_docs --jsonl
 
 ## Current behavior
 
-- Starting a merge and using `--dry-run` are the only released forms. Continue,
-  coordinated abort, status, preservation, and strategy flags are not yet
-  available.
+- Starting a merge and using `--dry-run` are the only currently implemented
+  forms. Status, continue, and coordinated abort will ship together with the
+  complete recovery lifecycle; preservation and strategy flags follow later.
 - Explicit `--target @root`, `--partial`, `--force`, and reserved forms return
   typed core errors; they are never silently weakened or ignored.
 - A conflict remains in that member's ordinary Git merge state. Resolve or

@@ -87,7 +87,7 @@ pub(crate) fn jsonl_renderer_emits_response_event_and_result_in_order() {
 }
 
 #[test]
-pub(crate) fn merge_renderers_report_action_plan_results_and_m0_guidance() {
+pub(crate) fn merge_renderers_report_action_plan_results_and_interim_guidance() {
     let response = parity_merge_response();
     let cli = CliResponse::merge(response);
 
@@ -95,6 +95,8 @@ pub(crate) fn merge_renderers_report_action_plan_results_and_m0_guidance() {
     assert!(human.contains("action: merge"));
     assert!(human.contains("feature/x -> main  planned (merge commit)"));
     assert!(human.contains("ordinary Git commands in docs/"));
+    assert!(human.contains("coordinated continue and rollback are"));
+    assert!(!human.contains("M0"));
     assert!(!human.contains("gwz merge --continue"));
 
     let fixture: serde_json::Value =

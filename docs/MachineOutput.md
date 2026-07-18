@@ -110,6 +110,11 @@ serializers consume real protocol values. GWZ is pre-1.0, so strict consumers
 must tolerate additive keys while continuing to validate the keys they
 understand.
 
+`MergeOperationState` includes the append-only `Idle` value used by the
+read-only merge-status lifecycle when no coordinated merge is open. An idle
+response has no merge id, participants, or drift and does not fabricate a
+completed operation.
+
 The Rust and Python driver tests compare semantic JSON values with the single
 canonical fixture at
 `gwz-core/protocol/fixtures/cli_parity/merge_response.json`. Driver development

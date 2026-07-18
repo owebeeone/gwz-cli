@@ -48,9 +48,9 @@ pub(crate) fn render_merge_response(response: &gwz_core::MergeResponse) -> Strin
         .any(|repo| repo.state == gwz_core::MergeParticipantState::Conflicted)
     {
         lines.push(
-            "Other members may already have changed; M0 has no coordinated continue or".into(),
+            "Other members may already have changed; coordinated continue and rollback are".into(),
         );
-        lines.push("rollback. The workspace lock reflects clean member outcomes.".into());
+        lines.push("not yet available. The workspace lock reflects clean member outcomes.".into());
     }
     lines.join("\n")
 }
