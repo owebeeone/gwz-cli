@@ -424,6 +424,48 @@ fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
 }
 
 #[test]
+fn merge_preflight_machine_error_retains_second_member_context() {
+    let temp = TempDir::new("merge-preflight-context");
+    let app = RemoteFixture::new_named("merge-preflight-app", "app");
+    let lib = RemoteFixture::new_named("merge-preflight-lib", "lib");
+    app.commit_and_push("README.md", "app\n", "initial");
+    lib.commit_and_push("README.md", "lib\n", "initial");
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                temp.path_str(),
+                "init",
+                "--path",
+                "repos",
+                app.url(),
+                lib.url(),
+            ])
+            .output()
+            .unwrap(),
+    );
+    let app_member = temp.path().join("repos/app");
+    checkout_branch(&app_member, "feature/source");
+    commit_file(&app_member, "source.txt", "source\n", "source");
+    switch_branch(&app_member, "main");
+
+    for flag in ["--json", "--jsonl"] {
+        let output = gwz(temp.path())
+            .args(["--root", temp.path_str(), flag, "merge", "feature/source"])
+            .output()
+            .unwrap();
+
+        assert!(!output.status.success());
+        assert!(output.stderr.is_empty());
+        let error = &json(&output)["errors"][0];
+        assert_eq!(error["code"], "GitCommandFailed");
+        assert_eq!(error["member_id"], "mem_lib");
+        assert_eq!(error["member_path"], "repos/lib");
+        assert_eq!(error["target_kind"], "Member");
+    }
+}
+
+#[test]
 fn pull_head_skips_member_without_fetch_remote_and_streams_events() {
     let temp = TempDir::new("pull-no-fetch-jsonl");
     assert_success(

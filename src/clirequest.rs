@@ -311,6 +311,9 @@ pub(crate) fn operation_label(request: &CliRequest) -> &'static str {
 pub(crate) struct CliError {
     pub(crate) message: String,
     pub(crate) code: Option<gwz_core::model::ErrorCode>,
+    pub(crate) member_id: Option<String>,
+    pub(crate) member_path: Option<String>,
+    pub(crate) target_kind: Option<String>,
 }
 
 impl CliError {
@@ -318,6 +321,9 @@ impl CliError {
         Self {
             message: message.into(),
             code: None,
+            member_id: None,
+            member_path: None,
+            target_kind: None,
         }
     }
 
@@ -328,15 +334,22 @@ impl CliError {
         Self {
             message: message.into(),
             code: Some(gwz_core::model::ErrorCode::InvalidRequest),
+            member_id: None,
+            member_path: None,
+            target_kind: None,
         }
     }
 
     /// Preserve a gwz-core error's code (so `--json`/`--jsonl` can emit it
     /// structured) alongside its message.
     pub(crate) fn from_model(error: gwz_core::model::ModelError) -> Self {
+        let has_member_context = error.member_id.is_some() || error.member_path.is_some();
         Self {
             message: error.message,
             code: Some(error.code),
+            member_id: error.member_id,
+            member_path: error.member_path,
+            target_kind: has_member_context.then(|| "Member".to_owned()),
         }
     }
 

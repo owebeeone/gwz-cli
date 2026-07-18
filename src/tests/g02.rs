@@ -6,6 +6,9 @@ pub(crate) fn error_path_renders_structured_json_envelope() {
     let error = CliError {
         message: "member has uncommitted changes".to_owned(),
         code: Some(gwz_core::model::ErrorCode::DirtyMember),
+        member_id: None,
+        member_path: None,
+        target_kind: None,
     };
     let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
     assert_eq!(json["kind"], "response");
@@ -33,6 +36,18 @@ pub(crate) fn error_path_renders_structured_json_envelope() {
         plain.human_message(),
         "--json and --jsonl are mutually exclusive"
     );
+
+    let contextual = CliError::from_model(
+        gwz_core::model::ModelError::new(
+            gwz_core::model::ErrorCode::GitCommandFailed,
+            "revspec 'feature/x' not found",
+        )
+        .with_member("mem_a", "a"),
+    );
+    let json: serde_json::Value = serde_json::from_str(&render_error_json(&contextual)).unwrap();
+    assert_eq!(json["errors"][0]["member_id"], "mem_a");
+    assert_eq!(json["errors"][0]["member_path"], "a");
+    assert_eq!(json["errors"][0]["target_kind"], "Member");
 }
 
 #[test]
@@ -105,6 +120,7 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
         merge_repo("api", gwz_core::MergeParticipantState::Continued),
         merge_repo("tools", gwz_core::MergeParticipantState::Aborted),
         merge_repo("web", gwz_core::MergeParticipantState::RolledBack),
+        merge_repo("worker", gwz_core::MergeParticipantState::Failed),
     ];
     repos[0].predicted = Some(gwz_core::MergeAnalysisKind::TrueMerge);
     repos[1].conflict_paths = vec!["guide.md".to_owned()];
@@ -129,6 +145,18 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
         repos[index].resulting_commit = Some(commit.to_owned());
         repos[index].live_commit = Some(commit.to_owned());
     }
+    let member_error = gwz_core::GwzError {
+        code: gwz_core::GwzErrorCode::GitCommandFailed,
+        message: "member 'mem_worker' at 'worker': revspec 'feature/x' not found".to_owned(),
+        member_id: Some("mem_worker".to_owned()),
+        member_path: Some("worker".to_owned()),
+        detail: Some("source ref was not found in the member repository".to_owned()),
+        target_kind: Some(gwz_core::TargetKind::Member),
+    };
+    repos[5].prediction_complete = Some(false);
+    repos[5].continue_eligible = Some(false);
+    repos[5].abort_eligible = Some(false);
+    repos[5].error = Some(member_error.clone());
 
     gwz_core::MergeResponse {
         response: gwz_core::ResponseEnvelope {
@@ -136,21 +164,22 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
                 request_id: "req-parity-1".to_owned(),
                 schema_version: "gwz.protocol/v0".to_owned(),
                 action: gwz_core::ActionKind::Merge,
-                aggregate_status: gwz_core::AggregateStatus::Conflicted,
+                aggregate_status: gwz_core::AggregateStatus::Failed,
                 operation_id: Some("op-parity-1".to_owned()),
                 message: None,
                 attribution: None,
             },
             members: Vec::new(),
-            errors: Vec::new(),
+            errors: vec![member_error],
         },
         merge_id: Some("merge-parity-1".to_owned()),
-        state: gwz_core::MergeOperationState::AwaitingResolution,
+        state: gwz_core::MergeOperationState::Halted,
         open: true,
         participant_counts: gwz_core::MergeParticipantCounts {
-            total: 5,
+            total: 6,
             planned: 1,
             conflicted: 1,
+            failed: 1,
             continued: 1,
             aborted: 1,
             rolled_back: 1,

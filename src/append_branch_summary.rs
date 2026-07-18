@@ -935,8 +935,9 @@ pub(crate) fn render_error_json(error: &CliError) -> String {
                 .code
                 .map(|code| format!("{:?}", gwz_core::GwzErrorCode::from(code))),
             "message": error.message,
-            "member_id": serde_json::Value::Null,
-            "member_path": serde_json::Value::Null,
+            "member_id": error.member_id,
+            "member_path": error.member_path,
+            "target_kind": error.target_kind,
             "detail": serde_json::Value::Null,
         }],
         "workspace_git_status": serde_json::Value::Null,

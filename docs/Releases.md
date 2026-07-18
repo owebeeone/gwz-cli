@@ -13,7 +13,9 @@ the released CLI rather than unreleased work on `main`.
 
 - First-class merge JSON and JSONL include the complete current merge-response
   key set from M0. Reserved lifecycle fields are empty or null until later
-  phases. Because GWZ is pre-1.0, strict consumers must tolerate additive keys.
+  phases. Structured errors include `target_kind` and retain member id/path
+  context even for whole-operation preflight failures. Because GWZ is pre-1.0,
+  strict consumers must tolerate additive keys.
 - Merge and `pull --sync merge` reject source and target commits with unrelated
   histories, matching Git porcelain. GWZ does not implicitly allow unrelated
   histories.

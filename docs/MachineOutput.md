@@ -55,12 +55,15 @@ Errors use:
   "message": "unknown member",
   "member_id": null,
   "member_path": null,
+  "target_kind": null,
   "detail": null
 }
 ```
 
 Top-level CLI errors in `--json` or `--jsonl` mode keep the same response shape,
-with `meta: null`, no members, and one error entry.
+with `meta: null`, no members, and one error entry. Per-member failures retain
+`member_id`, `member_path`, and `target_kind: "Member"` even when preflight
+rejects the whole operation before a normal response exists.
 
 ## Merge JSON
 
@@ -97,8 +100,9 @@ lifecycle fields that M0 does not yet populate:
 
 Repository rows include their target, source, branch, before/resulting/live
 commits, lifecycle state, prediction, conflicts, eligibility flags, structured
-participant drift, and optional structured error. Operation drift entries
-contain `kind` and `message`. Preservation entries contain `target_id`, `path`,
+participant drift, and an optional structured error. Merge errors use the same
+six-field shape as envelope errors, including `target_kind`. Operation drift
+entries contain `kind` and `message`. Preservation entries contain `target_id`, `path`,
 `backup_ref`, `backup_commit`, `stash_id`, and `stash_object_id`.
 
 Reserved fields remain empty or null in M0, but their serializers consume real
@@ -111,6 +115,8 @@ canonical fixture at
 checkouts therefore retain the usual sibling `gwz-core` layout; both drivers
 already require that checkout through their development path dependency. The
 fixture is test-only and is not read by an installed driver at runtime.
+It includes both an envelope error and an error-bearing failed repository row,
+so cross-driver parity covers the complete structured error sub-shape.
 
 ## JSONL Stream
 
