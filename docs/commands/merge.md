@@ -33,8 +33,23 @@ gwz merge feature/refactor --target mem_app --target mem_docs --jsonl
   abort it with Git commands in the member repository.
 - Other members may already have changed. M0 has no coordinated continue or
   rollback, and the workspace lock reflects clean member outcomes.
+- If an unexpected failure halts the batch, the lock still records earlier
+  outcomes that GWZ verified clean; the failed member is reported and later
+  members remain unattempted.
+- True merge commits use the legacy M0 message
+  `Merge <source> into <target-branch>`. Quoting and GWZ operation trailers
+  begin with the durable M1 lifecycle.
+- Source and target must share history. GWZ rejects unrelated histories for
+  both this command and `pull --sync merge`; it does not implicitly enable
+  Git's `--allow-unrelated-histories` behavior.
 - Human, JSON, and JSONL results identify the action as `merge` and include
   every participant's source, target branch, outcome, and conflict paths.
+
+The generated command reference shows global options on every command. Merge
+rejects unrelated operation policies supplied explicitly: `--sync`,
+`--remote`, `--jobs`, `--max-per-host`, and `--progress-interval`. It also
+rejects the reserved `--partial` and `--force` policies. Core diagnostics name
+the option that must be removed.
 
 `gwz branch --merge <source>` remains as a deprecated compatibility spelling.
 It constructs the same first-class merge request and does not invoke the old

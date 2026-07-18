@@ -9,6 +9,20 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
+## Unreleased Compatibility Notes
+
+- First-class merge JSON and JSONL include the complete current merge-response
+  key set from M0. Reserved lifecycle fields are empty or null until later
+  phases. Because GWZ is pre-1.0, strict consumers must tolerate additive keys.
+- Merge and `pull --sync merge` reject source and target commits with unrelated
+  histories, matching Git porcelain. GWZ does not implicitly allow unrelated
+  histories.
+- M0 advances the workspace lock for verified clean participants even if a
+  later unexpected failure halts the batch. M1 changes to a frozen baseline
+  lock when durable continue and abort become available.
+- M0 retains its legacy unquoted merge-commit message. Quoted messages and GWZ
+  merge/operation trailers begin with the durable M1 record.
+
 ## Install Latest
 
 macOS or Linux:
