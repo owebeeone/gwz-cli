@@ -69,7 +69,7 @@ rejects the whole operation before a normal response exists.
 
 Merge responses use the normal response envelope and populate its `merge`
 field. JSON and JSONL expose the complete merge protocol shape, including
-lifecycle fields that M0 does not yet populate:
+reserved lifecycle fields that are not yet populated:
 
 ```json
 {
@@ -105,9 +105,10 @@ six-field shape as envelope errors, including `target_kind`. Operation drift
 entries contain `kind` and `message`. Preservation entries contain `target_id`, `path`,
 `backup_ref`, `backup_commit`, `stash_id`, and `stash_object_id`.
 
-Reserved fields remain empty or null in M0, but their serializers consume real
-protocol values. GWZ is pre-1.0, so strict consumers must tolerate additive
-keys while continuing to validate the keys they understand.
+Reserved fields remain empty or null in the current implementation, but their
+serializers consume real protocol values. GWZ is pre-1.0, so strict consumers
+must tolerate additive keys while continuing to validate the keys they
+understand.
 
 The Rust and Python driver tests compare semantic JSON values with the single
 canonical fixture at

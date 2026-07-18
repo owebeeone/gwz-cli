@@ -12,18 +12,18 @@ the released CLI rather than unreleased work on `main`.
 ## Unreleased Compatibility Notes
 
 - First-class merge JSON and JSONL include the complete current merge-response
-  key set from M0. Reserved lifecycle fields are empty or null until later
-  phases. Structured errors include `target_kind` and retain member id/path
-  context even for whole-operation preflight failures. Because GWZ is pre-1.0,
-  strict consumers must tolerate additive keys.
+  key set. Reserved lifecycle fields are empty or null until the corresponding
+  features are available. Structured errors include `target_kind` and retain
+  member id/path context even for whole-operation preflight failures. Because
+  GWZ is pre-1.0, strict consumers must tolerate additive keys.
 - Merge and `pull --sync merge` reject source and target commits with unrelated
   histories, matching Git porcelain. GWZ does not implicitly allow unrelated
   histories.
-- M0 advances the workspace lock for verified clean participants even if a
-  later unexpected failure halts the batch. M1 changes to a frozen baseline
-  lock when durable continue and abort become available.
-- M0 retains its legacy unquoted merge-commit message. Quoted messages and GWZ
-  merge/operation trailers begin with the durable M1 record.
+- The current merge implementation advances the workspace lock for verified
+  clean participants even if a later unexpected failure halts the batch.
+  Coordinated continue and abort are not yet available.
+- Merge commits currently use the unquoted message
+  `Merge <source> into <target-branch>` without GWZ operation trailers.
 
 ## Install Latest
 
