@@ -69,6 +69,9 @@ pub(crate) fn merge_response_json(response: &gwz_core::MergeResponse) -> serde_j
             "conflicted": response.participant_counts.conflicted,
             "failed": response.participant_counts.failed,
             "unattempted": response.participant_counts.unattempted,
+            "continued": response.participant_counts.continued,
+            "aborted": response.participant_counts.aborted,
+            "rolled_back": response.participant_counts.rolled_back,
         },
         "repos": response.repos.iter().map(|repo| serde_json::json!({
             "target_id": repo.target_id,
@@ -86,8 +89,37 @@ pub(crate) fn merge_response_json(response: &gwz_core::MergeResponse) -> serde_j
             "conflict_paths": repo.conflict_paths,
             "continue_eligible": repo.continue_eligible,
             "abort_eligible": repo.abort_eligible,
+            "drift": repo.drift.iter().map(merge_participant_drift_json).collect::<Vec<_>>(),
             "error": repo.error.as_ref().map(error_json),
         })).collect::<Vec<_>>(),
+        "operation_drift": response.operation_drift.iter().map(|drift| serde_json::json!({
+            "kind": format!("{:?}", drift.kind),
+            "message": drift.message,
+        })).collect::<Vec<_>>(),
+        "preservation": response.preservation.as_ref().map(|entries| entries.iter().map(|entry| {
+            serde_json::json!({
+                "target_id": entry.target_id,
+                "path": entry.path,
+                "backup_ref": entry.backup_ref,
+                "backup_commit": entry.backup_commit,
+                "stash_id": entry.stash_id,
+                "stash_object_id": entry.stash_object_id,
+            })
+        }).collect::<Vec<_>>()),
+        "publication_step": response.publication_step.map(|step| format!("{step:?}")),
+    })
+}
+
+fn merge_participant_drift_json(drift: &gwz_core::MergeParticipantDrift) -> serde_json::Value {
+    serde_json::json!({
+        "kind": format!("{:?}", drift.kind),
+        "message": drift.message,
+        "expected_branch": drift.expected_branch,
+        "live_branch": drift.live_branch,
+        "expected_head": drift.expected_head,
+        "live_head": drift.live_head,
+        "expected_merge_head": drift.expected_merge_head,
+        "live_merge_head": drift.live_merge_head,
     })
 }
 

@@ -62,6 +62,56 @@ Errors use:
 Top-level CLI errors in `--json` or `--jsonl` mode keep the same response shape,
 with `meta: null`, no members, and one error entry.
 
+## Merge JSON
+
+Merge responses use the normal response envelope and populate its `merge`
+field. JSON and JSONL expose the complete merge protocol shape, including
+lifecycle fields that M0 does not yet populate:
+
+```json
+{
+  "merge": {
+    "merge_id": null,
+    "state": "Completed",
+    "open": false,
+    "participant_counts": {
+      "total": 1,
+      "planned": 0,
+      "up_to_date": 0,
+      "fast_forwarded": 1,
+      "merged": 0,
+      "conflicted": 0,
+      "failed": 0,
+      "unattempted": 0,
+      "continued": 0,
+      "aborted": 0,
+      "rolled_back": 0
+    },
+    "repos": [],
+    "operation_drift": [],
+    "preservation": null,
+    "publication_step": null
+  }
+}
+```
+
+Repository rows include their target, source, branch, before/resulting/live
+commits, lifecycle state, prediction, conflicts, eligibility flags, structured
+participant drift, and optional structured error. Operation drift entries
+contain `kind` and `message`. Preservation entries contain `target_id`, `path`,
+`backup_ref`, `backup_commit`, `stash_id`, and `stash_object_id`.
+
+Reserved fields remain empty or null in M0, but their serializers consume real
+protocol values. GWZ is pre-1.0, so strict consumers must tolerate additive
+keys while continuing to validate the keys they understand.
+
+The Rust and Python driver tests compare semantic JSON values with the single
+canonical fixture at
+`gwz-core/protocol/fixtures/cli_parity/merge_response.json`. Driver development
+checkouts therefore retain the usual sibling `gwz-core` layout; both drivers
+already require that checkout through their development path dependency. The
+fixture is test-only and is not read by an installed driver at runtime.
+
 ## JSONL Stream
 
 `--jsonl` streams event records as an operation runs, then the final render path

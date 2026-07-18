@@ -73,35 +73,104 @@ pub(crate) fn jsonl_renderer_emits_response_event_and_result_in_order() {
 
 #[test]
 pub(crate) fn merge_renderers_report_action_plan_results_and_m0_guidance() {
-    let mut response = gwz_core::MergeResponse {
-        response: sample_response(
-            gwz_core::AggregateStatus::Conflicted,
-            gwz_core::MemberStatus::Conflicted,
-        ),
-        ..Default::default()
-    };
-    response.response.meta.action = gwz_core::ActionKind::Merge;
-    response.repos = vec![
-        merge_repo("lib", gwz_core::MergeParticipantState::Merged),
-        merge_repo("docs", gwz_core::MergeParticipantState::Conflicted),
-    ];
-    response.repos[1].conflict_paths = vec!["guide.md".to_owned()];
+    let response = parity_merge_response();
     let cli = CliResponse::merge(response);
 
     let human = render_response(&cli, OutputMode::Human);
     assert!(human.contains("action: merge"));
-    assert!(human.contains("feature/x -> main  merged"));
+    assert!(human.contains("feature/x -> main  planned (merge commit)"));
     assert!(human.contains("ordinary Git commands in docs/"));
     assert!(!human.contains("gwz merge --continue"));
 
-    let json = response_json(&cli);
-    assert_eq!(json["meta"]["action"], "Merge");
-    assert_eq!(json["merge"]["repos"][1]["state"], "Conflicted");
-    let jsonl = render_response(&cli, OutputMode::Jsonl);
-    assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&jsonl).unwrap()["meta"]["action"],
-        "Merge"
-    );
+    let fixture: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(canonical_merge_response_fixture()).unwrap())
+            .unwrap();
+    assert_eq!(response_json(&cli), fixture);
+    for mode in [OutputMode::Json, OutputMode::Jsonl] {
+        let rendered: serde_json::Value =
+            serde_json::from_str(&render_response(&cli, mode)).unwrap();
+        assert_eq!(rendered, fixture);
+    }
+}
+
+fn canonical_merge_response_fixture() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../gwz-core/protocol/fixtures/cli_parity/merge_response.json")
+}
+
+fn parity_merge_response() -> gwz_core::MergeResponse {
+    let mut repos = vec![
+        merge_repo("lib", gwz_core::MergeParticipantState::Planned),
+        merge_repo("docs", gwz_core::MergeParticipantState::Conflicted),
+        merge_repo("api", gwz_core::MergeParticipantState::Continued),
+        merge_repo("tools", gwz_core::MergeParticipantState::Aborted),
+        merge_repo("web", gwz_core::MergeParticipantState::RolledBack),
+    ];
+    repos[0].predicted = Some(gwz_core::MergeAnalysisKind::TrueMerge);
+    repos[1].conflict_paths = vec!["guide.md".to_owned()];
+    repos[1].prediction_complete = Some(false);
+    repos[1].continue_eligible = Some(false);
+    repos[1].abort_eligible = Some(true);
+    repos[1].live_commit = Some("before123".to_owned());
+    repos[1].drift = vec![gwz_core::MergeParticipantDrift {
+        kind: gwz_core::MergeParticipantDriftKind::HeadAdvanced,
+        message: "HEAD advanced while merge was open".to_owned(),
+        expected_branch: Some("main".to_owned()),
+        live_branch: Some("main".to_owned()),
+        expected_head: Some("before123".to_owned()),
+        live_head: Some("live456".to_owned()),
+        expected_merge_head: Some("source123".to_owned()),
+        live_merge_head: Some("source123".to_owned()),
+    }];
+    for (index, commit) in [(2, "continued123"), (3, "before123"), (4, "before123")] {
+        repos[index].prediction_complete = Some(true);
+        repos[index].continue_eligible = Some(false);
+        repos[index].abort_eligible = Some(false);
+        repos[index].resulting_commit = Some(commit.to_owned());
+        repos[index].live_commit = Some(commit.to_owned());
+    }
+
+    gwz_core::MergeResponse {
+        response: gwz_core::ResponseEnvelope {
+            meta: gwz_core::ResponseMeta {
+                request_id: "req-parity-1".to_owned(),
+                schema_version: "gwz.protocol/v0".to_owned(),
+                action: gwz_core::ActionKind::Merge,
+                aggregate_status: gwz_core::AggregateStatus::Conflicted,
+                operation_id: Some("op-parity-1".to_owned()),
+                message: None,
+                attribution: None,
+            },
+            members: Vec::new(),
+            errors: Vec::new(),
+        },
+        merge_id: Some("merge-parity-1".to_owned()),
+        state: gwz_core::MergeOperationState::AwaitingResolution,
+        open: true,
+        participant_counts: gwz_core::MergeParticipantCounts {
+            total: 5,
+            planned: 1,
+            conflicted: 1,
+            continued: 1,
+            aborted: 1,
+            rolled_back: 1,
+            ..Default::default()
+        },
+        repos,
+        operation_drift: vec![gwz_core::MergeOperationDrift {
+            kind: gwz_core::MergeOperationDriftKind::BaselineManifestChanged,
+            message: "manifest changed after planning".to_owned(),
+        }],
+        preservation: Some(vec![gwz_core::MergePreservation {
+            target_id: "mem_docs".to_owned(),
+            path: "docs".to_owned(),
+            backup_ref: Some("refs/gwz/preserve/merge-parity-1/mem_docs".to_owned()),
+            backup_commit: Some("backup123".to_owned()),
+            stash_id: Some("stash-parity-1".to_owned()),
+            stash_object_id: Some("stashobj123".to_owned()),
+        }]),
+        publication_step: Some(gwz_core::MergePublicationStep::VerifyingPublication),
+    }
 }
 
 fn merge_repo(path: &str, state: gwz_core::MergeParticipantState) -> gwz_core::MergeRepoSummary {
