@@ -75,8 +75,8 @@ reserved lifecycle fields that are not yet populated:
 {
   "merge": {
     "merge_id": null,
-    "state": "Completed",
-    "open": false,
+    "state": "Finalizing",
+    "open": true,
     "participant_counts": {
       "total": 1,
       "planned": 0,
@@ -100,15 +100,26 @@ reserved lifecycle fields that are not yet populated:
 
 Repository rows include their target, source, branch, before/resulting/live
 commits, lifecycle state, prediction, conflicts, eligibility flags, structured
-participant drift, and an optional structured error. Merge errors use the same
-six-field shape as envelope errors, including `target_kind`. Operation drift
-entries contain `kind` and `message`. Preservation entries contain `target_id`, `path`,
-`backup_ref`, `backup_commit`, `stash_id`, and `stash_object_id`.
+participant drift, an optional structured error, and an optional
+`pending_action`. A pending action contains its `kind`, reconciliation `state`
+(`NotStarted`, `ExpectedConflict`, `CompletedExactly`, or `Ambiguous`), and a
+guidance message. Merge errors use the same six-field shape as envelope errors,
+including `target_kind`. Operation drift entries contain `kind` and `message`.
+Preservation entries contain `target_id`, `path`, `backup_ref`,
+`backup_commit`, `stash_id`, and `stash_object_id`.
 
-Reserved fields remain empty or null in the current implementation, but their
-serializers consume real protocol values. GWZ is pre-1.0, so strict consumers
-must tolerate additive keys while continuing to validate the keys they
-understand.
+Fields reserved for later preservation or publication phases remain empty or
+null until those phases run, but their serializers consume real protocol
+values. GWZ is pre-1.0, so strict consumers must tolerate additive keys while
+continuing to validate the keys they understand.
+
+Participant drift distinguishes advanced, rewound, and diverged heads, missing
+recorded objects or repositories, exact native-merge mismatches, and foreign
+integration/sequencer state. Status carries member context and expected/live
+evidence for these cases rather than returning a memberless backend error.
+An ambiguous pending action also emits the dedicated
+`PendingActionAmbiguous` drift kind and blocks both continue and abort until a
+fresh exact classification succeeds.
 
 `MergeOperationState` includes the append-only `Idle` value used by the
 read-only merge-status lifecycle when no coordinated merge is open. An idle
@@ -143,6 +154,11 @@ prints the response object. Event records have this shape:
   "message": null,
   "member": null,
   "error": null,
+  "attribution": null,
+  "target_kind": "Member",
+  "merge_state": null,
+  "merge_member": null,
+  "artifact_path": null,
   "progress": {
     "phase": "Receiving",
     "received_objects": 10,
@@ -153,6 +169,19 @@ prints the response object. Event records have this shape:
   }
 }
 ```
+
+Merge JSONL uses the same event envelope. Each invocation emits operation
+start/finish events. Actionable participants emit member start/finish events;
+`MemberFinished` carries the durable merge participant outcome in
+`merge_member`. Verified operation-record and evidence writes emit
+`ArtifactWritten` with `artifact_path`. Lifecycle transitions carry
+`merge_state`. Participant outcome and state-change events are emitted only
+after their corresponding durable write succeeds.
+
+The Rust and Python event serializers compare against the shared
+`gwz-core/protocol/fixtures/cli_parity/merge_event.json` fixture. This pins the
+merge-member outcome and artifact fields to the same JSONL shape in both
+drivers.
 
 Progress event frequency is controlled by:
 

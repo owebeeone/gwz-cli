@@ -512,10 +512,25 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         OutputMode::Human => &progress_sink,
         OutputMode::Json | OutputMode::Porcelain => &null_sink,
     };
-    if let Some((workspace, command)) = open_merge_gate_request(&invocation.request) {
-        gwz_core::workspace_ops::enforce_workspace_open_merge_gate(start, workspace, command)
-            .map_err(CliError::from_model)?;
-    }
+    // Most mutations are guarded authoritatively by their public core handler.
+    // `forall` executes arbitrary commands in this driver, so it retains the
+    // core workspace guard itself across the complete dispatch.
+    let _forall_guard = if let CliRequest::Forall { meta, .. } = &invocation.request {
+        Some(
+            gwz_core::workspace_ops::acquire_workspace_mutation_guard(
+                start,
+                meta.workspace.as_ref(),
+                gwz_core::operation::OpenMergeCommand::Forall,
+            )
+            .map_err(CliError::from_model)?,
+        )
+    } else {
+        if let Some((workspace, command)) = open_merge_gate_request(&invocation.request) {
+            gwz_core::workspace_ops::enforce_workspace_open_merge_gate(start, workspace, command)
+                .map_err(CliError::from_model)?;
+        }
+        None
+    };
     let response = match &invocation.request {
         CliRequest::CloneWorkspace { meta, url, target } => {
             gwz_core::workspace_ops::handle_clone_workspace(

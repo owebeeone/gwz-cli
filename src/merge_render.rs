@@ -65,6 +65,19 @@ pub(crate) fn render_merge_response(response: &gwz_core::MergeResponse) -> Strin
             eligibility_label(repo.continue_eligible),
             eligibility_label(repo.abort_eligible)
         ));
+        if let Some(pending) = &repo.pending_action {
+            let detail = pending
+                .message
+                .as_deref()
+                .map(|message| format!(": {message}"))
+                .unwrap_or_default();
+            lines.push(format!(
+                "    pending action: {} ({}){}",
+                debug_kebab(pending.kind),
+                debug_kebab(pending.state),
+                detail
+            ));
+        }
         if !repo.conflict_paths.is_empty() {
             lines.push(format!("    conflicts: {}", repo.conflict_paths.join(", ")));
         }
@@ -153,25 +166,7 @@ pub(crate) fn merge_response_json(response: &gwz_core::MergeResponse) -> serde_j
             "aborted": response.participant_counts.aborted,
             "rolled_back": response.participant_counts.rolled_back,
         },
-        "repos": response.repos.iter().map(|repo| serde_json::json!({
-            "target_id": repo.target_id,
-            "target_kind": format!("{:?}", repo.target_kind),
-            "path": repo.path,
-            "source_ref": repo.source_ref,
-            "source_commit": repo.source_commit,
-            "target_branch": repo.target_branch,
-            "before_commit": repo.before_commit,
-            "resulting_commit": repo.resulting_commit,
-            "live_commit": repo.live_commit,
-            "state": format!("{:?}", repo.state),
-            "predicted": repo.predicted.map(|value| format!("{value:?}")),
-            "prediction_complete": repo.prediction_complete,
-            "conflict_paths": repo.conflict_paths,
-            "continue_eligible": repo.continue_eligible,
-            "abort_eligible": repo.abort_eligible,
-            "drift": repo.drift.iter().map(merge_participant_drift_json).collect::<Vec<_>>(),
-            "error": repo.error.as_ref().map(error_json),
-        })).collect::<Vec<_>>(),
+        "repos": response.repos.iter().map(merge_repo_summary_json).collect::<Vec<_>>(),
         "operation_drift": response.operation_drift.iter().map(|drift| serde_json::json!({
             "kind": format!("{:?}", drift.kind),
             "message": drift.message,
@@ -187,6 +182,33 @@ pub(crate) fn merge_response_json(response: &gwz_core::MergeResponse) -> serde_j
             })
         }).collect::<Vec<_>>()),
         "publication_step": response.publication_step.map(|step| format!("{step:?}")),
+    })
+}
+
+pub(crate) fn merge_repo_summary_json(repo: &gwz_core::MergeRepoSummary) -> serde_json::Value {
+    serde_json::json!({
+        "target_id": repo.target_id,
+        "target_kind": format!("{:?}", repo.target_kind),
+        "path": repo.path,
+        "source_ref": repo.source_ref,
+        "source_commit": repo.source_commit,
+        "target_branch": repo.target_branch,
+        "before_commit": repo.before_commit,
+        "resulting_commit": repo.resulting_commit,
+        "live_commit": repo.live_commit,
+        "state": format!("{:?}", repo.state),
+        "predicted": repo.predicted.map(|value| format!("{value:?}")),
+        "prediction_complete": repo.prediction_complete,
+        "conflict_paths": repo.conflict_paths,
+        "continue_eligible": repo.continue_eligible,
+        "abort_eligible": repo.abort_eligible,
+        "drift": repo.drift.iter().map(merge_participant_drift_json).collect::<Vec<_>>(),
+        "error": repo.error.as_ref().map(error_json),
+        "pending_action": repo.pending_action.as_ref().map(|pending| serde_json::json!({
+            "kind": format!("{:?}", pending.kind),
+            "state": format!("{:?}", pending.state),
+            "message": pending.message,
+        })),
     })
 }
 

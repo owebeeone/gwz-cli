@@ -956,6 +956,7 @@ pub(crate) fn result_json(result: &gwz_core::OperationResult) -> serde_json::Val
         "finished_at_ms": result.finished_at_ms,
         "members": result.members.iter().map(member_json).collect::<Vec<_>>(),
         "errors": result.errors.iter().map(error_json).collect::<Vec<_>>(),
+        "attribution": result.attribution.as_ref().map(attribution_json),
     })
 }
 
@@ -973,6 +974,34 @@ pub(crate) fn event_json(event: &gwz_core::OperationEvent) -> serde_json::Value 
         "message": event.message,
         "member": event.member.as_ref().map(member_json),
         "error": event.error.as_ref().map(error_json),
+        "attribution": event.attribution.as_ref().map(attribution_json),
         "progress": event.progress.as_ref().map(git_transfer_progress_json),
+        "target_kind": event.target_kind.map(|value| format!("{value:?}")),
+        "merge_state": event.merge_state.map(|value| format!("{value:?}")),
+        "merge_member": event.merge_member.as_ref().map(merge_repo_summary_json),
+        "artifact_path": event.artifact_path,
+    })
+}
+
+fn attribution_json(attribution: &gwz_core::OperationAttribution) -> serde_json::Value {
+    serde_json::json!({
+        "actor": attribution.actor.as_ref().map(|actor| serde_json::json!({
+            "actor_id": actor.actor_id,
+            "display_name": actor.display_name,
+            "email": actor.email,
+            "authority": actor.authority,
+        })),
+        "git_author": attribution.git_author.as_ref().map(git_identity_json),
+        "git_committer": attribution.git_committer.as_ref().map(git_identity_json),
+        "credential_ref": attribution.credential_ref,
+    })
+}
+
+fn git_identity_json(identity: &gwz_core::GitObjectIdentity) -> serde_json::Value {
+    serde_json::json!({
+        "name": identity.name,
+        "email": identity.email,
+        "time_ms": identity.time_ms,
+        "timezone_offset_minutes": identity.timezone_offset_minutes,
     })
 }

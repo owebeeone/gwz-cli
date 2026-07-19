@@ -21,6 +21,8 @@ pub(crate) fn progress_event(
         attribution: None,
         progress,
         merge_state: None,
+        merge_member: None,
+        artifact_path: None,
     }
 }
 

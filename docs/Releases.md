@@ -16,14 +16,26 @@ the released CLI rather than unreleased work on `main`.
   features are available. Structured errors include `target_kind` and retain
   member id/path context even for whole-operation preflight failures. Because
   GWZ is pre-1.0, strict consumers must tolerate additive keys.
+- Merge status rows expose durable pending-action reconciliation as
+  `NotStarted`, `ExpectedConflict`, `CompletedExactly`, or `Ambiguous`.
+  Ambiguity is also reported as dedicated structured drift and remains
+  mutation-blocking.
 - Merge and `pull --sync merge` reject source and target commits with unrelated
   histories, matching Git porcelain. GWZ does not implicitly allow unrelated
   histories.
-- The current merge implementation advances the workspace lock for verified
-  clean participants even if a later unexpected failure halts the batch.
-  Coordinated continue and abort are not yet available.
-- Merge commits currently use the unquoted message
-  `Merge <source> into <target-branch>` without GWZ operation trailers.
+- While a coordinated merge is open, the accepted workspace lock remains the
+  exact pre-merge baseline. Clean, conflicted, failed, and unattempted outcomes
+  are retained in the local durable operation record rather than published as
+  a partial composition.
+- Merge commits use the quoted message
+  `Merge '<source>' into '<target-branch>'` with `GWZ-Merge-ID` and
+  `GWZ-Operation-ID` trailers. A request that creates a commit supplies its
+  author/committer identity when present; otherwise the target repository
+  identity is used.
+- Coordinated status, continue, and abort remain unreleased until final
+  composition publication and the complete interruption matrix pass together.
+  Development recovery must not substitute raw `git merge --abort` for the
+  coordinated operation.
 
 ## Install Latest
 

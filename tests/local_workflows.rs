@@ -457,7 +457,21 @@ fn merge_preflight_machine_error_retains_second_member_context() {
 
         assert!(!output.status.success());
         assert!(output.stderr.is_empty());
-        let error = &json(&output)["errors"][0];
+        let machine = if flag == "--jsonl" {
+            let lines = json_lines(&output);
+            assert_eq!(
+                lines
+                    .iter()
+                    .filter(|line| line["kind"] == "event")
+                    .map(|line| line["event_kind"].as_str().unwrap())
+                    .collect::<Vec<_>>(),
+                ["OperationStarted", "OperationFinished"]
+            );
+            lines.last().unwrap().clone()
+        } else {
+            json(&output)
+        };
+        let error = &machine["errors"][0];
         assert_eq!(error["code"], "GitCommandFailed");
         assert_eq!(error["member_id"], "mem_lib");
         assert_eq!(error["member_path"], "repos/lib");

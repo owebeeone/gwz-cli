@@ -876,6 +876,92 @@ pub(crate) fn can_call_core_status_in_process() {
     assert!(response.envelope.members.is_empty());
 }
 
+#[test]
+pub(crate) fn rust_cli_stage_gate_allows_conflicted_member_and_rejects_root() {
+    let temp = TempDir::new("cli-merge-stage-gate");
+    gwz_core::workspace_ops::handle_create_workspace(
+        gwz_core::CreateWorkspaceRequest {
+            meta: request_meta("req_setup"),
+            workspace_root: temp.path().to_string_lossy().into_owned(),
+            workspace_id: Some("ws_cli".to_owned()),
+        },
+        "op_setup",
+    )
+    .unwrap();
+    gwz_core::workspace_ops::handle_create_repo(
+        &gwz_core::git::Git2Backend::new(),
+        temp.path(),
+        gwz_core::CreateRepoRequest {
+            meta: request_meta("req_repo"),
+            member_path: "repos/app".to_owned(),
+            initial_branch: None,
+            member_id: Some("mem_app".to_owned()),
+            source_id: Some("src_app".to_owned()),
+        },
+        "op_repo",
+    )
+    .unwrap();
+
+    let merge_dir = temp.path().join(".gwz/merge");
+    fs::create_dir_all(&merge_dir).unwrap();
+    fs::write(
+        merge_dir.join("merge_cli.yaml"),
+        r#"schema: gwz.merge-operation/v0
+record_schema_version: 0
+writer_version: test
+workspace_id: ws_cli
+merge_id: merge_cli
+operation_id: op_merge
+state: awaiting_resolution
+source_ref: feature/source
+created_at: now
+baseline: {lock_sha256: lock, manifest_sha256: manifest}
+selected_targets: [mem_app]
+participants:
+  mem_app:
+    path: repos/app
+    target_kind: member
+    target_branch: main
+    before_commit: before
+    source_commit: source
+    commit_message: merge
+    state: conflicted
+    expected_merge_head: source
+    conflict_paths: [resolution.txt]
+"#,
+    )
+    .unwrap();
+
+    fs::write(temp.path().join("repos/app/resolution.txt"), "resolved\n").unwrap();
+    let allowed = parse_args_with_request_id(
+        vec![
+            "--root".to_owned(),
+            temp.path().to_string_lossy().into_owned(),
+            "add".to_owned(),
+            "repos/app/resolution.txt".to_owned(),
+        ],
+        "req_stage_member",
+        temp.path(),
+    )
+    .unwrap();
+    execute_invocation(&allowed).unwrap();
+
+    fs::write(temp.path().join("root-new.txt"), "blocked\n").unwrap();
+    let blocked = parse_args_with_request_id(
+        vec![
+            "--root".to_owned(),
+            temp.path().to_string_lossy().into_owned(),
+            "add".to_owned(),
+            "root-new.txt".to_owned(),
+        ],
+        "req_stage_root",
+        temp.path(),
+    )
+    .unwrap();
+    let error = execute_invocation(&blocked).unwrap_err();
+    assert_eq!(error.code, Some(gwz_core::model::ErrorCode::OpenOperation));
+}
+
 pub(crate) fn parse(args: Vec<String>) -> CliInvocation {
     parse_result(args).unwrap()
 }

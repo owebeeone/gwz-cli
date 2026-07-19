@@ -87,6 +87,47 @@ pub(crate) fn jsonl_renderer_emits_response_event_and_result_in_order() {
 }
 
 #[test]
+pub(crate) fn merge_event_json_keeps_state_outcome_and_artifact_fields() {
+    let mut event = sample_event();
+    event.kind = gwz_core::EventKind::MemberFinished;
+    event.member_id = Some("mem_app".to_owned());
+    event.member_path = Some("repos/app".to_owned());
+    event.message = None;
+    event.target_kind = Some(gwz_core::TargetKind::Member);
+    event.merge_state = Some(gwz_core::MergeOperationState::Finalizing);
+    event.artifact_path = Some(".gwz/merge/merge_1.yaml".to_owned());
+    event.merge_member = Some(gwz_core::MergeRepoSummary {
+        target_id: "mem_app".to_owned(),
+        target_kind: gwz_core::TargetKind::Member,
+        path: "repos/app".to_owned(),
+        source_ref: "feature/x".to_owned(),
+        source_commit: "source123".to_owned(),
+        target_branch: "main".to_owned(),
+        before_commit: "before123".to_owned(),
+        resulting_commit: Some("merge123".to_owned()),
+        live_commit: Some("merge123".to_owned()),
+        state: gwz_core::MergeParticipantState::Merged,
+        ..gwz_core::MergeRepoSummary::default()
+    });
+
+    let json = event_json(&event);
+    assert_eq!(json["target_kind"], "Member");
+    assert_eq!(json["merge_state"], "Finalizing");
+    assert_eq!(json["artifact_path"], ".gwz/merge/merge_1.yaml");
+    assert_eq!(json["merge_member"]["target_id"], "mem_app");
+    assert_eq!(json["merge_member"]["state"], "Merged");
+    let fixture: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../gwz-core/protocol/fixtures/cli_parity/merge_event.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(json, fixture);
+}
+
+#[test]
 pub(crate) fn merge_renderers_report_open_status_and_structured_drift() {
     let response = parity_merge_response();
     let cli = CliResponse::merge(response);
@@ -164,6 +205,11 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
         merge_repo("worker", gwz_core::MergeParticipantState::Failed),
     ];
     repos[0].predicted = Some(gwz_core::MergeAnalysisKind::TrueMerge);
+    repos[0].pending_action = Some(gwz_core::MergePendingActionSummary {
+        kind: gwz_core::MergePendingActionKind::TrueMerge,
+        state: gwz_core::MergePendingActionState::NotStarted,
+        message: Some("Git action is durably journaled and has not started".to_owned()),
+    });
     repos[1].conflict_paths = vec!["guide.md".to_owned()];
     repos[1].prediction_complete = Some(false);
     repos[1].continue_eligible = Some(false);
@@ -532,6 +578,8 @@ pub(crate) fn sample_event() -> gwz_core::OperationEvent {
         attribution: None,
         progress: None,
         merge_state: None,
+        merge_member: None,
+        artifact_path: None,
     }
 }
 
