@@ -178,6 +178,13 @@ start/finish events. Actionable participants emit member start/finish events;
 `merge_state`. Participant outcome and state-change events are emitted only
 after their corresponding durable write succeeds.
 
+Both drivers emit merge events as they occur rather than buffering them until
+the operation finishes. After `OperationFinished`, the stream contains exactly
+one final `kind: "response"` object. A failed invocation retains any events
+already emitted and ends with one structured error response. Event-stream
+completion is not published until that final response, or its structured
+failure, is available to the driver.
+
 The Rust and Python event serializers compare against the shared
 `gwz-core/protocol/fixtures/cli_parity/merge_event.json` fixture. This pins the
 merge-member outcome and artifact fields to the same JSONL shape in both

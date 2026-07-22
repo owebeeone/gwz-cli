@@ -420,7 +420,23 @@ fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
         .unwrap();
     assert_success(&merged);
     assert_eq!(json(&merged)["merge"]["repos"][0]["state"], "FastForwarded");
-    assert_eq!(repo_head(&member), Some(source));
+    assert_eq!(repo_head(&member), Some(source.clone()));
+
+    for extra in [Some("--dry-run"), None] {
+        let mut command = gwz(temp.path());
+        command.args(["--root", temp.path_str()]);
+        if let Some(flag) = extra {
+            command.arg(flag);
+        }
+        let rejected = command
+            .args(["--json", "merge", "feature/source"])
+            .output()
+            .unwrap();
+        assert!(!rejected.status.success());
+        assert!(rejected.stderr.is_empty());
+        assert_eq!(json(&rejected)["errors"][0]["code"], "OpenOperation");
+        assert_eq!(repo_head(&member), Some(source.clone()));
+    }
 }
 
 #[test]
