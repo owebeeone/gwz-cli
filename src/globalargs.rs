@@ -302,7 +302,7 @@ pub(crate) struct InitArgs {
     #[arg(
         long,
         help = "Refresh GWZ-managed root bootstrap files",
-        long_help = "Refresh GWZ-managed root bootstrap files in the current workspace root, including AGENTS_GWZ.md. Refuses locally edited files unless global --force is supplied."
+        long_help = "Refresh GWZ-managed root bootstrap files in the current workspace root, including AGENTS_GWZ.md, and ensure AGENTS.md points agents to it. Existing AGENTS.md instructions are preserved. Refuses locally edited managed files unless global --force is supplied."
     )]
     pub(crate) update: bool,
 

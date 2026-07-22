@@ -75,6 +75,11 @@ fn init_update_manages_root_agent_bootstrap_safely() {
     let generated = fs::read_to_string(&bootstrap_path).unwrap();
     assert!(generated.starts_with("<!-- gwz-managed-file: sha256="));
     assert!(generated.contains("# GWZ Workspace"));
+    assert!(generated.contains("Do not substitute per-repository Git loops"));
+    assert_eq!(
+        fs::read_to_string(temp.path().join("AGENTS.md")).unwrap(),
+        "Read and follow `AGENTS_GWZ.md` before doing any work in this workspace.\n"
+    );
 
     let noop = gwz(temp.path())
         .args(["--root", temp.path_str(), "init", "--update"])

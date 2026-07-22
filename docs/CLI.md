@@ -987,9 +987,10 @@ current directory. Passing one or more URLs creates the workspace and adds those
 repositories as initial members, materialized from their heads.
 
 Running `gwz init --update` refreshes root-only GWZ-managed bootstrap files in
-an existing workspace, including `AGENTS_GWZ.md`. Managed files are overwritten
-only when their digest header still matches their body; use global `--force` to
-replace a locally edited bootstrap file.
+an existing workspace, including `AGENTS_GWZ.md`, and ensures that `AGENTS.md`
+points agents to it. Existing `AGENTS.md` instructions are preserved. Managed
+files are overwritten only when their digest header still matches their body;
+use global `--force` to replace a locally edited bootstrap file.
 
 Usage: gwz init [OPTIONS] [url]...
 
@@ -1000,7 +1001,8 @@ Arguments:
 Options:
       --update
           Refresh GWZ-managed root bootstrap files in the current workspace root, including
-          AGENTS_GWZ.md. Refuses locally edited files unless global --force is supplied.
+          AGENTS_GWZ.md, and ensure AGENTS.md points agents to it. Existing AGENTS.md instructions
+          are preserved. Refuses locally edited managed files unless global --force is supplied.
 
       --path <path-prefix>
           Workspace-relative prefix for initialized source repositories. Defaults to an empty

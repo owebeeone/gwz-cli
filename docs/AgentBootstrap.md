@@ -1,12 +1,14 @@
 # Agent Bootstrap
 
 `AGENTS_GWZ.md` is a short bootstrap hint for agents entering a GWZ-managed
-repository. It should tell an agent how to install `gwz`, finish materializing a
-workspace, inspect status, and find the full docs.
+repository. It tells an agent to use GWZ for workspace-wide operations, how to
+install `gwz`, finish materializing a workspace, inspect status, and find the
+full docs.
 
 `gwz init` creates this file in new workspace roots, and `gwz init --update`
-refreshes it in an existing workspace root. The file is root-only: GWZ does not
-write `AGENTS_GWZ.md` into member repositories.
+refreshes it in an existing workspace root. GWZ also ensures that the root
+`AGENTS.md` contains a one-line instruction to read `AGENTS_GWZ.md`. These files
+are root-only: GWZ does not write them into member repositories.
 
 Hosted docs URL for bootstrap files:
 https://owebeeone.github.io/gwz-cli/
@@ -20,6 +22,7 @@ instructions.
 Keep it deliberately brief:
 
 - One sentence that the repository is managed by GWZ.
+- The GWZ commands to use for workspace-wide status, staging, and commits.
 - Install commands or links.
 - The command to clone a workspace when it is not cloned yet.
 - The command to materialize members when the root repository already exists.
@@ -34,6 +37,9 @@ Keep it deliberately brief:
 # GWZ Workspace
 
 This repository is managed by GWZ, a multi-repository workspace tool.
+
+For workspace-wide status, staging, and commits, use `gwz status`, `gwz add`,
+and `gwz commit`. Do not substitute per-repository Git loops.
 
 Install `gwz` from the latest release:
 
@@ -85,6 +91,9 @@ or the body no longer matches, GWZ refuses to overwrite the file. Use global
 ```sh
 gwz --force init --update
 ```
+
+GWZ preserves existing root `AGENTS.md` instructions. If the one-line reference
+to `AGENTS_GWZ.md` is missing, it appends it instead of replacing the file.
 
 The update command discovers the workspace root from the current directory, or
 uses global `--root <path>` when supplied.

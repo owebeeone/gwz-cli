@@ -12,12 +12,14 @@ materializes them from their heads.
 
 GWZ writes workspace metadata under `gwz.conf/`, including the manifest
 `gwz.conf/gwz.yml` and lock `gwz.conf/gwz.lock.yml`. It also writes the
-root-only `AGENTS_GWZ.md` bootstrap file.
+root-only `AGENTS_GWZ.md` bootstrap file and an `AGENTS.md` instruction to read
+it.
 
 Use `gwz init --update` in an existing workspace root to refresh GWZ-managed
 bootstrap files. GWZ overwrites `AGENTS_GWZ.md` automatically only when its
 managed SHA-256 header still matches the file body; use global `--force` to
-replace a locally edited file.
+replace a locally edited file. Existing `AGENTS.md` instructions are preserved;
+the reference is appended when absent.
 
 ## Options
 
