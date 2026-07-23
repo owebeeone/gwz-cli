@@ -427,19 +427,29 @@ fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
     assert_eq!(json(&merged)["merge"]["repos"][0]["state"], "FastForwarded");
     assert_eq!(repo_head(&member), Some(source.clone()));
 
+    let outside = TempDir::new("merge-start-outside");
     for extra in [Some("--dry-run"), None] {
-        let mut command = gwz(temp.path());
+        let mut command = gwz(outside.path());
         command.args(["--root", temp.path_str()]);
         if let Some(flag) = extra {
             command.arg(flag);
         }
         let rejected = command
-            .args(["--json", "merge", "feature/source"])
+            .args(["--jsonl", "merge", "feature/source"])
             .output()
             .unwrap();
         assert!(!rejected.status.success());
         assert!(rejected.stderr.is_empty());
-        assert_eq!(json(&rejected)["errors"][0]["code"], "OpenOperation");
+        let lines = json_lines(&rejected);
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| line["kind"] == "event")
+                .map(|line| line["event_kind"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["OperationStarted", "OperationFinished"]
+        );
+        assert_eq!(lines.last().unwrap()["errors"][0]["code"], "OpenOperation");
         assert_eq!(repo_head(&member), Some(source.clone()));
     }
 }

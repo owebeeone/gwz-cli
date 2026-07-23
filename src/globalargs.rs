@@ -798,15 +798,10 @@ fn open_merge_gate_request(
                 Command::BranchMutate
             },
         ),
-        CliRequest::Merge(request) => (
-            &request.meta,
-            match request.op {
-                gwz_core::MergeOp::Start => Command::MergeStart,
-                gwz_core::MergeOp::Status => Command::MergeStatus,
-                gwz_core::MergeOp::Resume | gwz_core::MergeOp::Abort => Command::MergeRecovery,
-                gwz_core::MergeOp::Gc => Command::MergeGc,
-            },
-        ),
+        // First-class merge owns one core lifecycle envelope around context
+        // conversion, gating, validation, and dispatch. A driver pre-gate
+        // would bypass its required start/finish events on rejection.
+        CliRequest::Merge(_) => return None,
         CliRequest::Stash(request) => (
             &request.meta,
             if request.op == gwz_core::StashOp::List {
