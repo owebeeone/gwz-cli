@@ -425,31 +425,66 @@ fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
         .unwrap();
     assert_success(&merged);
     assert_eq!(json(&merged)["merge"]["repos"][0]["state"], "FastForwarded");
+    assert_eq!(json(&merged)["merge"]["state"], "Completed");
+    assert_eq!(json(&merged)["merge"]["open"], false);
     assert_eq!(repo_head(&member), Some(source.clone()));
 
     let outside = TempDir::new("merge-start-outside");
+    let status = gwz(outside.path())
+        .args(["--root", temp.path_str(), "--json", "merge", "--status"])
+        .output()
+        .unwrap();
+    assert_success(&status);
+    assert_eq!(json(&status)["merge"]["state"], "Idle");
+
     for extra in [Some("--dry-run"), None] {
         let mut command = gwz(outside.path());
         command.args(["--root", temp.path_str()]);
         if let Some(flag) = extra {
             command.arg(flag);
         }
-        let rejected = command
+        let repeated = command
             .args(["--jsonl", "merge", "feature/source"])
             .output()
             .unwrap();
-        assert!(!rejected.status.success());
-        assert!(rejected.stderr.is_empty());
-        let lines = json_lines(&rejected);
+        assert_success(&repeated);
+        assert!(repeated.stderr.is_empty());
+        let lines = json_lines(&repeated);
+        let event_kinds = lines
+            .iter()
+            .filter(|line| line["kind"] == "event")
+            .map(|line| line["event_kind"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(event_kinds.first(), Some(&"OperationStarted"));
+        assert_eq!(event_kinds.last(), Some(&"OperationFinished"));
         assert_eq!(
-            lines
+            event_kinds
                 .iter()
-                .filter(|line| line["kind"] == "event")
-                .map(|line| line["event_kind"].as_str().unwrap())
-                .collect::<Vec<_>>(),
-            ["OperationStarted", "OperationFinished"]
+                .filter(|kind| **kind == "OperationStarted")
+                .count(),
+            1
         );
-        assert_eq!(lines.last().unwrap()["errors"][0]["code"], "OpenOperation");
+        assert_eq!(
+            event_kinds
+                .iter()
+                .filter(|kind| **kind == "OperationFinished")
+                .count(),
+            1
+        );
+        assert!(
+            lines.last().unwrap()["errors"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            lines.last().unwrap()["merge"]["repos"][0]["state"],
+            if extra.is_some() {
+                "Planned"
+            } else {
+                "UpToDate"
+            }
+        );
         assert_eq!(repo_head(&member), Some(source.clone()));
     }
 }

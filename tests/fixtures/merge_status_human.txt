@@ -4,7 +4,10 @@ state: halted
 merge: merge-parity-1 (open)
 participants: total 6; planned 1; conflicted 1; failed 1; continued 1; aborted 1; rolled-back 1
 publication: verifying-publication
-recovery: participant eligibility shown below
+recovery commands:
+  inspect:  gwz merge --status
+  continue: gwz merge --continue
+  abort:    gwz merge --abort
 operation drift:
   baseline-manifest-changed: manifest changed after planning
 participants:

@@ -12,10 +12,10 @@ the released CLI rather than unreleased work on `main`.
 ## Unreleased Compatibility Notes
 
 - First-class merge JSON and JSONL include the complete current merge-response
-  key set. Reserved lifecycle fields are empty or null until the corresponding
-  features are available. Structured errors include `target_kind` and retain
-  member id/path context even for whole-operation preflight failures. Because
-  GWZ is pre-1.0, strict consumers must tolerate additive keys.
+  key set, including finalization progress. Structured errors include
+  `target_kind` and retain member id/path context even for whole-operation
+  preflight failures. Because GWZ is pre-1.0, strict consumers must tolerate
+  additive keys.
 - Merge status rows expose durable pending-action reconciliation as
   `NotStarted`, `ExpectedConflict`, `CompletedExactly`, or `Ambiguous`.
   Ambiguity is also reported as dedicated structured drift and remains
@@ -32,10 +32,11 @@ the released CLI rather than unreleased work on `main`.
   `GWZ-Operation-ID` trailers. A request that creates a commit supplies its
   author/committer identity when present; otherwise the target repository
   identity is used.
-- Coordinated status, continue, and abort remain unreleased until final
-  composition publication and the complete interruption matrix pass together.
-  Development recovery must not substitute raw `git merge --abort` for the
-  coordinated operation.
+- Coordinated merge start, dry-run, status, continue, and safe abort are
+  available together. Successful changed merges publish a checked root
+  composition commit; interrupted finalization resumes idempotently.
+  Recovery must not substitute raw `git merge --abort` for the coordinated
+  operation.
 
 ## Install Latest
 

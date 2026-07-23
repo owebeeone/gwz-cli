@@ -1309,13 +1309,22 @@ Command page: [merge](commands/merge.md).
 ```text
 Merge a source ref across selected workspace members
 
-Usage: gwz merge <source> [--dry-run]
+Usage: gwz merge [source] [--dry-run] [--status | --continue | --abort]
 
 Arguments:
   [source]
           Source ref resolved independently in each member
 
 Options:
+      --continue
+          Continue the open coordinated merge after resolving conflicts
+
+      --abort
+          Safely roll back the open coordinated merge
+
+      --status
+          Inspect coordinated merge state without changing it
+
   -h, --help
           Print help (see a summary with '-h')
 

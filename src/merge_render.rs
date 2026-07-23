@@ -21,7 +21,12 @@ pub(crate) fn render_merge_response(response: &gwz_core::MergeResponse) -> Strin
     if let Some(step) = response.publication_step {
         lines.push(format!("publication: {}", debug_kebab(step)));
     }
-    lines.push("recovery: participant eligibility shown below".to_owned());
+    if response.open {
+        lines.push("recovery commands:".to_owned());
+        lines.push("  inspect:  gwz merge --status".to_owned());
+        lines.push("  continue: gwz merge --continue".to_owned());
+        lines.push("  abort:    gwz merge --abort".to_owned());
+    }
 
     if !response.operation_drift.is_empty() {
         lines.push("operation drift:".to_owned());

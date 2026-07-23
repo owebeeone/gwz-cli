@@ -68,13 +68,13 @@ rejects the whole operation before a normal response exists.
 ## Merge JSON
 
 Merge responses use the normal response envelope and populate its `merge`
-field. JSON and JSONL expose the complete merge protocol shape, including
-reserved lifecycle fields that are not yet populated:
+field. JSON and JSONL expose the complete merge protocol shape, including the
+current finalization step:
 
 ```json
 {
   "merge": {
-    "merge_id": null,
+    "merge_id": "merge_example",
     "state": "Finalizing",
     "open": true,
     "participant_counts": {
@@ -93,7 +93,7 @@ reserved lifecycle fields that are not yet populated:
     "repos": [],
     "operation_drift": [],
     "preservation": null,
-    "publication_step": null
+    "publication_step": "PublishingCandidate"
   }
 }
 ```
@@ -108,10 +108,10 @@ including `target_kind`. Operation drift entries contain `kind` and `message`.
 Preservation entries contain `target_id`, `path`, `backup_ref`,
 `backup_commit`, `stash_id`, and `stash_object_id`.
 
-Fields reserved for later preservation or publication phases remain empty or
-null until those phases run, but their serializers consume real protocol
-values. GWZ is pre-1.0, so strict consumers must tolerate additive keys while
-continuing to validate the keys they understand.
+Preservation remains null until that later feature is available. Publication
+steps are populated while finalization is open and end at `Complete`. GWZ is
+pre-1.0, so strict consumers must tolerate additive keys while continuing to
+validate the keys they understand.
 
 Participant drift distinguishes advanced, rewound, and diverged heads, missing
 recorded objects or repositories, exact native-merge mismatches, and foreign

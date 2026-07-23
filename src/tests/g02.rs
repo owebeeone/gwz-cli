@@ -137,8 +137,9 @@ pub(crate) fn merge_renderers_report_open_status_and_structured_drift() {
         human,
         include_str!("../../tests/fixtures/merge_status_human.txt").trim_end()
     );
-    assert!(!human.contains("gwz merge --continue"));
-    assert!(!human.contains("gwz merge --abort"));
+    assert!(human.contains("gwz merge --status"));
+    assert!(human.contains("gwz merge --continue"));
+    assert!(human.contains("gwz merge --abort"));
 
     let fixture: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(canonical_merge_response_fixture()).unwrap())

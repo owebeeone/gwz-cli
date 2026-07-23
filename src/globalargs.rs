@@ -250,7 +250,7 @@ pub(crate) enum CommandArgs {
     Materialize(MaterializeArgs),
     #[command(
         about = "Merge a source ref across selected workspace members",
-        override_usage = "gwz merge <source> [--dry-run]"
+        override_usage = "gwz merge [source] [--dry-run] [--status | --continue | --abort]"
     )]
     Merge(MergeArgs),
     #[command(
@@ -378,14 +378,17 @@ pub(crate) struct MergeArgs {
     )]
     pub(crate) source: Option<String>,
 
-    // Reserved lifecycle and strategy flags are parsed but hidden until their
-    // milestones land. Core remains the single owner of their typed rejection.
-    #[arg(long = "continue", hide = true)]
+    #[arg(
+        long = "continue",
+        help = "Continue the open coordinated merge after resolving conflicts"
+    )]
     pub(crate) resume: bool,
-    #[arg(long, hide = true)]
+    #[arg(long, help = "Safely roll back the open coordinated merge")]
     pub(crate) abort: bool,
-    #[arg(long, hide = true)]
+    #[arg(long, help = "Inspect coordinated merge state without changing it")]
     pub(crate) status: bool,
+    // Preservation, GC, strategy, and message forms remain reserved. Core
+    // remains the single owner of their typed rejection.
     #[arg(long, hide = true)]
     pub(crate) preserve: bool,
     #[arg(long, hide = true, num_args = 0..=1)]
