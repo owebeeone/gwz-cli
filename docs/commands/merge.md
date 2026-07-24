@@ -39,7 +39,8 @@ gwz merge feature/refactor --target mem_app --target mem_docs --jsonl
   coordinated operation. Do not run raw `git merge --abort` as a substitute.
 - `gwz merge --status` is strictly read-only. It reports the publication step,
   recorded and live participant commits, conflicts, drift, and whether each
-  participant is eligible for continue or abort.
+  participant is eligible for continue or abort. During finalization it also
+  validates the ordered marker, lock, and local-boundary publication prefix.
 - Abort preflights every participant before changing any of them. It rejects
   the whole abort if post-merge work makes any rollback unsafe. If finalization
   already created root composition evidence, abort also verifies and rolls
@@ -60,7 +61,8 @@ gwz merge feature/refactor --target mem_app --target mem_docs --jsonl
 - After every participant succeeds, GWZ publishes the updated lock and merge
   marker in one checked root composition commit. Interrupted finalization stays
   open and `gwz merge --continue` resumes it without creating a second evidence
-  commit.
+  commit. If root or publication state drifts, restore the exact reported state
+  and retry; status and continue reclassify the repaired state.
 - Source and target must share history. GWZ rejects unrelated histories for
   both this command and `pull --sync merge`; it does not implicitly enable
   Git's `--allow-unrelated-histories` behavior.

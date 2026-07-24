@@ -178,6 +178,18 @@ start/finish events. Actionable participants emit member start/finish events;
 `merge_state`. Participant outcome and state-change events are emitted only
 after their corresponding durable write succeeds.
 
+After successful finalization verification, the stream reports the composition
+evidence in this order:
+
+1. `git:@root/<commit>` for the checked root evidence commit;
+2. `gwz.conf/markers/<id>.yaml` for the merge marker;
+3. `gwz.conf/gwz.lock.yml` for the accepted lock; and
+4. `.git/info/exclude` for the local workspace boundary.
+
+These events describe verified publication. Recovery may report them again
+when it re-verifies a publication whose prior process stopped before terminal
+completion.
+
 Both drivers emit merge events as they occur rather than buffering them until
 the operation finishes. After `OperationFinished`, the stream contains exactly
 one final `kind: "response"` object. A failed invocation retains any events
