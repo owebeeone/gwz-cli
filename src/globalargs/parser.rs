@@ -249,7 +249,7 @@ pub(crate) enum CommandArgs {
     )]
     Materialize(MaterializeArgs),
     #[command(
-        about = "Merge a source ref across selected workspace members",
+        about = "Merge a source ref across selected workspace repositories",
         override_usage = "gwz merge [source] [--dry-run] [--status | --continue | --abort]"
     )]
     Merge(MergeArgs),
@@ -374,7 +374,7 @@ pub(crate) struct BranchArgs {
 pub(crate) struct MergeArgs {
     #[arg(
         value_name = "source",
-        help = "Source ref resolved independently in each member"
+        help = "Source ref resolved independently in each selected repository"
     )]
     pub(crate) source: Option<String>,
 

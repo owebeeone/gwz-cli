@@ -1,6 +1,7 @@
 # `gwz merge`
 
-Merge one source ref into the current branch of each selected member.
+Merge one source ref into the current branch of each selected workspace
+repository.
 
 ```text
 gwz merge <source> [--dry-run]
@@ -9,79 +10,230 @@ gwz merge --continue
 gwz merge --abort
 ```
 
-The source name is resolved independently in every selected repository. With
-no selection, all active members participate and the workspace root does not.
-Use the normal global `--target` and `--no-target` options to select members.
+With no selection, all active members participate and the workspace root does
+not. Select the root explicitly as `@root`.
 
-Merge across all active members, or inspect the plan without mutation:
+## Quick start
+
+Preview the merge without changing any repository:
+
+```sh
+gwz merge feature/refactor --dry-run
+```
+
+Start it:
 
 ```sh
 gwz merge feature/refactor
-gwz merge feature/refactor --dry-run
+```
+
+If a repository conflicts, inspect the coordinated operation:
+
+```sh
 gwz merge --status
 ```
 
-Select members and request JSON Lines output:
+Resolve and stage the reported files, then continue:
 
 ```sh
-gwz merge feature/refactor --target mem_app --target mem_docs --jsonl
+gwz add path/to/resolved-file
+gwz merge --continue
 ```
 
-## Current behavior
+Or safely restore every participant to its pre-merge state:
 
-- The command exposes start, `--dry-run`, read-only `--status`, coordinated
-  `--continue`, and safe coordinated `--abort`.
-- Explicit `--target @root`, `--partial`, `--force`, and reserved forms return
-  typed core errors; they are never silently weakened or ignored.
-- A conflict remains in that member's ordinary Git merge state. Resolve it in
-  the member repository, stage the resolution with `gwz add`, and run
-  `gwz merge --continue`. Use `gwz merge --abort` to roll back the entire
-  coordinated operation. Do not run raw `git merge --abort` as a substitute.
-- `gwz merge --status` is strictly read-only. It reports the publication step,
-  recorded and live participant commits, conflicts, drift, and whether each
-  participant is eligible for continue or abort. During finalization it also
-  validates the ordered marker, lock, and local-boundary publication prefix.
-- Abort preflights every participant before changing any of them. It rejects
-  the whole abort if post-merge work makes any rollback unsafe. If finalization
-  already created root composition evidence, abort also verifies and rolls
-  back that evidence.
-- Other members may already have changed, but the accepted workspace lock
-  remains the exact pre-merge baseline while the coordinated operation is
-  open. Status compares every recorded result with live Git state.
-- If an unexpected failure halts the batch, the durable operation record keeps
-  earlier exact outcomes, identifies the failed member, and marks later members
-  unattempted. The accepted lock is not partially advanced.
-- Before each participant Git mutation, GWZ durably records the exact pending
-  action. After interruption, status reports whether that action is not
-  started, in its expected conflict state, completed exactly, or ambiguous.
-  Only exact states are adopted automatically.
-- True merge commits use the message
-  `Merge '<source>' into '<target-branch>'` with `GWZ-Merge-ID` and
-  `GWZ-Operation-ID` trailers.
-- After every participant succeeds, GWZ publishes the updated lock and merge
-  marker in one checked root composition commit. Interrupted finalization stays
-  open and `gwz merge --continue` resumes it without creating a second evidence
-  commit. If root or publication state drifts, restore the exact reported state
-  and retry; status and continue reclassify the repaired state.
-- Source and target must share history. GWZ rejects unrelated histories for
-  both this command and `pull --sync merge`; it does not implicitly enable
-  Git's `--allow-unrelated-histories` behavior.
-- Human, JSON, and JSONL results identify the action as `merge` and include
-  every participant's source, target branch, recorded/live outcome, conflict
-  paths, recovery eligibility, pending-action reconciliation, and structured
-  drift. They also include the current publication step.
+```sh
+gwz merge --abort
+```
 
-Preservation (`--abort --preserve`), strategy flags, custom merge messages,
-record GC, and explicit workspace-root participation are not yet available.
-These forms remain hidden and return typed unsupported errors if submitted
-directly.
+Do not substitute raw `git merge --abort`. It knows about only one repository
+and cannot restore a coordinated workspace operation.
 
-The generated command reference shows global options on every command. Merge
-rejects unrelated operation policies supplied explicitly: `--sync`,
-`--remote`, `--jobs`, `--max-per-host`, and `--progress-interval`. It also
-rejects the reserved `--partial` and `--force` policies. Core diagnostics name
-the option that must be removed.
+## Choosing participants
 
-`gwz branch --merge <source>` remains as a deprecated compatibility spelling.
-It constructs the same first-class merge request and does not invoke the old
-branch-merge protocol operation.
+The source ref is resolved independently in every selected repository.
+
+```sh
+# All active members; root excluded
+gwz merge feature/refactor
+
+# Two members only
+gwz --target mem_app --target mem_docs merge feature/refactor
+
+# Workspace root only
+gwz --target @root merge feature/refactor
+
+# Members plus the workspace root
+gwz --target mem_app --target @root merge feature/refactor
+```
+
+Selection is frozen from the pre-merge manifest. Members remain in manifest
+order and an explicitly selected root is appended last. A root merge cannot
+add, remove, reorder, or rename participants in the operation already under
+way.
+
+`@all` and bare `--all` retain merge's member-only default. Use
+`--target @root` when root participation is intended.
+
+## The coordinated state machine
+
+Most successful merges pass through `Executing` and `Finalizing` too quickly to
+notice. The other states exist so interruption and partial progress remain
+recoverable.
+
+| State | Meaning | What to do |
+| --- | --- | --- |
+| `Idle` | No merge is open. | Start a merge. |
+| `Executing` | GWZ is applying the frozen plan in order. | If interrupted, run `gwz merge --status`. |
+| `AwaitingResolution` | At least one repository has an expected Git conflict. Other independent participants may already have completed. | Resolve and stage conflicts, then continue or abort. |
+| `Halted` | An unexpected Git or host failure stopped later participants. | Inspect status, repair the reported cause, then continue or abort. |
+| `Finalizing` | Participant results are verified and workspace composition evidence is being published. | Continue after interruption; GWZ resumes the recorded publication step. |
+| `RecoveryRequired` | Live Git state no longer exactly matches a safe recovery point. | Follow the drift report and restore the exact expected state before retrying. |
+| `RollingBack` | A coordinated abort is being persisted and applied in reverse order. | Retry `gwz merge --abort` after interruption. |
+| `Completed` | Results and composition evidence were verified and the operation was closed. | No recovery action is needed. |
+| `Aborted` | Every affected repository was restored and the operation was closed. | No recovery action is needed. |
+
+Each participant also has its own state, such as `UpToDate`,
+`FastForwarded`, `Merged`, `Conflicted`, `Continued`, `Failed`,
+`Unattempted`, `RolledBack`, or `Aborted`. This is why one workspace operation
+can be awaiting resolution while another repository has already merged
+successfully.
+
+## What happens when a merge starts
+
+GWZ first preflights every selected repository before mutating any of them. It
+requires an attached, born target branch, a clean index and worktree, no
+unrelated Git sequencer state, a resolvable source ref, and shared source/target
+history.
+
+It then:
+
+1. persists the frozen participant plan and exact pre-merge state;
+2. executes members in manifest order;
+3. continues past expected conflicts so independent later members can run;
+4. stops after an unexpected backend or host failure and marks later
+   participants `Unattempted`;
+5. executes an explicitly selected workspace root last;
+6. verifies every recorded result; and
+7. publishes the updated lock and merge marker in one checked root composition
+   commit.
+
+The accepted workspace lock remains at its exact pre-merge baseline while the
+operation is open. Durable participant results, rather than a partially
+advanced lock, are the source of truth for status and recovery.
+
+True merge commits use:
+
+```text
+Merge '<source>' into '<target-branch>'
+
+GWZ-Merge-ID: <merge-id>
+GWZ-Operation-ID: <operation-id>
+```
+
+GWZ rejects unrelated histories; it does not implicitly enable Git's
+`--allow-unrelated-histories`.
+
+## Resolving conflicts
+
+An expected conflict remains in that participant's ordinary Git merge state.
+Edit the conflicted files normally, but stage them with `gwz add`. While a merge
+is open, `gwz add` accepts only repositories recorded as conflicted and rejects
+the entire add if the selection includes a clean or unrelated repository.
+
+```sh
+gwz merge --status
+gwz add repos/app/src/config.rs
+gwz merge --continue
+```
+
+Before each Git mutation, GWZ records the exact pending action. After a crash
+or lost connection, status classifies that action as not started, at the
+expected conflict, completed exactly, or ambiguous. Only exact states are
+adopted automatically.
+
+## When the workspace root participates
+
+Root participation is opt-in because the root contains the manifest, lock, and
+composition history used to coordinate the workspace.
+
+The root must already have a commit and must pass the same attached-branch and
+clean-state checks as a member. Its pre-merge manifest and lock are read from
+the recorded root commit, so recovery does not depend on the current files
+remaining parseable.
+
+Consequently:
+
+- `gwz merge --status`, `gwz add`, `gwz merge --continue`, and
+  `gwz merge --abort` still work when a root conflict has left the live
+  manifest or lock with conflict markers;
+- finalization reloads merged root metadata only after the root merge succeeds;
+- selected member identities, paths, and source identities must still match
+  the frozen operation; and
+- the root merge-result commit and the later composition-evidence commit are
+  reported as distinct commits.
+
+If root metadata attempts to redefine an in-flight member, finalization fails
+closed. The operation remains open and can be inspected or aborted using its
+durable pre-merge record.
+
+## Status and drift
+
+`gwz merge --status` is strictly read-only. It reports:
+
+- the operation and publication states;
+- recorded before, source, result, and live commits;
+- conflict paths and pending-action state;
+- participant and operation drift;
+- continue and abort eligibility; and
+- the root merge result separately from composition evidence.
+
+Post-merge work is never silently discarded. A branch switch, new commit,
+modified index, changed worktree, foreign Git operation, missing object, or
+changed publication artifact blocks unsafe recovery. Preserve or remove that
+work and restore the exact state named by status before retrying.
+
+## Coordinated abort
+
+Abort preflights every participant and all root publication evidence before its
+first mutation. If any repository is unsafe to roll back, nothing is changed.
+
+Rollback follows the reverse of execution:
+
+1. remove an incomplete composition-evidence commit, if present;
+2. restore the explicitly merged root to its pre-merge commit;
+3. restore members in reverse execution order;
+4. verify the exact baseline manifest and lock bytes; and
+5. close the operation as `Aborted`.
+
+If abort itself is interrupted, rerun the same command. Durable rollback
+progress makes the operation restart-safe.
+
+## Machine output
+
+Use `--json` for one structured response or `--jsonl` for lifecycle events
+followed by the terminal response:
+
+```sh
+gwz --target mem_app --target @root --jsonl merge feature/refactor
+gwz --json merge --status
+```
+
+Machine results identify root rows with `target_id: "@root"`, `path: "."`, and
+`target_kind: "Root"`. Errors retain the same structured target fields, so
+consumers do not need to extract repository identity from human text.
+
+## Features not yet available
+
+Preserving post-merge work during abort (`--abort --preserve`), strategy flags,
+custom merge messages, and merge-record garbage collection are not yet
+available. These forms remain hidden and return typed unsupported errors if
+submitted directly.
+
+Merge also rejects unrelated operation policies supplied explicitly:
+`--sync`, `--remote`, `--jobs`, `--max-per-host`,
+`--progress-interval`, `--partial`, and `--force`. Diagnostics name the option
+that must be removed.
+
+`gwz branch --merge <source>` remains a deprecated compatibility spelling. It
+constructs the same first-class merge request.

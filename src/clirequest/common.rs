@@ -118,13 +118,21 @@ impl CliError {
     /// Preserve a gwz-core error's code (so `--json`/`--jsonl` can emit it
     /// structured) alongside its message.
     pub(crate) fn from_model(error: gwz_core::model::ModelError) -> Self {
-        let has_member_context = error.member_id.is_some() || error.member_path.is_some();
+        let target_kind = if error.member_id.as_deref() == Some("@root")
+            && error.member_path.as_deref() == Some(".")
+        {
+            Some("Root".to_owned())
+        } else if error.member_id.is_some() || error.member_path.is_some() {
+            Some("Member".to_owned())
+        } else {
+            None
+        };
         Self {
             message: error.message,
             code: Some(error.code),
             member_id: error.member_id,
             member_path: error.member_path,
-            target_kind: has_member_context.then(|| "Member".to_owned()),
+            target_kind,
         }
     }
 

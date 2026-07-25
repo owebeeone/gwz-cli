@@ -44,7 +44,7 @@ Commands:
   init         Create a workspace or initialize one from source URLs
   ls           List workspace targets (id, path; absolute or --local)
   materialize  Materialize workspace members to a target
-  merge        Merge a source ref across selected workspace members
+  merge        Merge a source ref across selected workspace repositories
   pull         Update workspace members to an explicit target
   push         Push workspace target refs
   repo         Manage workspace repository members
@@ -1307,13 +1307,13 @@ Examples:
 Command page: [merge](commands/merge.md).
 
 ```text
-Merge a source ref across selected workspace members
+Merge a source ref across selected workspace repositories
 
 Usage: gwz merge [source] [--dry-run] [--status | --continue | --abort]
 
 Arguments:
   [source]
-          Source ref resolved independently in each member
+          Source ref resolved independently in each selected repository
 
 Options:
       --continue
