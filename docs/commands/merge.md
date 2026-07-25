@@ -170,8 +170,8 @@ Consequently:
 - finalization reloads merged root metadata only after the root merge succeeds;
 - selected member identities, paths, and source identities must still match
   the frozen operation; and
-- the root merge-result commit and the later composition-evidence commit are
-  reported as distinct commits.
+- the root participant keeps its merge-result commit while GWZ verifies the
+  later composition evidence internally during publication and recovery.
 
 If root metadata attempts to redefine an in-flight member, finalization fails
 closed. The operation remains open and can be inspected or aborted using its
@@ -186,7 +186,8 @@ durable pre-merge record.
 - conflict paths and pending-action state;
 - participant and operation drift;
 - continue and abort eligibility; and
-- the root merge result separately from composition evidence.
+- the root merge result and the current publication step. Composition evidence
+  is verified internally but is not currently a separate response field.
 
 Post-merge work is never silently discarded. A branch switch, new commit,
 modified index, changed worktree, foreign Git operation, missing object, or
