@@ -250,7 +250,7 @@ pub(crate) enum CommandArgs {
     Materialize(MaterializeArgs),
     #[command(
         about = "Merge a source ref across selected workspace repositories",
-        override_usage = "gwz merge [source] [--dry-run] [--status | --continue | --abort]"
+        override_usage = "gwz merge [source] [--dry-run]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
     )]
     Merge(MergeArgs),
     #[command(
@@ -385,14 +385,26 @@ pub(crate) struct MergeArgs {
     pub(crate) resume: bool,
     #[arg(long, help = "Safely roll back the open coordinated merge")]
     pub(crate) abort: bool,
-    #[arg(long, help = "Inspect coordinated merge state without changing it")]
-    pub(crate) status: bool,
-    // Preservation, GC, strategy, and message forms remain reserved. Core
-    // remains the single owner of their typed rejection.
-    #[arg(long, hide = true)]
+    #[arg(
+        long,
+        value_name = "merge-id",
+        num_args = 0..=1,
+        help = "Inspect the open merge, or a retained closed merge by id"
+    )]
+    pub(crate) status: Option<Option<String>>,
+    #[arg(
+        long,
+        help = "With --abort, preserve safe post-merge commits and local changes"
+    )]
     pub(crate) preserve: bool,
-    #[arg(long, hide = true, num_args = 0..=1)]
+    #[arg(
+        long,
+        value_name = "merge-id",
+        num_args = 0..=1,
+        help = "Apply retention, or remove one retained merge and its backup refs"
+    )]
     pub(crate) gc: Option<Option<String>>,
+    // Strategy and message forms remain reserved. Core owns their typed rejection.
     #[arg(long, hide = true)]
     pub(crate) ff_only: bool,
     #[arg(long, hide = true)]

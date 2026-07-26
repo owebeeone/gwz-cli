@@ -8,6 +8,11 @@ recovery commands:
   inspect:  gwz merge --status
   continue: gwz merge --continue
   abort:    gwz merge --abort
+  preserve: gwz merge --abort --preserve
+remaining preservation artifacts:
+  docs (mem_docs)
+    backup ref: refs/gwz/preserve/merge-parity-1/mem_docs @ backup123
+    stash: stash-parity-1 @ stashobj123
 operation drift:
   baseline-manifest-changed: manifest changed after planning
 participants:

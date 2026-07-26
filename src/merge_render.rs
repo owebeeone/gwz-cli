@@ -26,6 +26,24 @@ pub(crate) fn render_merge_response(response: &gwz_core::MergeResponse) -> Strin
         lines.push("  inspect:  gwz merge --status".to_owned());
         lines.push("  continue: gwz merge --continue".to_owned());
         lines.push("  abort:    gwz merge --abort".to_owned());
+        lines.push("  preserve: gwz merge --abort --preserve".to_owned());
+    }
+
+    if let Some(entries) = &response.preservation {
+        lines.push("remaining preservation artifacts:".to_owned());
+        for entry in entries {
+            lines.push(format!("  {} ({})", entry.path, entry.target_id));
+            if let (Some(name), Some(commit)) =
+                (entry.backup_ref.as_deref(), entry.backup_commit.as_deref())
+            {
+                lines.push(format!("    backup ref: {name} @ {commit}"));
+            }
+            if let (Some(id), Some(object)) =
+                (entry.stash_id.as_deref(), entry.stash_object_id.as_deref())
+            {
+                lines.push(format!("    stash: {id} @ {object}"));
+            }
+        }
     }
 
     if !response.operation_drift.is_empty() {

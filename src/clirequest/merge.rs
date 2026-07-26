@@ -6,7 +6,7 @@ impl MergeArgs {
     pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
         let lifecycle_ops = usize::from(self.resume)
             + usize::from(self.abort)
-            + usize::from(self.status)
+            + usize::from(self.status.is_some())
             + usize::from(self.gc.is_some());
         if lifecycle_ops > 1 {
             return Err(CliError::invalid_request(
@@ -22,7 +22,7 @@ impl MergeArgs {
             gwz_core::MergeOp::Resume
         } else if self.abort {
             gwz_core::MergeOp::Abort
-        } else if self.status {
+        } else if self.status.is_some() {
             gwz_core::MergeOp::Status
         } else if self.gc.is_some() {
             gwz_core::MergeOp::Gc
@@ -33,7 +33,11 @@ impl MergeArgs {
             meta,
             op,
             source_ref: self.source.clone(),
-            merge_id: self.gc.clone().flatten(),
+            merge_id: self
+                .status
+                .clone()
+                .flatten()
+                .or_else(|| self.gc.clone().flatten()),
             mode: if self.ff_only {
                 Some(gwz_core::MergeMode::FfOnly)
             } else if self.no_ff {

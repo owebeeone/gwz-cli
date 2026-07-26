@@ -1309,7 +1309,11 @@ Command page: [merge](commands/merge.md).
 ```text
 Merge a source ref across selected workspace repositories
 
-Usage: gwz merge [source] [--dry-run] [--status | --continue | --abort]
+Usage: gwz merge [source] [--dry-run]
+       gwz merge --status [merge-id]
+       gwz merge --continue
+       gwz merge --abort [--preserve]
+       gwz merge --gc [merge-id]
 
 Arguments:
   [source]
@@ -1322,8 +1326,14 @@ Options:
       --abort
           Safely roll back the open coordinated merge
 
-      --status
-          Inspect coordinated merge state without changing it
+      --status [<merge-id>]
+          Inspect the open merge, or a retained closed merge by id
+
+      --preserve
+          With --abort, preserve safe post-merge commits and local changes
+
+      --gc [<merge-id>]
+          Apply retention, or remove one retained merge and its backup refs
 
   -h, --help
           Print help (see a summary with '-h')

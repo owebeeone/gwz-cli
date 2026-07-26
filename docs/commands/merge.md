@@ -5,9 +5,10 @@ repository.
 
 ```text
 gwz merge <source> [--dry-run]
-gwz merge --status
+gwz merge --status [<merge-id>]
 gwz merge --continue
-gwz merge --abort
+gwz merge --abort [--preserve]
+gwz merge --gc [<merge-id>]
 ```
 
 With no selection, all active members participate and the workspace root does
@@ -44,6 +45,13 @@ Or safely restore every participant to its pre-merge state:
 
 ```sh
 gwz merge --abort
+```
+
+If successful participants have accumulated safe post-merge work, preserve it
+before rollback:
+
+```sh
+gwz merge --abort --preserve
 ```
 
 Do not substitute raw `git merge --abort`. It knows about only one repository
@@ -88,6 +96,7 @@ recoverable.
 | `AwaitingResolution` | At least one repository has an expected Git conflict. Other independent participants may already have completed. | Resolve and stage conflicts, then continue or abort. |
 | `Halted` | An unexpected Git or host failure stopped later participants. | Inspect status, repair the reported cause, then continue or abort. |
 | `Finalizing` | Participant results are verified and workspace composition evidence is being published. | Continue after interruption; GWZ resumes the recorded publication step. |
+| `Preserving` | A preserve-abort is recording and verifying backup refs or coordinated stashes before rollback. | If interrupted, rerun `gwz merge --abort --preserve`. |
 | `RecoveryRequired` | Live Git state no longer exactly matches a safe recovery point. | Follow the drift report and restore the exact expected state before retrying. |
 | `RollingBack` | A coordinated abort is being persisted and applied in reverse order. | Retry `gwz merge --abort` after interruption. |
 | `Completed` | Results and composition evidence were verified and the operation was closed. | No recovery action is needed. |
@@ -194,6 +203,16 @@ modified index, changed worktree, foreign Git operation, missing object, or
 changed publication artifact blocks unsafe recovery. Preserve or remove that
 work and restore the exact state named by status before retrying.
 
+With no id, status inspects the open merge or reports `Idle`. Closed records
+can be inspected while they are retained:
+
+```sh
+gwz merge --status merge_20260725_1234
+```
+
+An id-qualified closed response is historical: it has `open: false` and does
+not inspect or reopen the repositories.
+
 ## Coordinated abort
 
 Abort preflights every participant and all root publication evidence before its
@@ -210,6 +229,86 @@ Rollback follows the reverse of execution:
 If abort itself is interrupted, rerun the same command. Durable rollback
 progress makes the operation restart-safe.
 
+## Preserving work before abort
+
+`gwz merge --abort --preserve` is an explicit, conservative escape hatch for
+work created after a participant merged successfully. It accepts only an
+attached recorded target branch, no unresolved entries, no active or foreign
+Git operation, and a live commit equal to or descended from the recorded merge
+result. A rewound or divergent branch, partial conflict resolution, branch
+switch, or ambiguous state rejects the whole preserve attempt before rollback.
+GWZ verifies that every still-conflicted repository retains its original
+conflict index and conflict-marker file contents; edit or stage that work only
+after deciding to continue, or preserve it manually before aborting.
+If Git created a conflict but GWZ was interrupted before recording the original
+marker snapshot, `--continue` may still reconcile and resolve the conflict, but
+preserve-abort refuses to infer the original from later live bytes.
+
+The root is also eligible when a member-only merge has already recorded its
+composition commit. Root work created before that composition evidence exists
+is rejected with manual-preservation guidance so candidate metadata cannot be
+mistaken for user work. Automatic root worktree preservation is likewise
+conservative when the composition commit created the root's first commit;
+committed descendants can still be retained through the reported backup ref.
+
+Depending on what changed, GWZ creates:
+
+- `refs/gwz/merge/<merge-id>/<member-id>/head` for committed member work;
+- `refs/gwz/merge/<merge-id>/root/head` for committed root work; and
+- one coordinated `stash_<merge-id>` bundle for staged, unstaged, and
+  untracked work. Ignored files are not included.
+
+The operation enters `Preserving` before artifact creation. Every required
+artifact is verified and recorded before the existing reverse-order abort path
+can begin. If creation is interrupted, rerun the same preserve command; GWZ
+checks the recorded ref targets and stash object ids rather than duplicating
+them. Plain `gwz merge --abort` rejects an operation in `Preserving`, because
+it must not bypass artifact reconciliation or verification.
+
+Preserved work is not reapplied automatically because it was created against
+the post-merge tree. The human, JSON, and JSONL responses report every ref,
+commit, stash id, and native stash object id. Inspect or branch from a backup
+ref with Git. Restore the coordinated stash deliberately after abort:
+
+```sh
+gwz stash apply stash_<merge-id>
+```
+
+This restore works for preservation rows owned by members and by `@root`.
+After applying and checking the recovered work, the same deterministic bundle
+can be dropped, including an explicit root selection:
+
+```sh
+gwz --target @root stash drop stash_<merge-id>
+```
+
+## Retention and cleanup
+
+GWZ keeps the latest 20 ordinary closed merge records for local diagnostics.
+Records that own preservation evidence are exempt from automatic retention.
+
+```sh
+# Apply ordinary retention only
+gwz merge --gc
+
+# Remove one retained record and its verified private backup refs
+gwz merge --gc merge_20260725_1234
+```
+
+Explicit GC preflights every recorded ref before deleting any of them and
+refuses to run while a coordinated merge is open. A missing ref is accepted on
+retry, but a ref pointing at a different commit fails closed. After its refs
+are deleted, the archived merge record is removed. Successful GC output lists
+only preservation artifacts that remain, such as native stash object ids; it
+does not present deleted backup refs as recoverable.
+
+GC never deletes native stashes or coordinated stash bundles. After recovering
+or intentionally abandoning the preserved changes, remove those separately:
+
+```sh
+gwz stash drop stash_<merge-id>
+```
+
 ## Machine output
 
 Use `--json` for one structured response or `--jsonl` for lifecycle events
@@ -218,6 +317,8 @@ followed by the terminal response:
 ```sh
 gwz --target mem_app --target @root --jsonl merge feature/refactor
 gwz --json merge --status
+gwz --json merge --status merge_20260725_1234
+gwz --json merge --gc merge_20260725_1234
 ```
 
 Machine results identify root rows with `target_id: "@root"`, `path: "."`, and
@@ -226,10 +327,8 @@ consumers do not need to extract repository identity from human text.
 
 ## Features not yet available
 
-Preserving post-merge work during abort (`--abort --preserve`), strategy flags,
-custom merge messages, and merge-record garbage collection are not yet
-available. These forms remain hidden and return typed unsupported errors if
-submitted directly.
+Strategy flags and custom merge messages are not yet available. These forms
+remain hidden and return typed unsupported errors if submitted directly.
 
 Merge also rejects unrelated operation policies supplied explicitly:
 `--sync`, `--remote`, `--jobs`, `--max-per-host`,
