@@ -55,12 +55,85 @@ Errors use:
   "message": "unknown member",
   "member_id": null,
   "member_path": null,
+  "target_kind": null,
   "detail": null
 }
 ```
 
 Top-level CLI errors in `--json` or `--jsonl` mode keep the same response shape,
-with `meta: null`, no members, and one error entry.
+with `meta: null`, no members, and one error entry. Per-member failures retain
+`member_id`, `member_path`, and `target_kind: "Member"` even when preflight
+rejects the whole operation before a normal response exists.
+
+## Merge JSON
+
+Merge responses use the normal response envelope and populate its `merge`
+field. JSON and JSONL expose the complete merge protocol shape, including the
+current finalization step:
+
+```json
+{
+  "merge": {
+    "merge_id": "merge_example",
+    "state": "Finalizing",
+    "open": true,
+    "participant_counts": {
+      "total": 1,
+      "planned": 0,
+      "up_to_date": 0,
+      "fast_forwarded": 1,
+      "merged": 0,
+      "conflicted": 0,
+      "failed": 0,
+      "unattempted": 0,
+      "continued": 0,
+      "aborted": 0,
+      "rolled_back": 0
+    },
+    "repos": [],
+    "operation_drift": [],
+    "preservation": null,
+    "publication_step": "PublishingCandidate"
+  }
+}
+```
+
+Repository rows include their target, source, branch, before/resulting/live
+commits, lifecycle state, prediction, conflicts, eligibility flags, structured
+participant drift, an optional structured error, and an optional
+`pending_action`. A pending action contains its `kind`, reconciliation `state`
+(`NotStarted`, `ExpectedConflict`, `CompletedExactly`, or `Ambiguous`), and a
+guidance message. Merge errors use the same six-field shape as envelope errors,
+including `target_kind`. Operation drift entries contain `kind` and `message`.
+Preservation entries contain `target_id`, `path`, `backup_ref`,
+`backup_commit`, `stash_id`, and `stash_object_id`.
+
+Preservation remains null until that later feature is available. Publication
+steps are populated while finalization is open and end at `Complete`. GWZ is
+pre-1.0, so strict consumers must tolerate additive keys while continuing to
+validate the keys they understand.
+
+Participant drift distinguishes advanced, rewound, and diverged heads, missing
+recorded objects or repositories, exact native-merge mismatches, and foreign
+integration/sequencer state. Status carries member context and expected/live
+evidence for these cases rather than returning a memberless backend error.
+An ambiguous pending action also emits the dedicated
+`PendingActionAmbiguous` drift kind and blocks both continue and abort until a
+fresh exact classification succeeds.
+
+`MergeOperationState` includes the append-only `Idle` value used by the
+read-only merge-status lifecycle when no coordinated merge is open. An idle
+response has no merge id, participants, or drift and does not fabricate a
+completed operation.
+
+The Rust and Python driver tests compare semantic JSON values with the single
+canonical fixture at
+`gwz-core/protocol/fixtures/cli_parity/merge_response.json`. Driver development
+checkouts therefore retain the usual sibling `gwz-core` layout; both drivers
+already require that checkout through their development path dependency. The
+fixture is test-only and is not read by an installed driver at runtime.
+It includes both an envelope error and an error-bearing failed repository row,
+so cross-driver parity covers the complete structured error sub-shape.
 
 ## JSONL Stream
 
@@ -81,6 +154,11 @@ prints the response object. Event records have this shape:
   "message": null,
   "member": null,
   "error": null,
+  "attribution": null,
+  "target_kind": "Member",
+  "merge_state": null,
+  "merge_member": null,
+  "artifact_path": null,
   "progress": {
     "phase": "Receiving",
     "received_objects": 10,
@@ -91,6 +169,38 @@ prints the response object. Event records have this shape:
   }
 }
 ```
+
+Merge JSONL uses the same event envelope. Each invocation emits operation
+start/finish events. Actionable participants emit member start/finish events;
+`MemberFinished` carries the durable merge participant outcome in
+`merge_member`. Verified operation-record and evidence writes emit
+`ArtifactWritten` with `artifact_path`. Lifecycle transitions carry
+`merge_state`. Participant outcome and state-change events are emitted only
+after their corresponding durable write succeeds.
+
+After successful finalization verification, the stream reports the composition
+evidence in this order:
+
+1. `git:@root/<commit>` for the checked root evidence commit;
+2. `gwz.conf/markers/<id>.yaml` for the merge marker;
+3. `gwz.conf/gwz.lock.yml` for the accepted lock; and
+4. `.git/info/exclude` for the local workspace boundary.
+
+These events describe verified publication. Recovery may report them again
+when it re-verifies a publication whose prior process stopped before terminal
+completion.
+
+Both drivers emit merge events as they occur rather than buffering them until
+the operation finishes. After `OperationFinished`, the stream contains exactly
+one final `kind: "response"` object. A failed invocation retains any events
+already emitted and ends with one structured error response. Event-stream
+completion is not published until that final response, or its structured
+failure, is available to the driver.
+
+The Rust and Python event serializers compare against the shared
+`gwz-core/protocol/fixtures/cli_parity/merge_event.json` fixture. This pins the
+merge-member outcome and artifact fields to the same JSONL shape in both
+drivers.
 
 Progress event frequency is controlled by:
 

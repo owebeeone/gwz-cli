@@ -6,4 +6,4 @@ Examples:
   gwz branch --create work --from main
   gwz branch --create work --switch
   gwz branch --delete work
-  gwz branch --merge feature/source";
+  gwz branch --merge feature/source  deprecated; use gwz merge feature/source";

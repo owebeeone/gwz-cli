@@ -1,0 +1,485 @@
+#[cfg(test)]
+use clap::CommandFactory;
+use clap::{Args, Parser, Subcommand, ValueEnum};
+
+use crate::*;
+
+#[cfg(test)]
+pub(crate) fn usage_text() -> String {
+    Cli::command().render_long_help().to_string()
+}
+
+#[derive(Clone, Debug, Parser)]
+#[command(
+    name = "gwz",
+    version,
+    about = "Manage GWZ multi-repository workspaces",
+    long_about = CLI_LONG,
+    after_long_help = CLI_AFTER,
+    arg_required_else_help = true,
+    subcommand_required = true
+)]
+pub(crate) struct Cli {
+    #[command(flatten, next_help_heading = "Global Options")]
+    pub(crate) global: GlobalArgs,
+
+    #[command(subcommand)]
+    pub(crate) command: CommandArgs,
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub(crate) struct GlobalArgs {
+    #[arg(
+        long,
+        global = true,
+        value_name = "path",
+        help = "Workspace root",
+        long_help = "Workspace root. Defaults to the current directory when not supplied."
+    )]
+    pub(crate) root: Option<String>,
+
+    #[arg(
+        long = "target",
+        global = true,
+        value_name = "selector",
+        help = "Select a workspace target",
+        long_help = "Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be supplied more than once."
+    )]
+    pub(crate) targets: Vec<String>,
+
+    #[arg(
+        long = "no-target",
+        global = true,
+        value_name = "selector",
+        help = "Exclude a workspace target",
+        long_help = "Exclude a workspace target after includes are expanded. May be supplied more than once."
+    )]
+    pub(crate) exclude_targets: Vec<String>,
+
+    #[arg(
+        long = "member",
+        global = true,
+        value_name = "selector",
+        help = "Compatibility alias for --target",
+        long_help = "Compatibility alias for `--target`. Selects a workspace target by selector and may be supplied more than once."
+    )]
+    pub(crate) members: Vec<String>,
+
+    #[arg(
+        long = "no-member",
+        global = true,
+        value_name = "selector",
+        help = "Compatibility alias for --no-target",
+        long_help = "Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied more than once."
+    )]
+    pub(crate) exclude_members: Vec<String>,
+
+    #[arg(
+        long = "member-path",
+        global = true,
+        value_name = "member-path",
+        help = "Select a workspace target by member path",
+        long_help = "Compatibility path selector. Selects a workspace target by member path and may be supplied more than once."
+    )]
+    pub(crate) paths: Vec<String>,
+
+    #[arg(
+        long = "no-member-path",
+        global = true,
+        value_name = "member-path",
+        help = "Exclude a workspace target by member path",
+        long_help = "Compatibility path exclusion. Excludes a workspace target by member path and may be supplied more than once."
+    )]
+    pub(crate) exclude_paths: Vec<String>,
+
+    #[arg(
+        long,
+        global = true,
+        help = "Select all workspace targets",
+        long_help = "Select all workspace targets (`@all`). May be combined with target exclusions."
+    )]
+    pub(crate) all: bool,
+
+    #[arg(
+        long,
+        global = true,
+        help = "Plan the operation without mutating state",
+        long_help = "Plan the operation without mutating workspace metadata or member repositories."
+    )]
+    pub(crate) dry_run: bool,
+
+    #[arg(
+        long,
+        global = true,
+        help = "Allow operations to complete partially",
+        long_help = "Allow operations to complete for members that can proceed even when another selected member fails."
+    )]
+    pub(crate) partial: bool,
+
+    #[arg(
+        long,
+        global = true,
+        help = "Allow destructive behavior when required",
+        long_help = "Allow destructive behavior when required. GWZ refuses destructive changes unless this is explicit."
+    )]
+    pub(crate) force: bool,
+
+    #[arg(
+        long,
+        global = true,
+        value_enum,
+        value_name = "mode",
+        help = "Select workspace sync behavior",
+        long_help = "Select workspace sync behavior. The default policy is fast-forward only."
+    )]
+    pub(crate) sync: Option<SyncArg>,
+
+    #[arg(
+        long,
+        global = true,
+        value_name = "name",
+        help = "Select the git remote name",
+        long_help = "Select the git remote name used by operations that contact remotes."
+    )]
+    pub(crate) remote: Option<String>,
+
+    #[arg(
+        long,
+        global = true,
+        value_name = "n",
+        value_parser = parse_positive_i64,
+        help = "Global ceiling on concurrent member operations (default 50)",
+        long_help = "Global ceiling on the total number of member repositories processed concurrently across all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host."
+    )]
+    pub(crate) jobs: Option<i64>,
+
+    #[arg(
+        long = "max-per-host",
+        global = true,
+        value_name = "n",
+        value_parser = parse_positive_i64,
+        help = "Max concurrent connections to any one host (default 8)",
+        long_help = "Maximum concurrent network operations against a single remote host, so a host is not overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by --jobs. Defaults to 8."
+    )]
+    pub(crate) max_per_host: Option<i64>,
+
+    #[arg(
+        long = "progress-interval",
+        global = true,
+        value_name = "ms",
+        value_parser = parse_non_negative_i64,
+        help = "Min milliseconds between progress events per repo (0 = every update)",
+        long_help = "Minimum milliseconds between member progress events per repository. Coalesces high-frequency Git transfer updates; 0 emits every update. Defaults to 100."
+    )]
+    pub(crate) progress_interval: Option<i64>,
+
+    #[arg(
+        long,
+        global = true,
+        help = "Render one JSON response",
+        long_help = "Render one structured JSON response for the operation."
+    )]
+    pub(crate) json: bool,
+
+    #[arg(
+        long,
+        global = true,
+        help = "Render newline-delimited JSON events",
+        long_help = "Render newline-delimited JSON records for streaming operation consumers."
+    )]
+    pub(crate) jsonl: bool,
+
+    #[arg(
+        long = "ssh-timeout",
+        global = true,
+        value_name = "secs",
+        value_parser = parse_non_negative_i64,
+        help = "Abort a stalled SSH/network read after N seconds (0 = no timeout, default 3)",
+        long_help = "Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise hang forever. 0 disables the timeout. Defaults to 3."
+    )]
+    pub(crate) ssh_timeout: Option<i64>,
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub(crate) enum CommandArgs {
+    #[command(
+        about = "Stage file contents across workspace repos (multi-repo git add)",
+        long_about = STAGE_LONG,
+        after_long_help = STAGE_AFTER
+    )]
+    Add(StageArgs),
+    #[command(
+        about = "Manage git branches across workspace members",
+        long_about = BRANCH_LONG,
+        after_long_help = BRANCH_AFTER
+    )]
+    Branch(BranchArgs),
+    #[command(about = "Record the live worktree state into the lock (no mutation)")]
+    Capture,
+    #[command(
+        about = "Clone a workspace and materialize its members",
+        long_about = CLONE_LONG,
+        after_long_help = CLONE_AFTER
+    )]
+    Clone(CloneArgs),
+    #[command(about = "Commit staged changes across members and the workspace root")]
+    Commit(CommitArgs),
+    #[command(
+        about = "Show workspace changes as one unified diff (multi-repo git diff)",
+        long_about = DIFF_LONG,
+        after_long_help = DIFF_AFTER
+    )]
+    Diff(DiffArgs),
+    #[command(
+        about = "Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c <string>"
+    )]
+    Forall(ForallArgs),
+    #[command(
+        about = "Create a workspace or initialize one from source URLs",
+        long_about = INIT_LONG,
+        after_long_help = INIT_AFTER
+    )]
+    Init(InitArgs),
+    #[command(about = "List workspace targets (id, path; absolute or --local)")]
+    Ls(LsArgs),
+    #[command(
+        about = "Materialize workspace members to a target",
+        long_about = MATERIALIZE_LONG,
+        after_long_help = MATERIALIZE_AFTER
+    )]
+    Materialize(MaterializeArgs),
+    #[command(
+        about = "Merge a source ref across selected workspace repositories",
+        override_usage = "gwz merge [source] [--dry-run]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
+    )]
+    Merge(MergeArgs),
+    #[command(
+        about = "Update workspace members to an explicit target",
+        long_about = PULL_LONG,
+        after_long_help = PULL_AFTER
+    )]
+    Pull(PullArgs),
+    #[command(
+        about = "Push workspace target refs",
+        long_about = PUSH_LONG,
+        after_long_help = PUSH_AFTER
+    )]
+    Push,
+    #[command(
+        about = "Manage workspace repository members",
+        long_about = REPO_LONG,
+        after_long_help = REPO_AFTER
+    )]
+    Repo(RepoArgs),
+    #[command(
+        about = "Record the current workspace selection",
+        long_about = SNAPSHOT_LONG,
+        after_long_help = SNAPSHOT_AFTER
+    )]
+    Snapshot(SnapshotArgs),
+    #[command(
+        about = "Manage coordinated git stashes across workspace members",
+        long_about = STASH_LONG,
+        after_long_help = STASH_AFTER
+    )]
+    Stash(StashArgs),
+    #[command(
+        about = "Show workspace git status",
+        long_about = STATUS_LONG,
+        after_long_help = STATUS_AFTER
+    )]
+    Status(StatusArgs),
+    #[command(
+        about = "Manage git tags across workspace repos (create/list/delete)",
+        long_about = TAG_LONG,
+        after_long_help = TAG_AFTER
+    )]
+    Tag(TagArgs),
+}
+
+#[derive(Clone, Debug, Args)]
+pub(crate) struct InitArgs {
+    #[arg(
+        long,
+        help = "Refresh GWZ-managed root bootstrap files",
+        long_help = "Refresh GWZ-managed root bootstrap files in the current workspace root, including AGENTS_GWZ.md, and ensure AGENTS.md points agents to it. Existing AGENTS.md instructions are preserved. Refuses locally edited managed files unless global --force is supplied."
+    )]
+    pub(crate) update: bool,
+
+    #[arg(
+        long = "path",
+        default_value = "",
+        value_name = "path-prefix",
+        help = "Workspace-relative prefix for initialized source repositories",
+        long_help = "Workspace-relative prefix for initialized source repositories. Defaults to an empty prefix, so repositories are created directly under the workspace root."
+    )]
+    pub(crate) path_prefix: String,
+
+    #[arg(
+        value_name = "url",
+        help = "Git source URL to add as an initial workspace member",
+        long_help = "Git source URL to add as an initial workspace member. May be supplied more than once."
+    )]
+    pub(crate) urls: Vec<String>,
+}
+
+#[derive(Clone, Debug, Args)]
+pub(crate) struct RepoArgs {
+    #[command(subcommand)]
+    pub(crate) command: RepoCommandArgs,
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub(crate) struct BranchArgs {
+    #[arg(
+        long,
+        help = "List branches across selected workspace members",
+        long_help = "List branches across selected workspace members. This is the default branch operation."
+    )]
+    pub(crate) list: bool,
+
+    #[arg(
+        long,
+        value_name = "name",
+        help = "Create a branch across selected workspace members"
+    )]
+    pub(crate) create: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "ref",
+        help = "Start point for --create (default HEAD)"
+    )]
+    pub(crate) from: Option<String>,
+
+    #[arg(long, help = "Switch selected members to the branch after --create")]
+    pub(crate) switch: bool,
+
+    #[arg(
+        long,
+        value_name = "name",
+        help = "Delete a branch across selected workspace members"
+    )]
+    pub(crate) delete: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "ref",
+        help = "Merge a source ref into each selected member's current branch"
+    )]
+    pub(crate) merge: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub(crate) struct MergeArgs {
+    #[arg(
+        value_name = "source",
+        help = "Source ref resolved independently in each selected repository"
+    )]
+    pub(crate) source: Option<String>,
+
+    #[arg(
+        long = "continue",
+        help = "Continue the open coordinated merge after resolving conflicts"
+    )]
+    pub(crate) resume: bool,
+    #[arg(long, help = "Safely roll back the open coordinated merge")]
+    pub(crate) abort: bool,
+    #[arg(
+        long,
+        value_name = "merge-id",
+        num_args = 0..=1,
+        help = "Inspect the open merge, or a retained closed merge by id"
+    )]
+    pub(crate) status: Option<Option<String>>,
+    #[arg(
+        long,
+        help = "With --abort, preserve safe post-merge commits and local changes"
+    )]
+    pub(crate) preserve: bool,
+    #[arg(
+        long,
+        value_name = "merge-id",
+        num_args = 0..=1,
+        help = "Apply retention, or remove one retained merge and its backup refs"
+    )]
+    pub(crate) gc: Option<Option<String>>,
+    #[arg(
+        long,
+        help = "Require every selected repository to merge by fast-forward"
+    )]
+    pub(crate) ff_only: bool,
+    // M5 strategy and message forms remain reserved. Core owns their typed rejection.
+    #[arg(long, hide = true)]
+    pub(crate) no_ff: bool,
+    #[arg(short = 'm', long, hide = true)]
+    pub(crate) message: Option<String>,
+}
+
+#[derive(Clone, Debug, Args)]
+pub(crate) struct StashArgs {
+    #[command(subcommand)]
+    pub(crate) command: StashCommandArgs,
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub(crate) enum StashCommandArgs {
+    #[command(about = "Push a coordinated stash across selected workspace members")]
+    Push(StashPushArgs),
+    #[command(about = "List coordinated stashes")]
+    List(StashListArgs),
+    #[command(about = "Apply a coordinated stash")]
+    Apply(StashTargetArgs),
+    #[command(about = "Pop a coordinated stash")]
+    Pop(StashTargetArgs),
+    #[command(about = "Drop a coordinated stash")]
+    Drop(StashRequiredTargetArgs),
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub(crate) struct StashPushArgs {
+    #[arg(short = 'u', help = "Include untracked files")]
+    pub(crate) include_untracked: bool,
+
+    #[arg(
+        short = 'a',
+        help = "Include ignored files; the core handler also includes untracked files"
+    )]
+    pub(crate) include_ignored: bool,
+
+    #[arg(
+        short = 'm',
+        value_name = "message",
+        help = "Message suffix for the stash"
+    )]
+    pub(crate) message: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub(crate) struct StashListArgs {
+    #[arg(long, help = "Include expanded per-member bundle detail")]
+    pub(crate) expanded: bool,
+}
+
+#[derive(Clone, Debug, Default, Args)]
+pub(crate) struct StashTargetArgs {
+    #[arg(value_name = "stash-id", help = "Stash id; defaults to latest")]
+    pub(crate) stash_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Args)]
+pub(crate) struct StashRequiredTargetArgs {
+    #[arg(value_name = "stash-id", help = "Stash id")]
+    pub(crate) stash_id: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+#[value(rename_all = "kebab-case")]
+pub(crate) enum SyncArg {
+    FetchOnly,
+    FfOnly,
+    Merge,
+    Rebase,
+    Reset,
+    DriverSelected,
+}

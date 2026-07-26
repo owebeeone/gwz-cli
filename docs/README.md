@@ -31,7 +31,8 @@ member repository. Use `--root <path>` only to override that discovery.
   detach, attach, evidence-backed re-add, and replacement.
 - [Root Workspaces](RootWorkspace.md): work in a GWZ-managed development root.
 - [Troubleshooting](Troubleshooting.md): common failures and recovery.
-- [Agent Bootstrap](AgentBootstrap.md): the generated `AGENTS_GWZ.md` hint.
+- [Agent Bootstrap](AgentBootstrap.md): the generated `AGENTS_GWZ.md` hint and
+  standard `AGENTS.md` entry point.
 - [Releases](Releases.md): release docs and installer verification.
 
 ## Reference

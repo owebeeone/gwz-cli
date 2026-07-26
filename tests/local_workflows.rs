@@ -75,6 +75,11 @@ fn init_update_manages_root_agent_bootstrap_safely() {
     let generated = fs::read_to_string(&bootstrap_path).unwrap();
     assert!(generated.starts_with("<!-- gwz-managed-file: sha256="));
     assert!(generated.contains("# GWZ Workspace"));
+    assert!(generated.contains("Do not substitute per-repository Git loops"));
+    assert_eq!(
+        fs::read_to_string(temp.path().join("AGENTS.md")).unwrap(),
+        "Read and follow `AGENTS_GWZ.md` before doing any work in this workspace.\n"
+    );
 
     let noop = gwz(temp.path())
         .args(["--root", temp.path_str(), "init", "--update"])
@@ -366,6 +371,178 @@ fn pull_head_and_push_work_with_local_remote() {
         repo_ref(Path::new(remote.url()), "refs/heads/main"),
         Some(local)
     );
+}
+
+#[test]
+fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
+    let temp = TempDir::new("merge-start");
+    let remote = RemoteFixture::new("merge-start-source");
+    let base = remote.commit_and_push("README.md", "one", "initial");
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                temp.path_str(),
+                "init",
+                "--path",
+                "repos",
+                remote.url(),
+            ])
+            .output()
+            .unwrap(),
+    );
+    let member = temp.path().join("repos/remote");
+    checkout_branch(&member, "feature/source");
+    let source = commit_file(&member, "source.txt", "source\n", "source");
+    switch_branch(&member, "main");
+
+    let planned = gwz(temp.path())
+        .args([
+            "--root",
+            temp.path_str(),
+            "--dry-run",
+            "--json",
+            "branch",
+            "--merge",
+            "feature/source",
+        ])
+        .output()
+        .unwrap();
+    assert_success(&planned);
+    assert_eq!(json(&planned)["meta"]["action"], "Merge");
+    assert_eq!(json(&planned)["merge"]["repos"][0]["state"], "Planned");
+    assert_eq!(repo_head(&member), Some(base));
+
+    let merged = gwz(temp.path())
+        .args([
+            "--root",
+            temp.path_str(),
+            "--json",
+            "merge",
+            "feature/source",
+        ])
+        .output()
+        .unwrap();
+    assert_success(&merged);
+    assert_eq!(json(&merged)["merge"]["repos"][0]["state"], "FastForwarded");
+    assert_eq!(json(&merged)["merge"]["state"], "Completed");
+    assert_eq!(json(&merged)["merge"]["open"], false);
+    assert_eq!(repo_head(&member), Some(source.clone()));
+
+    let outside = TempDir::new("merge-start-outside");
+    let status = gwz(outside.path())
+        .args(["--root", temp.path_str(), "--json", "merge", "--status"])
+        .output()
+        .unwrap();
+    assert_success(&status);
+    assert_eq!(json(&status)["merge"]["state"], "Idle");
+
+    for extra in [Some("--dry-run"), None] {
+        let mut command = gwz(outside.path());
+        command.args(["--root", temp.path_str()]);
+        if let Some(flag) = extra {
+            command.arg(flag);
+        }
+        let repeated = command
+            .args(["--jsonl", "merge", "feature/source"])
+            .output()
+            .unwrap();
+        assert_success(&repeated);
+        assert!(repeated.stderr.is_empty());
+        let lines = json_lines(&repeated);
+        let event_kinds = lines
+            .iter()
+            .filter(|line| line["kind"] == "event")
+            .map(|line| line["event_kind"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(event_kinds.first(), Some(&"OperationStarted"));
+        assert_eq!(event_kinds.last(), Some(&"OperationFinished"));
+        assert_eq!(
+            event_kinds
+                .iter()
+                .filter(|kind| **kind == "OperationStarted")
+                .count(),
+            1
+        );
+        assert_eq!(
+            event_kinds
+                .iter()
+                .filter(|kind| **kind == "OperationFinished")
+                .count(),
+            1
+        );
+        assert!(
+            lines.last().unwrap()["errors"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            lines.last().unwrap()["merge"]["repos"][0]["state"],
+            if extra.is_some() {
+                "Planned"
+            } else {
+                "UpToDate"
+            }
+        );
+        assert_eq!(repo_head(&member), Some(source.clone()));
+    }
+}
+
+#[test]
+fn merge_preflight_machine_error_retains_second_member_context() {
+    let temp = TempDir::new("merge-preflight-context");
+    let app = RemoteFixture::new_named("merge-preflight-app", "app");
+    let lib = RemoteFixture::new_named("merge-preflight-lib", "lib");
+    app.commit_and_push("README.md", "app\n", "initial");
+    lib.commit_and_push("README.md", "lib\n", "initial");
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                temp.path_str(),
+                "init",
+                "--path",
+                "repos",
+                app.url(),
+                lib.url(),
+            ])
+            .output()
+            .unwrap(),
+    );
+    let app_member = temp.path().join("repos/app");
+    checkout_branch(&app_member, "feature/source");
+    commit_file(&app_member, "source.txt", "source\n", "source");
+    switch_branch(&app_member, "main");
+
+    for flag in ["--json", "--jsonl"] {
+        let output = gwz(temp.path())
+            .args(["--root", temp.path_str(), flag, "merge", "feature/source"])
+            .output()
+            .unwrap();
+
+        assert!(!output.status.success());
+        assert!(output.stderr.is_empty());
+        let machine = if flag == "--jsonl" {
+            let lines = json_lines(&output);
+            assert_eq!(
+                lines
+                    .iter()
+                    .filter(|line| line["kind"] == "event")
+                    .map(|line| line["event_kind"].as_str().unwrap())
+                    .collect::<Vec<_>>(),
+                ["OperationStarted", "OperationFinished"]
+            );
+            lines.last().unwrap().clone()
+        } else {
+            json(&output)
+        };
+        let error = &machine["errors"][0];
+        assert_eq!(error["code"], "GitCommandFailed");
+        assert_eq!(error["member_id"], "mem_lib");
+        assert_eq!(error["member_path"], "repos/lib");
+        assert_eq!(error["target_kind"], "Member");
+    }
 }
 
 #[test]
@@ -1110,6 +1287,14 @@ fn checkout_branch(repo_path: &Path, branch: &str) {
     repo.set_head(&format!("refs/heads/{branch}")).unwrap();
     let mut checkout = git2::build::CheckoutBuilder::new();
     checkout.safe();
+    repo.checkout_head(Some(&mut checkout)).unwrap();
+}
+
+fn switch_branch(repo_path: &Path, branch: &str) {
+    let repo = git2::Repository::open(repo_path).unwrap();
+    repo.set_head(&format!("refs/heads/{branch}")).unwrap();
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force();
     repo.checkout_head(Some(&mut checkout)).unwrap();
 }
 

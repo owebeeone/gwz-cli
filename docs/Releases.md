@@ -9,6 +9,35 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
+## Unreleased Compatibility Notes
+
+- First-class merge JSON and JSONL include the complete current merge-response
+  key set, including finalization progress. Structured errors include
+  `target_kind` and retain member id/path context even for whole-operation
+  preflight failures. Because GWZ is pre-1.0, strict consumers must tolerate
+  additive keys.
+- Merge status rows expose durable pending-action reconciliation as
+  `NotStarted`, `ExpectedConflict`, `CompletedExactly`, or `Ambiguous`.
+  Ambiguity is also reported as dedicated structured drift and remains
+  mutation-blocking.
+- Merge and `pull --sync merge` reject source and target commits with unrelated
+  histories, matching Git porcelain. GWZ does not implicitly allow unrelated
+  histories.
+- While a coordinated merge is open, the accepted workspace lock remains the
+  exact pre-merge baseline. Clean, conflicted, failed, and unattempted outcomes
+  are retained in the local durable operation record rather than published as
+  a partial composition.
+- Merge commits use the quoted message
+  `Merge '<source>' into '<target-branch>'` with `GWZ-Merge-ID` and
+  `GWZ-Operation-ID` trailers. A request that creates a commit supplies its
+  author/committer identity when present; otherwise the target repository
+  identity is used.
+- Coordinated merge start, dry-run, status, continue, and safe abort are
+  available together. Successful changed merges publish a checked root
+  composition commit; interrupted finalization resumes idempotently.
+  Recovery must not substitute raw `git merge --abort` for the coordinated
+  operation.
+
 ## Install Latest
 
 macOS or Linux:

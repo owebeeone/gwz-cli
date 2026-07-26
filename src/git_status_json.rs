@@ -68,6 +68,7 @@ pub(crate) fn error_json(error: &gwz_core::GwzError) -> serde_json::Value {
         "message": error.message,
         "member_id": error.member_id,
         "member_path": error.member_path,
+        "target_kind": error.target_kind.map(|value| format!("{value:?}")),
         "detail": error.detail,
     })
 }

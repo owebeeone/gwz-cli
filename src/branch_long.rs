@@ -7,4 +7,4 @@ and mutation are handled by gwz-core.
   list     gwz branch [--list]
   create   gwz branch --create <name> [--from <ref>] [--switch]
   delete   gwz branch --delete <name>
-  merge    gwz branch --merge <source-ref>";
+  merge    gwz branch --merge <source-ref>  deprecated alias for gwz merge";

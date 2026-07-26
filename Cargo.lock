@@ -260,19 +260,20 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "0.9.2"
+version = "0.10.0"
 dependencies = [
  "clap",
  "console",
  "git2",
  "gwz-core",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]
 name = "gwz-core"
-version = "0.9.2"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v0.9.2#ba87eeac9dc81617de532cc4c4a39626e2c1069c"
+version = "0.10.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v0.10.0#4d180c8b57acdeee80b1f16ad033c435d47b1aeb"
 dependencies = [
  "getrandom",
  "git2",

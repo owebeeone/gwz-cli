@@ -44,6 +44,7 @@ Commands:
   init         Create a workspace or initialize one from source URLs
   ls           List workspace targets (id, path; absolute or --local)
   materialize  Materialize workspace members to a target
+  merge        Merge a source ref across selected workspace repositories
   pull         Update workspace members to an explicit target
   push         Push workspace target refs
   repo         Manage workspace repository members
@@ -259,7 +260,7 @@ and mutation are handled by gwz-core.
   list     gwz branch [--list]
   create   gwz branch --create <name> [--from <ref>] [--switch]
   delete   gwz branch --delete <name>
-  merge    gwz branch --merge <source-ref>
+  merge    gwz branch --merge <source-ref>  deprecated alias for gwz merge
 
 Usage: gwz branch [OPTIONS]
 
@@ -365,7 +366,7 @@ Examples:
   gwz branch --create work --from main
   gwz branch --create work --switch
   gwz branch --delete work
-  gwz branch --merge feature/source
+  gwz branch --merge feature/source  deprecated; use gwz merge feature/source
 ```
 
 ### `gwz capture`
@@ -986,9 +987,10 @@ current directory. Passing one or more URLs creates the workspace and adds those
 repositories as initial members, materialized from their heads.
 
 Running `gwz init --update` refreshes root-only GWZ-managed bootstrap files in
-an existing workspace, including `AGENTS_GWZ.md`. Managed files are overwritten
-only when their digest header still matches their body; use global `--force` to
-replace a locally edited bootstrap file.
+an existing workspace, including `AGENTS_GWZ.md`, and ensures that `AGENTS.md`
+points agents to it. Existing `AGENTS.md` instructions are preserved. Managed
+files are overwritten only when their digest header still matches their body;
+use global `--force` to replace a locally edited bootstrap file.
 
 Usage: gwz init [OPTIONS] [url]...
 
@@ -999,7 +1001,8 @@ Arguments:
 Options:
       --update
           Refresh GWZ-managed root bootstrap files in the current workspace root, including
-          AGENTS_GWZ.md. Refuses locally edited files unless global --force is supplied.
+          AGENTS_GWZ.md, and ensure AGENTS.md points agents to it. Existing AGENTS.md instructions
+          are preserved. Refuses locally edited managed files unless global --force is supplied.
 
       --path <path-prefix>
           Workspace-relative prefix for initialized source repositories. Defaults to an empty
@@ -1297,6 +1300,119 @@ Examples:
   gwz materialize --snapshot before-refactor
   gwz --force materialize --tag release-2026-06
   gwz materialize --switch feature/login
+```
+
+### `gwz merge`
+
+Command page: [merge](commands/merge.md).
+
+```text
+Merge a source ref across selected workspace repositories
+
+Usage: gwz merge [source] [--dry-run]
+       gwz merge --status [merge-id]
+       gwz merge --continue
+       gwz merge --abort [--preserve]
+       gwz merge --gc [merge-id]
+
+Arguments:
+  [source]
+          Source ref resolved independently in each selected repository
+
+Options:
+      --continue
+          Continue the open coordinated merge after resolving conflicts
+
+      --abort
+          Safely roll back the open coordinated merge
+
+      --status [<merge-id>]
+          Inspect the open merge, or a retained closed merge by id
+
+      --preserve
+          With --abort, preserve safe post-merge commits and local changes
+
+      --gc [<merge-id>]
+          Apply retention, or remove one retained merge and its backup refs
+
+      --ff-only
+          Require every selected repository to merge by fast-forward
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes.
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
 ```
 
 ### `gwz pull`

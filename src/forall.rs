@@ -109,6 +109,7 @@ pub(crate) fn execute_forall(
         status_mode: None,
         listing: None,
         branch_repos: None,
+        merge_response: None,
         stash_bundles: None,
         summary: Some(summary),
     })
