@@ -22,6 +22,7 @@ participants:
     live: commit unknown
     recovery: continue unknown; abort unknown
     pending action: true-merge (not-started): Git action is durably journaled and has not started
+    conflicts: src/lib.rs
   docs (mem_docs)  conflicted
     source: feature/x @ source123
     recorded: branch main; before before123; result -

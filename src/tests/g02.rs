@@ -227,6 +227,8 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
         merge_repo("worker", gwz_core::MergeParticipantState::Failed),
     ];
     repos[0].predicted = Some(gwz_core::MergeAnalysisKind::TrueMerge);
+    repos[0].prediction_complete = Some(true);
+    repos[0].conflict_paths = vec!["src/lib.rs".to_owned()];
     repos[0].pending_action = Some(gwz_core::MergePendingActionSummary {
         kind: gwz_core::MergePendingActionKind::TrueMerge,
         state: gwz_core::MergePendingActionState::NotStarted,

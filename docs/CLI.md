@@ -1335,6 +1335,9 @@ Options:
       --gc [<merge-id>]
           Apply retention, or remove one retained merge and its backup refs
 
+      --ff-only
+          Require every selected repository to merge by fast-forward
+
   -h, --help
           Print help (see a summary with '-h')
 

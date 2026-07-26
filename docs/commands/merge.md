@@ -4,7 +4,7 @@ Merge one source ref into the current branch of each selected workspace
 repository.
 
 ```text
-gwz merge <source> [--dry-run]
+gwz merge <source> [--dry-run] [--ff-only]
 gwz merge --status [<merge-id>]
 gwz merge --continue
 gwz merge --abort [--preserve]
@@ -21,6 +21,15 @@ Preview the merge without changing any repository:
 ```sh
 gwz merge feature/refactor --dry-run
 ```
+
+The preview performs an in-memory merge for every participant that would need
+a true merge. It reports whether each such merge is predicted to be clean and
+lists predicted conflict paths. The result is advisory: starting the merge
+repeats preflight under the workspace mutation lock.
+
+Git paths that are not safely representable as ordinary UTF-8 are shown in a
+quoted, byte-safe form such as `"config-\xFF.toml"`. That spelling is a stable
+diagnostic, not a path value to copy back into a filesystem command.
 
 Start it:
 
@@ -142,6 +151,20 @@ GWZ-Operation-ID: <operation-id>
 
 GWZ rejects unrelated histories; it does not implicitly enable Git's
 `--allow-unrelated-histories`.
+
+## Requiring fast-forwards everywhere
+
+Use `--ff-only` when the entire selected workspace must advance without
+creating a merge commit:
+
+```sh
+gwz merge feature/refactor --ff-only
+```
+
+This is a selection-wide guarantee. GWZ completes preflight for every
+participant and rejects the whole operation before local mutation if any
+changing repository would need a true merge. Up-to-date repositories remain
+valid no-ops.
 
 ## Resolving conflicts
 
@@ -327,8 +350,8 @@ consumers do not need to extract repository identity from human text.
 
 ## Features not yet available
 
-Strategy flags and custom merge messages are not yet available. These forms
-remain hidden and return typed unsupported errors if submitted directly.
+`--no-ff` and custom merge messages are not yet available. These forms remain
+hidden and return typed unsupported errors if submitted directly.
 
 Merge also rejects unrelated operation policies supplied explicitly:
 `--sync`, `--remote`, `--jobs`, `--max-per-host`,

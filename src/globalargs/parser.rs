@@ -404,9 +404,12 @@ pub(crate) struct MergeArgs {
         help = "Apply retention, or remove one retained merge and its backup refs"
     )]
     pub(crate) gc: Option<Option<String>>,
-    // Strategy and message forms remain reserved. Core owns their typed rejection.
-    #[arg(long, hide = true)]
+    #[arg(
+        long,
+        help = "Require every selected repository to merge by fast-forward"
+    )]
     pub(crate) ff_only: bool,
+    // M5 strategy and message forms remain reserved. Core owns their typed rejection.
     #[arg(long, hide = true)]
     pub(crate) no_ff: bool,
     #[arg(short = 'm', long, hide = true)]

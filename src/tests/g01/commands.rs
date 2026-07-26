@@ -330,6 +330,9 @@ pub(crate) fn merge_help_exposes_status_and_recovery_flags() {
     assert!(help.contains("--abort"), "{help}");
     assert!(help.contains("--preserve"), "{help}");
     assert!(help.contains("--gc"), "{help}");
+    assert!(help.contains("--ff-only"), "{help}");
+    assert!(!help.contains("--no-ff"), "{help}");
+    assert!(!help.contains("--message"), "{help}");
 }
 
 #[test]
