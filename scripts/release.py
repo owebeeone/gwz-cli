@@ -39,7 +39,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 import re
 import shutil
 import subprocess
@@ -119,6 +118,17 @@ def verify_remote_tag(url: str, tag: str):
     if not result.stdout.strip():
         fail(f"gwz-core tag {tag} not found at {url} -- push the gwz-core release first")
     log(f"verified gwz-core {tag} exists at {url}")
+
+
+def checkout_gwz_core(url: str, tag: str, target: Path):
+    """Check out the exact core release beside the standalone CLI worktree.
+
+    CLI/core machine-output parity tests intentionally read core's canonical
+    fixtures through ``../gwz-core``. Keeping the matching tag at that boundary
+    preserves the one-fixture contract in both GWZ development and standalone
+    release verification.
+    """
+    run(["git", "clone", "--depth", "1", "--branch", tag, url, target])
 
 
 def release_branch_is_free(release: str):
@@ -281,7 +291,8 @@ def main():
     warn_if_behind_upstream(args.main)
     warn_if_behind_upstream(args.release)
 
-    verify_remote_tag(gwz_core_url(args.release), tag)
+    core_url = gwz_core_url(args.release)
+    verify_remote_tag(core_url, tag)
 
     # If the tag already exists, the release is already cut: never advance release past it and never
     # move it. Checking here -- before any commit -- also removes any commit-but-no-tag window.
@@ -296,12 +307,15 @@ def main():
             push_release(args.release, tag)
         return
 
-    worktree = Path(tempfile.gettempdir()) / f"gwz-cli-{tag}-{os.getpid()}"
+    temp_root = Path(tempfile.mkdtemp(prefix=f"gwz-cli-{tag}-"))
+    worktree = temp_root / "gwz-cli"
+    core_checkout = temp_root / "gwz-core"
     git(["worktree", "add", worktree, args.release])
     try:
         do_merge(worktree, args.main, args.release)
         merged = merge_head_exists(worktree)
         changed = reconcile_cargo_toml(worktree, tag, version)
+        checkout_gwz_core(core_url, tag, core_checkout)
         if merged or changed:
             # The worktree lives outside the gwz-dev workspace, so cargo resolves gwz-core via
             # git+tag: this refreshes Cargo.lock against the pinned release and verifies the build.
@@ -338,9 +352,13 @@ def main():
             log(f"  git -C {REPO} push origin {args.release} {tag}")
     finally:
         if args.keep_worktree:
-            log(f"left worktree at {worktree} (remove it before the next run: git worktree remove)")
+            log(
+                f"left release checkouts under {temp_root} "
+                f"(remove {worktree} with `git worktree remove` before re-running)"
+            )
         else:
             remove_worktree(worktree)
+            shutil.rmtree(temp_root, ignore_errors=True)
 
 
 if __name__ == "__main__":
