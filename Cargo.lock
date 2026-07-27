@@ -260,7 +260,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "0.10.0"
+version = "0.10.2"
 dependencies = [
  "clap",
  "console",
@@ -272,8 +272,8 @@ dependencies = [
 
 [[package]]
 name = "gwz-core"
-version = "0.10.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v0.10.0#4d180c8b57acdeee80b1f16ad033c435d47b1aeb"
+version = "0.10.2"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v0.10.2#a638f8fe1e5c4f5726a2ff64ee303d9fac02aeff"
 dependencies = [
  "getrandom",
  "git2",
@@ -282,6 +282,7 @@ dependencies = [
  "sha2",
  "taut-shape",
  "url",
+ "windows-sys",
 ]
 
 [[package]]
