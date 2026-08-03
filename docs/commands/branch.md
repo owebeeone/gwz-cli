@@ -66,8 +66,11 @@ gwz branch --merge feature/refactor
 
 - Create rejects before mutation if any selected member lacks the start ref or
   already has the branch at a different commit.
-- Create with `--switch` requires clean selected member worktrees and rewrites
-  the lock from observed post-switch state.
+- Create with `--switch` allows pending staged, unstaged, and untracked changes
+  when the target branch is at the member's current `HEAD`. The changes are
+  preserved, and the lock is rewritten from observed post-switch state.
+- A dirty switch that would move a member to another commit is rejected, even
+  with global `--force`. All selected members are checked before mutation.
 - Delete refuses to delete the current branch. Deleting a non-current branch
   does not require a clean worktree.
 - Merge requires each selected member to be materialized, clean, on a current

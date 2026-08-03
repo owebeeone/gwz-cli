@@ -36,6 +36,46 @@ pub(crate) fn branch_listing_uses_member_path_when_short_name_is_ambiguous() {
 }
 
 #[test]
+pub(crate) fn branch_switch_reports_observed_dirty_state() {
+    let mut envelope = branch_response_envelope();
+    envelope.members.push(gwz_core::MemberResponse {
+        member_id: "mem_app".to_owned(),
+        member_path: "app".to_owned(),
+        source_kind: gwz_core::SourceKind::Git,
+        status: gwz_core::MemberStatus::Ok,
+        error: None,
+        planned: None,
+        state: Some(gwz_core::ResolvedMemberState {
+            member_id: "mem_app".to_owned(),
+            path: "app".to_owned(),
+            source_id: "src_app".to_owned(),
+            source_kind: gwz_core::SourceKind::Git,
+            commit: Some("abc123".to_owned()),
+            branch: Some("feature".to_owned()),
+            detached: Some(false),
+            upstream: None,
+            dirty: Some(true),
+            materialized: true,
+            remotes: Vec::new(),
+        }),
+        git_status: None,
+        lock_match: Some(gwz_core::LockMatch::Matches),
+        target_kind: Some(gwz_core::TargetKind::Member),
+    });
+    let mut repo = branch_repo("mem_app", "app", "feature", "feature");
+    repo.result = gwz_core::BranchActionResult::Switched;
+    let response = CliResponse::branch(gwz_core::BranchResponse {
+        response: envelope,
+        repos: Some(vec![repo]),
+    });
+
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "status: Ok\nmem_app app Switched feature abc123 dirty"
+    );
+}
+
+#[test]
 pub(crate) fn human_renderer_smoke_covers_success_rejection_and_member_failure() {
     let success = render_response(
         &CliResponse::envelope(sample_response(

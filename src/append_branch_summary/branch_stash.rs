@@ -40,6 +40,12 @@ pub(crate) fn render_branch_response(
         if !repo.conflict_paths.is_empty() {
             line.push_str(&format!(" conflicts: {}", repo.conflict_paths.join(",")));
         }
+        if response.envelope.members.iter().any(|member| {
+            member.member_id == repo.member_id
+                && member.state.as_ref().and_then(|state| state.dirty) == Some(true)
+        }) {
+            line.push_str(" dirty");
+        }
         lines.push(line);
     }
     for error in &response.envelope.errors {

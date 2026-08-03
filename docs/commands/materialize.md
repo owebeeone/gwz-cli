@@ -59,7 +59,11 @@ gwz --force materialize --tag v0.9.0
 - `--switch` does not create branches, fetch, detach, or move branch refs. It
   requires the branch to exist locally in every selected member and rewrites the
   lock from observed post-switch state.
-- Use `gwz status` before materializing when you have local changes.
+- `--switch` preserves staged, unstaged, and untracked changes when the target
+  branch is at the member's current `HEAD`. A dirty switch to another commit is
+  rejected, even with global `--force`, and every selected member is checked
+  before any switch occurs.
+- Use `gwz status` before other materialize targets when you have local changes.
 - Use `--dry-run` to preview planned member changes.
 - Use `--partial` only when it is acceptable for some selected members to move
   while others fail.
