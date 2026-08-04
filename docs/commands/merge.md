@@ -360,6 +360,9 @@ gwz --json merge --gc merge_20260725_1234
 Machine results identify root rows with `target_id: "@root"`, `path: "."`, and
 `target_kind: "Root"`. Errors retain the same structured target fields, so
 consumers do not need to extract repository identity from human text.
+Record-version failures likewise include `record_context` with the merge id,
+readable schema/version pair, required semantic wave when known, and legacy
+mode when applicable.
 
 ## Features not yet available
 

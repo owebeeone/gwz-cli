@@ -70,5 +70,18 @@ pub(crate) fn error_json(error: &gwz_core::GwzError) -> serde_json::Value {
         "member_path": error.member_path,
         "target_kind": error.target_kind.map(|value| format!("{value:?}")),
         "detail": error.detail,
+        "record_context": error.record_context.as_ref().map(record_context_json),
+    })
+}
+
+pub(crate) fn record_context_json(
+    context: &gwz_core::MergeRecordCompatibilityContext,
+) -> serde_json::Value {
+    serde_json::json!({
+        "merge_id": context.merge_id,
+        "schema": context.schema,
+        "record_schema_version": context.record_schema_version,
+        "required_wave": context.required_wave.map(|value| format!("{value:?}")),
+        "legacy_mode": context.legacy_mode,
     })
 }
