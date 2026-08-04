@@ -147,6 +147,30 @@ fn json_diff_emits_manifest_without_patch_bytes() {
 }
 
 #[test]
+fn tagged_diff_auto_selects_repositories_with_both_tags() {
+    let ws = Workspace::new("tagged-selection");
+    git(&ws.member_path(), &["tag", "release-old"]);
+    ws.write_member("one\ntwo\n");
+    git(&ws.member_path(), &["add", "-A"]);
+    git_commit(&ws.member_path(), "member release new");
+    git(&ws.member_path(), &["tag", "release-new"]);
+
+    let out = ws.diff_global(
+        &["--json"],
+        &["--tagged", "release-old", "release-new", "--stat"],
+    );
+    assert_success(&out);
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(value["summary"]["repos_examined"], 1);
+    assert_eq!(value["files"][0]["new_path"], "lib/x.txt");
+
+    let excluded = value["excluded_targets"].as_array().unwrap();
+    assert_eq!(excluded.len(), 1);
+    assert_eq!(excluded[0]["root"], true);
+    assert_eq!(excluded[0]["reason"], "TagMissing");
+}
+
+#[test]
 fn jsonl_diff_emits_manifest_then_output_records_with_base64_bytes() {
     let ws = Workspace::new("jsonl");
     ws.dirty_member("one\ntwo\n");
