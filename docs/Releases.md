@@ -27,9 +27,11 @@ the released CLI rather than unreleased work on `main`.
   exact pre-merge baseline. Clean, conflicted, failed, and unattempted outcomes
   are retained in the local durable operation record rather than published as
   a partial composition.
-- Merge commits use the quoted message
-  `Merge '<source>' into '<target-branch>'` with `GWZ-Merge-ID` and
-  `GWZ-Operation-ID` trailers. A request that creates a commit supplies its
+- Merge commits use the quoted default message
+  `Merge '<source>' into '<target-branch>'`, or the body supplied with `-m`,
+  with mandatory `GWZ-Merge-ID` and `GWZ-Operation-ID` identity lines. The
+  exact final message is frozen before mutation and survives restart and
+  conflict resolution. A request that creates a commit supplies its
   author/committer identity when present; otherwise the target repository
   identity is used.
 - Coordinated merge start, dry-run, status, continue, and safe abort are

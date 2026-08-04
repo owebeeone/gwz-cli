@@ -4,7 +4,7 @@ Merge one source ref into the current branch of each selected workspace
 repository.
 
 ```text
-gwz merge <source> [--dry-run] [--ff-only]
+gwz merge <source> [--dry-run] [--ff-only] [-m <message>]
 gwz merge --status [<merge-id>]
 gwz merge --continue
 gwz merge --abort [--preserve]
@@ -36,6 +36,19 @@ Start it:
 ```sh
 gwz merge feature/refactor
 ```
+
+Supply a custom body for any merge commits created by the operation:
+
+```sh
+gwz merge feature/refactor -m "Merge the refactor series"
+```
+
+GWZ normalizes CRLF and bare CR line endings to LF, removes trailing newlines,
+and appends its mandatory merge and operation identity lines. Empty,
+whitespace-only, and NUL-containing messages are rejected before any
+repository is changed. The exact final message is recorded once and reused by
+restart and conflict resolution. `-m` does not change the separate root
+composition-publication message.
 
 If a repository conflicts, inspect the coordinated operation:
 
@@ -350,8 +363,8 @@ consumers do not need to extract repository identity from human text.
 
 ## Features not yet available
 
-`--no-ff` and custom merge messages are not yet available. These forms remain
-hidden and return typed unsupported errors if submitted directly.
+`--no-ff` is not yet available. It remains hidden and returns a typed
+unsupported error if submitted directly.
 
 Merge also rejects unrelated operation policies supplied explicitly:
 `--sync`, `--remote`, `--jobs`, `--max-per-host`,

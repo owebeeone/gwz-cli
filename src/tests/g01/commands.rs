@@ -294,6 +294,10 @@ pub(crate) fn parses_first_class_merge_and_reserved_forms() {
         CliRequest::Merge(ref r) if r.mode == Some(gwz_core::MergeMode::FfOnly)
     ));
     assert!(matches!(
+        parse(strings(["merge", "feature/source", "-m", "coordinated change"])).request,
+        CliRequest::Merge(ref r) if r.message.as_deref() == Some("coordinated change")
+    ));
+    assert!(matches!(
         parse(strings(["merge", "feature/source", "--partial"])).request,
         CliRequest::Merge(ref r)
             if r.meta.policy.as_ref().and_then(|p| p.partial)
@@ -332,7 +336,8 @@ pub(crate) fn merge_help_exposes_status_and_recovery_flags() {
     assert!(help.contains("--gc"), "{help}");
     assert!(help.contains("--ff-only"), "{help}");
     assert!(!help.contains("--no-ff"), "{help}");
-    assert!(!help.contains("--message"), "{help}");
+    assert!(help.contains("--message"), "{help}");
+    assert!(help.contains("custom merge commit-message body"), "{help}");
 }
 
 #[test]

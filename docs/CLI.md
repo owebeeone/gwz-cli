@@ -1317,7 +1317,7 @@ Command page: [merge](commands/merge.md).
 ```text
 Merge a source ref across selected workspace repositories
 
-Usage: gwz merge [source] [--dry-run]
+Usage: gwz merge [source] [--dry-run] [--ff-only] [-m <message>]
        gwz merge --status [merge-id]
        gwz merge --continue
        gwz merge --abort [--preserve]
@@ -1345,6 +1345,9 @@ Options:
 
       --ff-only
           Require every selected repository to merge by fast-forward
+
+  -m, --message <message>
+          Use a custom merge commit-message body
 
   -h, --help
           Print help (see a summary with '-h')
