@@ -295,13 +295,9 @@ jobs:
               raise SystemExit("manifest used an implicit announcement selector")
 
           paths = [line.strip() for line in pathlib.Path("gate-upload-files.txt").read_text().splitlines() if line.strip()]
-          path_objects = [pathlib.Path(path) for path in paths]
-          if any(
-              path.is_absolute()
-              or ".." in path.parts
-              or tuple(path.parts[:2]) != ("target", "distrib")
-              for path in path_objects
-          ):
+          artifact_root = pathlib.Path("target/distrib").resolve()
+          path_objects = [pathlib.Path(path).resolve() for path in paths]
+          if any(path.parent != artifact_root for path in path_objects):
               raise SystemExit(f"unsafe target artifact path: {paths!r}")
           names = {path.name for path in path_objects}
           if len(paths) != 2 or names != expected:
@@ -325,10 +321,7 @@ jobs:
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write("paths<<EOF\n")
-              output.write(
-                  "\n".join(f"gwz-cli/{path.as_posix()}" for path in path_objects)
-                  + "\n"
-              )
+              output.write("\n".join(paths) + "\n")
               output.write("EOF\n")
           PY
 
