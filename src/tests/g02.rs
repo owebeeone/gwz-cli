@@ -261,6 +261,55 @@ pub(crate) fn merge_renderer_reports_idle_without_fabricating_an_operation() {
             .unwrap()
             .is_empty()
     );
+    assert!(json["merge"]["record"].is_null());
+}
+
+#[test]
+fn merge_record_json_keeps_every_archive_acceptance_variant_explicit() {
+    use gwz_core::{MergeAcceptanceKind as Kind, MergeAcceptanceProjection as Acceptance};
+    let variants = [
+        Acceptance {
+            kind: Kind::LegacyComplete,
+            legacy_complete: Some(Default::default()),
+            legacy_source: Some(gwz_core::MergeLegacyAcceptanceSource::Candidate),
+            ..Default::default()
+        },
+        Acceptance {
+            kind: Kind::LegacyUnavailable,
+            legacy_evidence: Some(Default::default()),
+            missing_gaps: vec![gwz_core::MergeLegacyAcceptanceGap::ExactLockBytes],
+            ..Default::default()
+        },
+        Acceptance {
+            kind: Kind::NotAccepted,
+            ..Default::default()
+        },
+    ];
+    for acceptance in variants {
+        let response = gwz_core::MergeResponse {
+            state: gwz_core::MergeOperationState::Aborted,
+            record: Some(gwz_core::MergeRecordProjection {
+                source_version: gwz_core::MergeRecordVersion::V0,
+                archived: true,
+                terminal_outcome: Some(gwz_core::MergeTerminalOutcome::Aborted),
+                acceptance: Some(acceptance),
+                recovery: None,
+            }),
+            ..Default::default()
+        };
+        let record = &merge_response_json(&response)["record"];
+        assert!(record["recovery"].is_null());
+        assert_eq!(record["archived"], true);
+        assert!(record["acceptance"]["missing_gaps"].is_array());
+        assert!(record["acceptance"].get("legacy_complete").is_some());
+        assert!(record["acceptance"].get("legacy_evidence").is_some());
+        assert!(record["acceptance"].get("legacy_source").is_some());
+        assert!(record["acceptance"].get("supported_persisted").is_some());
+        let human = render_merge_response(&response);
+        assert!(human.contains("record: v0 (archived)"));
+        assert!(human.contains("terminal outcome: aborted"));
+        assert!(human.contains("acceptance: "));
+    }
 }
 
 fn canonical_merge_response_fixture() -> std::path::PathBuf {
@@ -362,6 +411,78 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
             stash_object_id: Some("stashobj123".to_owned()),
         }]),
         publication_step: Some(gwz_core::MergePublicationStep::VerifyingPublication),
+        record: Some(parity_record_projection()),
+    }
+}
+
+fn parity_record_projection() -> gwz_core::MergeRecordProjection {
+    gwz_core::MergeRecordProjection {
+        source_version: gwz_core::MergeRecordVersion::V1,
+        archived: false,
+        terminal_outcome: None,
+        acceptance: Some(gwz_core::MergeAcceptanceProjection {
+            kind: gwz_core::MergeAcceptanceKind::SupportedPersisted,
+            supported_persisted: Some(gwz_core::MergeInstalledAcceptedWorkspaceProjection {
+                kind: gwz_core::MergeInstalledAcceptedWorkspaceKind::V1,
+                v1: Some(gwz_core::MergeAcceptedWorkspaceV1Projection {
+                    operation_baseline_lock_sha256: "baseline-lock-sha".to_owned(),
+                    metadata_base: gwz_core::MergeAcceptedMetadataBaseProjection {
+                        source: gwz_core::MergeAcceptedMetadataSource::OperationBaseline,
+                        source_commit: None,
+                        manifest_yaml: "schema: gwz.workspace/v0\n".to_owned(),
+                        manifest_sha256: "manifest-sha".to_owned(),
+                        lock_yaml: "schema: gwz.lock/v0\n".to_owned(),
+                        lock_sha256: "baseline-lock-sha".to_owned(),
+                    },
+                    lock_yaml: "schema: gwz.lock/v0\n".to_owned(),
+                    lock_sha256: "accepted-lock-sha".to_owned(),
+                    members: vec![gwz_core::MergeAcceptedMemberV1Projection {
+                        member_id: "mem_docs".to_owned(),
+                        kind: gwz_core::MergeAcceptedMemberKind::Selected,
+                        integration: Some(gwz_core::MergeAcceptedIntegrationProjection {
+                            branch: "main".to_owned(),
+                            before_commit: "before123".to_owned(),
+                            resulting_commit: "result123".to_owned(),
+                        }),
+                        final_checkout: Some(gwz_core::MergeAcceptedCheckoutProjection {
+                            branch: "main".to_owned(),
+                            commit: "result123".to_owned(),
+                        }),
+                        lock_member: Some(gwz_core::MergeAcceptedLockMemberProjection {
+                            path: "docs".to_owned(),
+                            source_id: "src_docs".to_owned(),
+                            source_kind: gwz_core::SourceKind::Git,
+                            commit: Some("result123".to_owned()),
+                            branch: Some("main".to_owned()),
+                            detached: Some(false),
+                            upstream: None,
+                            dirty: Some(false),
+                            materialized: Some(true),
+                        }),
+                    }],
+                    root: gwz_core::MergeAcceptedRootProjection {
+                        kind: gwz_core::MergeAcceptedRootKind::BornAttached,
+                        commit: Some("root123".to_owned()),
+                        symbolic_branch: Some("main".to_owned()),
+                        publication_branch: Some("main".to_owned()),
+                        lock_worktree_sha256: "root-lock-sha".to_owned(),
+                        manifest_worktree_sha256: "root-manifest-sha".to_owned(),
+                        lock_commit_sha256: None,
+                        manifest_commit_sha256: None,
+                    },
+                }),
+            }),
+            legacy_complete: None,
+            legacy_source: None,
+            legacy_evidence: None,
+            missing_gaps: Vec::new(),
+        }),
+        recovery: Some(gwz_core::MergeRecoveryProjection {
+            origin_state: gwz_core::MergeRecoveryOriginState::Finalizing,
+            base_phase: gwz_core::MergeCompatibilityBasePhase::PublishingPrefix,
+            next_action: gwz_core::MergeCompatibilityNextAction::ReportRecoveryRequired,
+            resume_action: gwz_core::MergeCompatibilityNextAction::PublishCandidate,
+        }),
     }
 }
 

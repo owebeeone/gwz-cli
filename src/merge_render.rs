@@ -17,6 +17,38 @@ pub(crate) fn render_merge_response(response: &gwz_core::MergeResponse) -> Strin
         response.merge_id.as_deref().unwrap_or("unknown"),
         if response.open { "open" } else { "closed" }
     ));
+    if let Some(record) = &response.record {
+        lines.push(format!(
+            "record: {} ({})",
+            debug_kebab(record.source_version),
+            if record.archived { "archived" } else { "open" }
+        ));
+        if let Some(outcome) = record.terminal_outcome {
+            lines.push(format!("terminal outcome: {}", debug_kebab(outcome)));
+        }
+        if let Some(acceptance) = &record.acceptance {
+            lines.push(format!("acceptance: {}", debug_kebab(acceptance.kind)));
+            if !acceptance.missing_gaps.is_empty() {
+                lines.push(format!(
+                    "acceptance gaps: {}",
+                    acceptance
+                        .missing_gaps
+                        .iter()
+                        .map(|gap| debug_kebab(*gap))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            }
+        }
+        if let Some(recovery) = &record.recovery {
+            lines.push(format!(
+                "record recovery: {} from {}; resume {}",
+                debug_kebab(recovery.base_phase),
+                debug_kebab(recovery.origin_state),
+                debug_kebab(recovery.resume_action)
+            ));
+        }
+    }
     lines.push(render_participant_counts(&response.participant_counts));
     if let Some(step) = response.publication_step {
         lines.push(format!("publication: {}", debug_kebab(step)));
@@ -205,6 +237,131 @@ pub(crate) fn merge_response_json(response: &gwz_core::MergeResponse) -> serde_j
             })
         }).collect::<Vec<_>>()),
         "publication_step": response.publication_step.map(|step| format!("{step:?}")),
+        "record": response.record.as_ref().map(merge_record_projection_json),
+    })
+}
+
+fn merge_record_projection_json(record: &gwz_core::MergeRecordProjection) -> serde_json::Value {
+    serde_json::json!({
+        "source_version": format!("{:?}", record.source_version),
+        "archived": record.archived,
+        "terminal_outcome": record.terminal_outcome.map(|value| format!("{value:?}")),
+        "acceptance": record.acceptance.as_ref().map(merge_acceptance_json),
+        "recovery": record.recovery.as_ref().map(|value| serde_json::json!({
+            "origin_state": format!("{:?}", value.origin_state),
+            "base_phase": format!("{:?}", value.base_phase),
+            "next_action": format!("{:?}", value.next_action),
+            "resume_action": format!("{:?}", value.resume_action),
+        })),
+    })
+}
+
+fn merge_acceptance_json(value: &gwz_core::MergeAcceptanceProjection) -> serde_json::Value {
+    serde_json::json!({
+        "kind": format!("{:?}", value.kind),
+        "supported_persisted": value.supported_persisted.as_ref().map(|installed| serde_json::json!({
+            "kind": format!("{:?}", installed.kind),
+            "v1": installed.v1.as_ref().map(accepted_workspace_json),
+        })),
+        "legacy_complete": value.legacy_complete.as_ref().map(|workspace| serde_json::json!({
+            "baseline_lock_sha256": workspace.baseline_lock_sha256,
+            "lock_yaml": workspace.lock_yaml,
+            "lock_sha256": workspace.lock_sha256,
+            "members": workspace.members.iter().map(accepted_member_json).collect::<Vec<_>>(),
+            "root": accepted_root_json(&workspace.root),
+        })),
+        "legacy_source": value.legacy_source.map(|source| format!("{source:?}")),
+        "legacy_evidence": value.legacy_evidence.as_ref().map(|evidence| serde_json::json!({
+            "lock_yaml": evidence.lock_yaml,
+            "lock_sha256": evidence.lock_sha256,
+            "members": evidence.members.iter().map(|member| serde_json::json!({
+                "member_id": member.member_id,
+                "selected": member.selected,
+                "state": member.state.map(|state| format!("{state:?}")),
+                "integration": member.integration.as_ref().map(accepted_integration_json),
+                "lock_member": member.lock_member.as_ref().map(accepted_lock_member_json),
+            })).collect::<Vec<_>>(),
+            "root": evidence.root.as_ref().map(accepted_root_json),
+            "composition_commit": evidence.composition_commit,
+            "composition_tree": evidence.composition_tree,
+            "candidate_hashes": evidence.candidate_hashes.iter().map(|hash| serde_json::json!({
+                "path": hash.path,
+                "sha256": hash.sha256,
+            })).collect::<Vec<_>>(),
+        })),
+        "missing_gaps": value.missing_gaps.iter().map(|gap| format!("{gap:?}")).collect::<Vec<_>>(),
+    })
+}
+
+fn accepted_workspace_json(
+    value: &gwz_core::MergeAcceptedWorkspaceV1Projection,
+) -> serde_json::Value {
+    serde_json::json!({
+        "operation_baseline_lock_sha256": value.operation_baseline_lock_sha256,
+        "metadata_base": {
+            "source": format!("{:?}", value.metadata_base.source),
+            "source_commit": value.metadata_base.source_commit,
+            "manifest_yaml": value.metadata_base.manifest_yaml,
+            "manifest_sha256": value.metadata_base.manifest_sha256,
+            "lock_yaml": value.metadata_base.lock_yaml,
+            "lock_sha256": value.metadata_base.lock_sha256,
+        },
+        "lock_yaml": value.lock_yaml,
+        "lock_sha256": value.lock_sha256,
+        "members": value.members.iter().map(accepted_member_json).collect::<Vec<_>>(),
+        "root": accepted_root_json(&value.root),
+    })
+}
+
+fn accepted_member_json(value: &gwz_core::MergeAcceptedMemberV1Projection) -> serde_json::Value {
+    serde_json::json!({
+        "member_id": value.member_id,
+        "kind": format!("{:?}", value.kind),
+        "integration": value.integration.as_ref().map(accepted_integration_json),
+        "final_checkout": value.final_checkout.as_ref().map(|checkout| serde_json::json!({
+            "branch": checkout.branch,
+            "commit": checkout.commit,
+        })),
+        "lock_member": value.lock_member.as_ref().map(accepted_lock_member_json),
+    })
+}
+
+fn accepted_integration_json(
+    value: &gwz_core::MergeAcceptedIntegrationProjection,
+) -> serde_json::Value {
+    serde_json::json!({
+        "branch": value.branch,
+        "before_commit": value.before_commit,
+        "resulting_commit": value.resulting_commit,
+    })
+}
+
+fn accepted_lock_member_json(
+    value: &gwz_core::MergeAcceptedLockMemberProjection,
+) -> serde_json::Value {
+    serde_json::json!({
+        "path": value.path,
+        "source_id": value.source_id,
+        "source_kind": format!("{:?}", value.source_kind),
+        "commit": value.commit,
+        "branch": value.branch,
+        "detached": value.detached,
+        "upstream": value.upstream,
+        "dirty": value.dirty,
+        "materialized": value.materialized,
+    })
+}
+
+fn accepted_root_json(value: &gwz_core::MergeAcceptedRootProjection) -> serde_json::Value {
+    serde_json::json!({
+        "kind": format!("{:?}", value.kind),
+        "commit": value.commit,
+        "symbolic_branch": value.symbolic_branch,
+        "publication_branch": value.publication_branch,
+        "lock_worktree_sha256": value.lock_worktree_sha256,
+        "manifest_worktree_sha256": value.manifest_worktree_sha256,
+        "lock_commit_sha256": value.lock_commit_sha256,
+        "manifest_commit_sha256": value.manifest_commit_sha256,
     })
 }
 
