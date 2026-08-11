@@ -301,6 +301,13 @@ checks the recorded ref targets and stash object ids rather than duplicating
 them. Plain `gwz merge --abort` rejects an operation in `Preserving`, because
 it must not bypass artifact reconciliation or verification.
 
+A mutating GWZ command holds the workspace mutation lock for its complete
+service call. Do not edit a selected repository or run a separate mutating Git
+command while that call is executing. The lock serializes cooperating GWZ
+commands, but it cannot freeze an editor or a raw filesystem/Git writer during
+native stash creation; such concurrent writes have the same unsupported race
+as running `git stash` while another process edits the checkout.
+
 Preserved work is not reapplied automatically because it was created against
 the post-merge tree. The human, JSON, and JSONL responses report every ref,
 commit, stash id, and native stash object id. Inspect or branch from a backup
