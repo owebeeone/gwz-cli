@@ -685,6 +685,11 @@ Comparison forms:
   gwz diff <a>..<b>            tree vs tree
   gwz diff <a>...<b>           merge-base(a,b) vs b
   gwz diff +<snapshot>         a captured snapshot vs the worktree
+  gwz diff --tagged <a> <b>    only repositories containing both local tags
+
+`--tagged` treats every comparison endpoint as an exact local tag and narrows
+the normal selected target set to repositories containing all of them. It is
+useful when release tags exist in only some workspace repositories.
 
 Patch output is paged on a terminal (honoring $GIT_PAGER/$PAGER, then `less`);
 piped or machine output is written directly. `--exit-code` exits 1 when there
@@ -707,6 +712,9 @@ Options:
 
       --merge-base
           Use the merge base of the operand and HEAD as the old side
+
+      --tagged
+          Select only repositories containing every supplied local tag
 
   -M, --find-renames [<n>]
           Detect renames; optional similarity threshold (e.g. -M90 or -M90%)
@@ -1309,7 +1317,7 @@ Command page: [merge](commands/merge.md).
 ```text
 Merge a source ref across selected workspace repositories
 
-Usage: gwz merge [source] [--dry-run]
+Usage: gwz merge [source] [--dry-run] [--ff-only] [-m <message>]
        gwz merge --status [merge-id]
        gwz merge --continue
        gwz merge --abort [--preserve]
@@ -1337,6 +1345,9 @@ Options:
 
       --ff-only
           Require every selected repository to merge by fast-forward
+
+  -m, --message <message>
+          Use a custom merge commit-message body
 
   -h, --help
           Print help (see a summary with '-h')

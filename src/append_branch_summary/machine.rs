@@ -133,6 +133,10 @@ pub(crate) fn render_error_json(error: &CliError) -> String {
             "member_path": error.member_path,
             "target_kind": error.target_kind,
             "detail": serde_json::Value::Null,
+            "record_context": error
+                .record_context
+                .as_deref()
+                .map(crate::git_status_json::record_context_json),
         }],
         "workspace_git_status": serde_json::Value::Null,
     })

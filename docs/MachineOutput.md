@@ -56,7 +56,8 @@ Errors use:
   "member_id": null,
   "member_path": null,
   "target_kind": null,
-  "detail": null
+  "detail": null,
+  "record_context": null
 }
 ```
 
@@ -64,6 +65,24 @@ Top-level CLI errors in `--json` or `--jsonl` mode keep the same response shape,
 with `meta: null`, no members, and one error entry. Per-member failures retain
 `member_id`, `member_path`, and `target_kind: "Member"` even when preflight
 rejects the whole operation before a normal response exists.
+
+Durable merge-record compatibility failures populate `record_context` instead
+of requiring message parsing:
+
+```json
+{
+  "merge_id": "merge_example",
+  "schema": "gwz.merge-operation/v1",
+  "record_schema_version": 1,
+  "required_wave": "A1",
+  "legacy_mode": null
+}
+```
+
+`required_wave` is null for a genuinely unknown schema/version pair. It is
+`A1`, `A2`, `A3`, or `A4` for an allocated pair that requires a newer semantic
+wave. When the envelope itself is malformed and its header cannot be read,
+`record_context` is null.
 
 ## Merge JSON
 
@@ -93,18 +112,101 @@ current finalization step:
     "repos": [],
     "operation_drift": [],
     "preservation": null,
-    "publication_step": "PublishingCandidate"
+    "publication_step": "PublishingCandidate",
+    "record": {
+      "source_version": "V1",
+      "archived": false,
+      "terminal_outcome": null,
+      "acceptance": {
+        "kind": "SupportedPersisted",
+        "supported_persisted": {
+          "kind": "V1",
+          "v1": {
+            "operation_baseline_lock_sha256": "sha256...",
+            "metadata_base": {
+              "source": "OperationBaseline",
+              "source_commit": null,
+              "manifest_yaml": "...",
+              "manifest_sha256": "sha256...",
+              "lock_yaml": "...",
+              "lock_sha256": "sha256..."
+            },
+            "lock_yaml": "...",
+            "lock_sha256": "sha256...",
+            "members": [],
+            "root": {
+              "kind": "BornAttached",
+              "commit": "abc123",
+              "symbolic_branch": "main",
+              "publication_branch": "main",
+              "lock_worktree_sha256": "sha256...",
+              "manifest_worktree_sha256": "sha256...",
+              "lock_commit_sha256": null,
+              "manifest_commit_sha256": null
+            }
+          }
+        },
+        "legacy_complete": null,
+        "legacy_source": null,
+        "legacy_evidence": null,
+        "missing_gaps": []
+      },
+      "recovery": null
+    }
   }
 }
 ```
+
+`record` is present on every successful response tied to a durable merge
+record: start after creation, open or archived status, continue,
+preserve-abort, abort, and id-qualified GC. It is null for dry-run, idle
+status, pre-record responses, and unqualified GC. A command failure uses the
+top-level error envelope and therefore carries `record_context`, not a partial
+`record` projection.
+
+`source_version` is `V0` or `V1`. `archived` is true only when status was read
+from immutable archive bytes; only an archived projection has
+`terminal_outcome` (`Completed` or `Aborted`). Open v0 records deliberately
+have null `acceptance` and `recovery` when their legacy evidence has not been
+migrated.
+
+Archive-only status does not inspect repositories. Its `repos` and
+`operation_drift` arrays are empty, and the immutable terminal and acceptance
+history is reported through `record`.
+
+Acceptance has one of four exclusive shapes:
+
+- `SupportedPersisted` uses `supported_persisted.kind: "V1"` and its complete
+  `v1` payload.
+- `LegacyComplete` uses `legacy_complete` and `legacy_source` (`Candidate` or
+  `BaselineNoPublication`).
+- `LegacyUnavailable` uses `legacy_evidence` plus a sorted, nonempty
+  `missing_gaps` list. Gap values are `ExactLockBytes`,
+  `CompleteMemberAudit`, `AcceptedRootInput`, and `PublicationEvidence`.
+- `NotAccepted` has no payload or gaps and applies only to an aborted archive
+  that never accepted a workspace.
+
+Accepted member rows use kind `Selected`, `UnselectedPresent`, or `Absent`.
+A selected row contains `integration`, `final_checkout`, and `lock_member`; an
+unselected-present row contains only `lock_member`; an absent row contains no
+payload. Root kind is `BornAttached`, `BornDetached`, or `UnbornAttached`.
+Optional fields remain explicit JSON nulls and repeated fields remain arrays,
+including when empty.
+
+When a durable record is in `RecoveryRequired`, `record.recovery` reports its
+literal `origin_state`, record-derived `base_phase`, the current
+`next_action: "ReportRecoveryRequired"`, and the action a resume would take in
+`resume_action`. This projection is diagnostic: status does not reconcile or
+rewrite the record.
 
 Repository rows include their target, source, branch, before/resulting/live
 commits, lifecycle state, prediction, conflicts, eligibility flags, structured
 participant drift, an optional structured error, and an optional
 `pending_action`. A pending action contains its `kind`, reconciliation `state`
 (`NotStarted`, `ExpectedConflict`, `CompletedExactly`, or `Ambiguous`), and a
-guidance message. Merge errors use the same six-field shape as envelope errors,
-including `target_kind`. Operation drift entries contain `kind` and `message`.
+guidance message. Merge errors use the same seven-field shape as envelope
+errors, including `target_kind` and `record_context`. Operation drift entries
+contain `kind` and `message`.
 Preservation entries contain `target_id`, `path`, `backup_ref`,
 `backup_commit`, `stash_id`, and `stash_object_id`.
 
@@ -124,7 +226,7 @@ fresh exact classification succeeds.
 `MergeOperationState` includes the append-only `Idle` value used by the
 read-only merge-status lifecycle when no coordinated merge is open. An idle
 response has no merge id, participants, or drift and does not fabricate a
-completed operation.
+completed operation. Its `record` field is null.
 
 The Rust and Python driver tests compare semantic JSON values with the single
 canonical fixture at

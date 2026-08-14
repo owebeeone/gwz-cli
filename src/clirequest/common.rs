@@ -89,6 +89,7 @@ pub(crate) struct CliError {
     pub(crate) member_id: Option<String>,
     pub(crate) member_path: Option<String>,
     pub(crate) target_kind: Option<String>,
+    pub(crate) record_context: Option<Box<gwz_core::MergeRecordCompatibilityContext>>,
 }
 
 impl CliError {
@@ -99,6 +100,7 @@ impl CliError {
             member_id: None,
             member_path: None,
             target_kind: None,
+            record_context: None,
         }
     }
 
@@ -112,6 +114,7 @@ impl CliError {
             member_id: None,
             member_path: None,
             target_kind: None,
+            record_context: None,
         }
     }
 
@@ -133,6 +136,7 @@ impl CliError {
             member_id: error.member_id,
             member_path: error.member_path,
             target_kind,
+            record_context: error.record_context,
         }
     }
 

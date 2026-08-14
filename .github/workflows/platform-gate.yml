@@ -1,0 +1,366 @@
+name: Native platform gate
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      cli_sha:
+        description: Exact gwz-cli commit to build
+        required: true
+        type: string
+      core_sha:
+        description: Exact gwz-core commit to build against
+        required: true
+        type: string
+
+env:
+  CARGO_DIST_VERSION: "0.31.0"
+  CARGO_DIST_TAG: "v0.2.0-dev"
+  RUST_TOOLCHAIN: "1.95.0"
+  WORKFLOW_PATH: ".github/workflows/platform-gate.yml"
+
+jobs:
+  contract:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.contract.outputs.matrix }}
+    env:
+      CLI_SHA: ${{ inputs.cli_sha }}
+      CORE_SHA: ${{ inputs.core_sha }}
+      WORKFLOW_REPOSITORY: ${{ github.repository }}
+      WORKFLOW_REF: ${{ github.workflow_ref }}
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
+    steps:
+      - name: Bind the workflow definition before checkout
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+
+          exact_sha = re.compile(r"[0-9a-f]{40}")
+          cli_sha = os.environ["CLI_SHA"]
+          core_sha = os.environ["CORE_SHA"]
+          repository = os.environ["WORKFLOW_REPOSITORY"]
+          workflow_ref = os.environ["WORKFLOW_REF"]
+          workflow_sha = os.environ["WORKFLOW_SHA"]
+          workflow_path = os.environ["WORKFLOW_PATH"]
+
+          if not exact_sha.fullmatch(cli_sha) or not exact_sha.fullmatch(core_sha):
+              raise SystemExit("cli_sha and core_sha must be exact lowercase 40-hex commits")
+          if repository != "owebeeone/gwz-cli":
+              raise SystemExit(f"unexpected workflow repository: {repository}")
+          expected_prefix = f"{repository}/{workflow_path}@"
+          if not workflow_ref.startswith(expected_prefix):
+              raise SystemExit(f"unexpected workflow reference: {workflow_ref}")
+          if workflow_sha != cli_sha:
+              raise SystemExit(
+                  f"workflow commit {workflow_sha} does not match cli_sha {cli_sha}"
+              )
+          PY
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.cli_sha }}
+          path: gwz-cli
+          fetch-depth: 1
+          persist-credentials: false
+
+      - id: contract
+        name: Validate the static contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          cli = pathlib.Path("gwz-cli")
+          observed = subprocess.check_output(
+              ["git", "-C", str(cli), "rev-parse", "HEAD"], text=True
+          ).strip()
+          if observed != os.environ["CLI_SHA"]:
+              raise SystemExit(f"observed CLI commit {observed} does not match input")
+
+          rows = [
+              {"target": "x86_64-pc-windows-msvc", "runner": "windows-2022"},
+              {"target": "aarch64-apple-darwin", "runner": "macos-14"},
+              {"target": "x86_64-apple-darwin", "runner": "macos-15-intel"},
+              {"target": "aarch64-unknown-linux-gnu", "runner": "ubuntu-22.04-arm"},
+              {"target": "x86_64-unknown-linux-gnu", "runner": "ubuntu-22.04"},
+          ]
+          expected = {
+              "x86_64-pc-windows-msvc": "windows-2022",
+              "aarch64-apple-darwin": "macos-14",
+              "x86_64-apple-darwin": "macos-15-intel",
+              "aarch64-unknown-linux-gnu": "ubuntu-22.04-arm",
+              "x86_64-unknown-linux-gnu": "ubuntu-22.04",
+          }
+          observed_matrix = {row["target"]: row["runner"] for row in rows}
+          if len(observed_matrix) != len(rows) or observed_matrix != expected:
+              raise SystemExit("platform matrix target-to-runner mapping drift")
+
+          dist_source = (cli / "dist-workspace.toml").read_text()
+          target_block = re.search(r"(?ms)^targets\s*=\s*\[(.*?)^\]", dist_source)
+          if target_block is None:
+              raise SystemExit("dist target list is missing")
+          configured = re.findall(r'"([^"]+)"', target_block.group(1))
+          if len(configured) != len(set(configured)) or set(configured) != set(expected):
+              raise SystemExit(
+                  f"dist target set {configured!r} does not equal gate set {list(expected)!r}"
+              )
+          dist_version = re.search(
+              r'(?m)^cargo-dist-version\s*=\s*"([^"]+)"$', dist_source
+          )
+          if dist_version is None or dist_version.group(1) != os.environ["CARGO_DIST_VERSION"]:
+              raise SystemExit("Cargo Dist version drift")
+
+          cargo_source = (cli / "Cargo.toml").read_text()
+          package_block = cargo_source.split("[package]", 1)[1].split("\n[", 1)[0]
+          package_version = re.search(r'(?m)^version\s*=\s*"([^"]+)"$', package_block)
+          rust_version = re.search(r'(?m)^rust-version\s*=\s*"([^"]+)"$', package_block)
+          if package_version is None or package_version.group(1) != "0.2.0-dev":
+              raise SystemExit("CLI package version drift")
+          if rust_version is None or rust_version.group(1) != "1.95":
+              raise SystemExit("CLI Rust version drift")
+
+          source = (cli / os.environ["WORKFLOW_PATH"]).read_text()
+          trigger_start = source.index("\non:\n")
+          trigger_end = source.index("\njobs:\n", trigger_start)
+          trigger = source[trigger_start:trigger_end]
+          if "\n  workflow_dispatch:\n" not in trigger:
+              raise SystemExit("manual dispatch trigger is missing")
+          if re.search(r"(?m)^  (push|pull_request|schedule|release|workflow_call):", trigger):
+              raise SystemExit("non-manual trigger found")
+          required = [
+              "permissions:\n  contents: read",
+              "github.workflow_ref",
+              "github.workflow_sha",
+              "dist build --artifacts=local --target=\"$TARGET\"",
+              "--tag=v0.2.0-dev --print=linkage --output-format=json",
+          ]
+          missing = [item for item in required if item not in source]
+          if missing:
+              raise SystemExit(f"workflow contract fragments missing: {missing!r}")
+          if source.count("\npermissions:\n") != 1 or "\n    permissions:\n" in source:
+              raise SystemExit("workflow permissions are not exactly top-level read-only")
+          forbidden = [
+              "dist " + "host",
+              "--steps=" + "create",
+              "--steps=" + "upload",
+              "--steps=" + "release",
+              "--steps=" + "announce",
+              "gh " + "release",
+              "attest" + "-build-provenance",
+              "contents: " + "write",
+              "packages: " + "write",
+          ]
+          present = [item for item in forbidden if item in source]
+          if present:
+              raise SystemExit(f"publishing authority found: {present!r}")
+
+          matrix = json.dumps({"include": rows}, separators=(",", ":"))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"matrix={matrix}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("## Native platform gate contract\n\n")
+              summary.write(f"- Workflow repository: `{os.environ['WORKFLOW_REPOSITORY']}`\n")
+              summary.write(f"- Workflow path: `{os.environ['WORKFLOW_PATH']}`\n")
+              summary.write(f"- Workflow/CLI commit: `{observed}`\n")
+              summary.write(f"- Core commit: `{os.environ['CORE_SHA']}`\n")
+              summary.write(f"- Targets: `{', '.join(expected)}`\n")
+          PY
+
+  build:
+    name: build (${{ matrix.target }})
+    needs: contract
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.contract.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      CLI_SHA: ${{ inputs.cli_sha }}
+      CORE_SHA: ${{ inputs.core_sha }}
+      TARGET: ${{ matrix.target }}
+      EXPECTED_RUNNER: ${{ matrix.runner }}
+      WORKFLOW_REPOSITORY: ${{ github.repository }}
+      WORKFLOW_REF: ${{ github.workflow_ref }}
+      WORKFLOW_SHA: ${{ github.workflow_sha }}
+    steps:
+      - name: Bind the target job before checkout
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import re
+
+          exact_sha = re.compile(r"[0-9a-f]{40}")
+          if not exact_sha.fullmatch(os.environ["CLI_SHA"]):
+              raise SystemExit("invalid CLI commit")
+          if not exact_sha.fullmatch(os.environ["CORE_SHA"]):
+              raise SystemExit("invalid core commit")
+          if os.environ["WORKFLOW_REPOSITORY"] != "owebeeone/gwz-cli":
+              raise SystemExit("unexpected workflow repository")
+          prefix = f"owebeeone/gwz-cli/{os.environ['WORKFLOW_PATH']}@"
+          if not os.environ["WORKFLOW_REF"].startswith(prefix):
+              raise SystemExit("unexpected workflow path")
+          if os.environ["WORKFLOW_SHA"] != os.environ["CLI_SHA"]:
+              raise SystemExit("workflow commit does not match CLI commit")
+          PY
+
+      - uses: actions/checkout@v6
+        with:
+          repository: owebeeone/gwz-cli
+          ref: ${{ inputs.cli_sha }}
+          path: gwz-cli
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/checkout@v6
+        with:
+          repository: owebeeone/gwz-core
+          ref: ${{ inputs.core_sha }}
+          path: gwz-core
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact sibling checkouts
+        shell: bash
+        run: |
+          observed_cli="$(git -C gwz-cli rev-parse HEAD)"
+          observed_core="$(git -C gwz-core rev-parse HEAD)"
+          test "$observed_cli" = "$CLI_SHA"
+          test "$observed_core" = "$CORE_SHA"
+          echo "OBSERVED_CLI_SHA=$observed_cli" >> "$GITHUB_ENV"
+          echo "OBSERVED_CORE_SHA=$observed_core" >> "$GITHUB_ENV"
+
+      - name: Install exact Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target "$TARGET"
+          rustup default "$RUST_TOOLCHAIN"
+          case "$(rustc --version)" in
+            "rustc $RUST_TOOLCHAIN "*) ;;
+            *) echo "unexpected rustc version: $(rustc --version)" >&2; exit 1 ;;
+          esac
+
+      - name: Install exact Cargo Dist on Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            "https://github.com/axodotdev/cargo-dist/releases/download/v${CARGO_DIST_VERSION}/cargo-dist-installer.sh" | sh
+
+      - name: Install exact Cargo Dist on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:CARGO_DIST_VERSION/cargo-dist-installer.ps1" | iex
+
+      - name: Build local executable archive
+        working-directory: gwz-cli
+        shell: bash
+        run: |
+          test "$(dist --version)" = "cargo-dist $CARGO_DIST_VERSION"
+          dist build --artifacts=local --target="$TARGET" --tag=v0.2.0-dev --print=linkage --output-format=json > gate-dist-manifest.json
+          dist print-upload-files-from-manifest --manifest gate-dist-manifest.json > gate-upload-files.txt
+
+      - id: validate
+        name: Validate target manifest and artifacts
+        working-directory: gwz-cli
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          target = os.environ["TARGET"]
+          suffix = ".zip" if target.endswith("windows-msvc") else ".tar.xz"
+          archive = f"gwz-{target}{suffix}"
+          checksum = f"{archive}.sha256"
+          expected = {archive, checksum}
+
+          manifest_path = pathlib.Path("gate-dist-manifest.json")
+          manifest = json.loads(manifest_path.read_text())
+          if manifest.get("dist_version") != os.environ["CARGO_DIST_VERSION"]:
+              raise SystemExit("manifest Cargo Dist version drift")
+          if manifest.get("announcement_tag") != os.environ["CARGO_DIST_TAG"]:
+              raise SystemExit("manifest announcement selector drift")
+          if manifest.get("announcement_tag_is_implicit") is not False:
+              raise SystemExit("manifest used an implicit announcement selector")
+
+          paths = [line.strip() for line in pathlib.Path("gate-upload-files.txt").read_text().splitlines() if line.strip()]
+          artifact_root = pathlib.Path("target/distrib").resolve()
+          path_objects = [pathlib.Path(path).resolve() for path in paths]
+          if any(path.parent != artifact_root for path in path_objects):
+              raise SystemExit(f"unsafe target artifact path: {paths!r}")
+          names = {path.name for path in path_objects}
+          if len(paths) != 2 or names != expected:
+              raise SystemExit(f"unexpected target upload set: {paths!r}")
+          missing = [path for path in paths if not pathlib.Path(path).is_file()]
+          if missing:
+              raise SystemExit(f"reported target artifacts are missing: {missing!r}")
+
+          upload_names = {pathlib.Path(path).name for path in manifest.get("upload_files", [])}
+          if upload_names != expected:
+              raise SystemExit(f"manifest upload set is not target-exact: {upload_names!r}")
+          artifacts = manifest.get("artifacts", {})
+          archive_meta = artifacts.get(archive, {})
+          checksum_meta = artifacts.get(checksum, {})
+          if archive_meta.get("target_triples") != [target]:
+              raise SystemExit("archive target metadata drift")
+          if archive_meta.get("checksum") != checksum:
+              raise SystemExit("archive checksum metadata drift")
+          if checksum_meta.get("target_triples") != [target]:
+              raise SystemExit("checksum target metadata drift")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("paths<<EOF\n")
+              output.write("\n".join(paths) + "\n")
+              output.write("EOF\n")
+          PY
+
+      - name: Record target identity
+        working-directory: gwz-cli
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          identity = {
+              "workflow_repository": os.environ["WORKFLOW_REPOSITORY"],
+              "workflow_path": os.environ["WORKFLOW_PATH"],
+              "workflow_ref": os.environ["WORKFLOW_REF"],
+              "workflow_sha": os.environ["WORKFLOW_SHA"],
+              "supplied_cli_sha": os.environ["CLI_SHA"],
+              "observed_cli_sha": os.environ["OBSERVED_CLI_SHA"],
+              "supplied_core_sha": os.environ["CORE_SHA"],
+              "observed_core_sha": os.environ["OBSERVED_CORE_SHA"],
+              "target": os.environ["TARGET"],
+              "runner": os.environ["EXPECTED_RUNNER"],
+          }
+          path = pathlib.Path(f"gate-identity-{os.environ['TARGET']}.json")
+          path.write_text(json.dumps(identity, indent=2, sort_keys=True) + "\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("## Native platform gate identity\n\n")
+              for key, value in identity.items():
+                  summary.write(f"- {key}: `{value}`\n")
+          PY
+
+      - name: Upload diagnostic gate evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: platform-gate-${{ matrix.target }}
+          path: |
+            ${{ steps.validate.outputs.paths }}
+            gwz-cli/gate-dist-manifest.json
+            gwz-cli/gate-identity-${{ matrix.target }}.json
+          if-no-files-found: error
+          retention-days: 14

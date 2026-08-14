@@ -37,6 +37,12 @@ pub(crate) struct DiffArgs {
     )]
     pub(crate) merge_base: bool,
 
+    #[arg(
+        long = "tagged",
+        help = "Select only repositories containing every supplied local tag"
+    )]
+    pub(crate) tagged: bool,
+
     // ── rename detection ─────────────────────────────────────────────────────
     #[arg(
         short = 'M',
@@ -243,6 +249,7 @@ impl DiffArgs {
                 options: Some(options),
                 cached: self.cached.then_some(true),
                 merge_base: self.merge_base.then_some(true),
+                tagged: self.tagged.then_some(true),
             },
             display_format: format.unwrap_or(gwz_core::DiffOutputFormat::Patch),
             quiet,

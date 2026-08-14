@@ -250,7 +250,7 @@ pub(crate) enum CommandArgs {
     Materialize(MaterializeArgs),
     #[command(
         about = "Merge a source ref across selected workspace repositories",
-        override_usage = "gwz merge [source] [--dry-run]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
+        override_usage = "gwz merge [source] [--dry-run] [--ff-only] [-m <message>]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
     )]
     Merge(MergeArgs),
     #[command(
@@ -409,10 +409,15 @@ pub(crate) struct MergeArgs {
         help = "Require every selected repository to merge by fast-forward"
     )]
     pub(crate) ff_only: bool,
-    // M5 strategy and message forms remain reserved. Core owns their typed rejection.
+    // The v1 no-ff strategy remains reserved. Core owns its typed rejection.
     #[arg(long, hide = true)]
     pub(crate) no_ff: bool,
-    #[arg(short = 'm', long, hide = true)]
+    #[arg(
+        short = 'm',
+        long,
+        value_name = "message",
+        help = "Use a custom merge commit-message body"
+    )]
     pub(crate) message: Option<String>,
 }
 
