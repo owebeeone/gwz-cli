@@ -266,6 +266,7 @@ pub(crate) fn sample_response(
             member_path: Some("repos/app".to_owned()),
             target_kind: None,
             detail: None,
+            record_context: None,
         });
     gwz_core::ResponseEnvelope {
         meta: gwz_core::ResponseMeta {

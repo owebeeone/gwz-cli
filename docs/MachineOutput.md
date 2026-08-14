@@ -56,7 +56,8 @@ Errors use:
   "member_id": null,
   "member_path": null,
   "target_kind": null,
-  "detail": null
+  "detail": null,
+  "record_context": null
 }
 ```
 
@@ -64,6 +65,24 @@ Top-level CLI errors in `--json` or `--jsonl` mode keep the same response shape,
 with `meta: null`, no members, and one error entry. Per-member failures retain
 `member_id`, `member_path`, and `target_kind: "Member"` even when preflight
 rejects the whole operation before a normal response exists.
+
+Durable merge-record compatibility failures populate `record_context` instead
+of requiring message parsing:
+
+```json
+{
+  "merge_id": "merge_example",
+  "schema": "gwz.merge-operation/v1",
+  "record_schema_version": 1,
+  "required_wave": "A1",
+  "legacy_mode": null
+}
+```
+
+`required_wave` is null for a genuinely unknown schema/version pair. It is
+`A1`, `A2`, `A3`, or `A4` for an allocated pair that requires a newer semantic
+wave. When the envelope itself is malformed and its header cannot be read,
+`record_context` is null.
 
 ## Merge JSON
 
@@ -103,8 +122,9 @@ commits, lifecycle state, prediction, conflicts, eligibility flags, structured
 participant drift, an optional structured error, and an optional
 `pending_action`. A pending action contains its `kind`, reconciliation `state`
 (`NotStarted`, `ExpectedConflict`, `CompletedExactly`, or `Ambiguous`), and a
-guidance message. Merge errors use the same six-field shape as envelope errors,
-including `target_kind`. Operation drift entries contain `kind` and `message`.
+guidance message. Merge errors use the same seven-field shape as envelope
+errors, including `target_kind` and `record_context`. Operation drift entries
+contain `kind` and `message`.
 Preservation entries contain `target_id`, `path`, `backup_ref`,
 `backup_commit`, `stash_id`, and `stash_object_id`.
 

@@ -49,6 +49,13 @@ pub(crate) fn merge_base_is_a_first_class_field() {
 }
 
 #[test]
+pub(crate) fn tagged_is_a_first_class_selection_field() {
+    let diff = diff_invocation(strings(["diff", "--tagged", "v0.10.2", "v0.10.3"]));
+    assert_eq!(diff.request.tagged, Some(true));
+    assert_eq!(diff.request.operands, strings(["v0.10.2", "v0.10.3"]));
+}
+
+#[test]
 pub(crate) fn range_operand_stays_raw_for_core() {
     // A...B is kept raw in operands; core lowers it to merge_base per repo (D0 §7).
     let diff = diff_invocation(strings(["diff", "main...topic"]));

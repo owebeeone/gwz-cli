@@ -13,6 +13,7 @@ pub(crate) fn error_path_renders_structured_json_envelope() {
         member_id: None,
         member_path: None,
         target_kind: None,
+        record_context: None,
     };
     let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
     assert_eq!(json["kind"], "response");
@@ -52,6 +53,32 @@ pub(crate) fn error_path_renders_structured_json_envelope() {
     assert_eq!(json["errors"][0]["member_id"], "mem_a");
     assert_eq!(json["errors"][0]["member_path"], "a");
     assert_eq!(json["errors"][0]["target_kind"], "Member");
+
+    let compatibility = CliError::from_model(
+        gwz_core::model::ModelError::new(
+            gwz_core::model::ErrorCode::UnsupportedRecordVersion,
+            "merge record requires A1",
+        )
+        .with_record_context(gwz_core::MergeRecordCompatibilityContext {
+            merge_id: "merge_1".to_owned(),
+            schema: Some("gwz.merge-operation/v1".to_owned()),
+            record_schema_version: Some(1),
+            required_wave: Some(gwz_core::MergeRecordRequiredWave::A1),
+            legacy_mode: None,
+        }),
+    );
+    let json: serde_json::Value = serde_json::from_str(&render_error_json(&compatibility)).unwrap();
+    assert_eq!(json["errors"][0]["record_context"]["merge_id"], "merge_1");
+    assert_eq!(
+        json["errors"][0]["record_context"]["schema"],
+        "gwz.merge-operation/v1"
+    );
+    assert_eq!(
+        json["errors"][0]["record_context"]["record_schema_version"],
+        1
+    );
+    assert_eq!(json["errors"][0]["record_context"]["required_wave"], "A1");
+    assert!(json["errors"][0]["record_context"]["legacy_mode"].is_null());
 }
 
 #[test]
@@ -68,6 +95,30 @@ pub(crate) fn json_renderer_outputs_structured_response() {
     assert_eq!(json["meta"]["aggregate_status"], "Ok");
     assert_eq!(json["members"][0]["member_id"], "mem_app");
     assert_eq!(json["members"][0]["status"], "Ok");
+}
+
+#[test]
+pub(crate) fn response_errors_render_record_compatibility_context() {
+    let error = gwz_core::GwzError {
+        code: gwz_core::GwzErrorCode::UnsupportedRecordVersion,
+        message: "merge record requires A2".to_owned(),
+        member_id: None,
+        member_path: None,
+        detail: None,
+        target_kind: None,
+        record_context: Some(gwz_core::MergeRecordCompatibilityContext {
+            merge_id: "merge_2".to_owned(),
+            schema: Some("gwz.merge-operation/v2".to_owned()),
+            record_schema_version: Some(2),
+            required_wave: Some(gwz_core::MergeRecordRequiredWave::A2),
+            legacy_mode: None,
+        }),
+    };
+
+    let json = error_json(&error);
+
+    assert_eq!(json["record_context"]["merge_id"], "merge_2");
+    assert_eq!(json["record_context"]["required_wave"], "A2");
 }
 
 #[test]
@@ -263,6 +314,7 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
         member_path: Some("worker".to_owned()),
         detail: Some("source ref was not found in the member repository".to_owned()),
         target_kind: Some(gwz_core::TargetKind::Member),
+        record_context: None,
     };
     repos[5].prediction_complete = Some(false);
     repos[5].continue_eligible = Some(false);
