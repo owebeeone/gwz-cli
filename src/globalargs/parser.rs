@@ -409,8 +409,12 @@ pub(crate) struct MergeArgs {
         help = "Require every selected repository to merge by fast-forward"
     )]
     pub(crate) ff_only: bool,
-    // The v1 no-ff strategy remains reserved. Core owns its typed rejection.
-    #[arg(long, hide = true)]
+    // A1 activated the v1 record lifecycle, so the no-ff strategy is a public
+    // surface. Core still owns every semantic decision behind it.
+    #[arg(
+        long,
+        help = "Always create a merge commit, even when a fast-forward is possible"
+    )]
     pub(crate) no_ff: bool,
     #[arg(
         short = 'm',

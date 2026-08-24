@@ -335,7 +335,11 @@ pub(crate) fn merge_help_exposes_status_and_recovery_flags() {
     assert!(help.contains("--preserve"), "{help}");
     assert!(help.contains("--gc"), "{help}");
     assert!(help.contains("--ff-only"), "{help}");
-    assert!(!help.contains("--no-ff"), "{help}");
+    // A1 unhid `--no-ff`: the flag was `hide = true` while the v1 record
+    // lifecycle was a compile-gated boundary, and the activation made it a
+    // public surface. Its mutual exclusion with `--ff-only` is unchanged.
+    assert!(help.contains("--no-ff"), "{help}");
+    assert!(help.contains("Always create a merge commit"), "{help}");
     assert!(help.contains("--message"), "{help}");
     assert!(help.contains("custom merge commit-message body"), "{help}");
 }
