@@ -265,6 +265,10 @@ Rollback follows the reverse of execution:
 If abort itself is interrupted, rerun the same command. Durable rollback
 progress makes the operation restart-safe.
 
+If abort refuses, if it reports success and the result still looks wrong, or if
+neither continue nor abort can close the operation, see the
+[Merge Recovery Runbook](../MergeRecovery.md).
+
 ## Preserving work before abort
 
 `gwz merge --abort --preserve` is an explicit, conservative escape hatch for

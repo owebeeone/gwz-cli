@@ -64,6 +64,7 @@ nav:
       - Repository Member Lifecycle: RepoLifecycle.md
       - Root Workspaces: RootWorkspace.md
       - Troubleshooting: Troubleshooting.md
+      - Merge Recovery Runbook: MergeRecovery.md
       - Agent Bootstrap: AgentBootstrap.md
   - Reference:
       - CLI Reference: CLI.md

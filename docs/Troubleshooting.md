@@ -176,6 +176,25 @@ Recovery:
 3. Stage and commit or otherwise finish the member-level Git operation.
 4. Rerun the GWZ command or materialize the intended target.
 
+## A Merge Will Not Finish Or Close
+
+Symptoms:
+
+- Mutating commands refuse with `merge '<merge-id>' is open`.
+- `gwz merge --continue` or `gwz merge --abort` refuses, or `--abort` reports
+  success and the affected files still look wrong to plain `git`.
+- A recovery checkout is refused because a path is covered by a configured
+  content filter.
+
+Recovery:
+
+- Follow the [Merge Recovery Runbook](MergeRecovery.md). It identifies each
+  case by the message it prints, says what was and was not changed, and gives
+  the manual procedure for a merge no command can close.
+- Collect `gwz merge --status` output before changing anything, and do not
+  delete merge records, `refs/gwz/` refs, `gwz:`-prefixed stashes, or stash
+  bundles.
+
 ## Machine Output Looks Unexpected
 
 Checks:
