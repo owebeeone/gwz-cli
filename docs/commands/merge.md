@@ -4,7 +4,7 @@ Merge one source ref into the current branch of each selected workspace
 repository.
 
 ```text
-gwz merge <source> [--dry-run] [--ff-only] [-m <message>]
+gwz merge <source> [--dry-run] [--ff-only] [--no-ff] [-m <message>]
 gwz merge --status [<merge-id>]
 gwz merge --continue
 gwz merge --abort [--preserve]
@@ -265,6 +265,10 @@ Rollback follows the reverse of execution:
 If abort itself is interrupted, rerun the same command. Durable rollback
 progress makes the operation restart-safe.
 
+If abort refuses, if it reports success and the result still looks wrong, or if
+neither continue nor abort can close the operation, see the
+[Merge Recovery Runbook](../MergeRecovery.md).
+
 ## Preserving work before abort
 
 `gwz merge --abort --preserve` is an explicit, conservative escape hatch for
@@ -371,10 +375,13 @@ Record-version failures likewise include `record_context` with the merge id,
 readable schema/version pair, required semantic wave when known, and legacy
 mode when applicable.
 
-## Features not yet available
+## `--no-ff`
 
-`--no-ff` is not yet available. It remains hidden and returns a typed
-unsupported error if submitted directly.
+`--no-ff` always creates a merge commit, even where a fast-forward is
+possible. It is the counterpart to `--ff-only`; supplying both together
+is rejected. A `--no-ff` start writes a v1 coordinated merge record and
+publishes a two-parent integration commit. Ordinary and
+custom-message starts continue to write v0 records.
 
 Merge also rejects unrelated operation policies supplied explicitly:
 `--sync`, `--remote`, `--jobs`, `--max-per-host`,

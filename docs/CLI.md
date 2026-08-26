@@ -1346,6 +1346,9 @@ Options:
       --ff-only
           Require every selected repository to merge by fast-forward
 
+      --no-ff
+          Always create a merge commit, even when a fast-forward is possible
+
   -m, --message <message>
           Use a custom merge commit-message body
 
