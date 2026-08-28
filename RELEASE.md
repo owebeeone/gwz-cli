@@ -23,6 +23,11 @@ thing that differs between branches:
 4. Set the real release `version` (drop the `-dev` suffix), run `cargo build` to refresh
    `Cargo.lock`, then `cargo test`.
 5. Commit and tag **off `release`**: `git tag gwz-cli-vA.B.C`. Push `release` and the tag.
+6. **The release is not done until PyPI moves too.** Release gwz-py at the same
+   `vX.Y.Z` (see [gwz-py/RELEASE.md](../gwz-py/RELEASE.md) — same
+   `scripts/release.py` interface), then publish its GitHub release for the tag,
+   which triggers the PyPI trusted publish. The v0.11.1 cut initially missed this
+   channel precisely because no forward pointer existed here (2026-08-29).
 
 ## The merge gotcha
 
