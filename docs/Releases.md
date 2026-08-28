@@ -11,6 +11,20 @@ the released CLI rather than unreleased work on `main`.
 
 ## Unreleased Compatibility Notes
 
+- Structural workspace commands refuse uncommitted hand edits to `gwz.conf/`
+  (the machine-managed manifest and lock). The refusal names the sanctioned
+  `gwz repo` verbs and the acceptance path (`gwz init --update --force`);
+  states produced by git itself — clone, pull, branch switch — reconcile
+  silently, and read-only/list commands never gate. Workspace bootstrap also
+  emits a machine-managed banner on `gwz.yml`, records digests in
+  `gwz.conf/markers/conf-integrity.yml`, and writes or merges a
+  `.claude/settings.json` deny rule (`Edit(/gwz.conf/**)`) for agent sessions
+  started at the workspace root.
+- A checked-artifact private anchor directory holding a foreign,
+  non-canonical retired-anchor rendering (for example
+  `.ca1-anchor-retired-007`) now refuses operations on that family until the
+  foreign file is removed; such names were previously adopted silently. The
+  canonical rendering is unpadded (`.ca1-anchor-retired-7`).
 - First-class merge JSON and JSONL include the complete current merge-response
   key set, including finalization progress. Structured errors include
   `target_kind` and retain member id/path context even for whole-operation

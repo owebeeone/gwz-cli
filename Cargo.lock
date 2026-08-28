@@ -331,7 +331,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "clap",
  "console",
@@ -343,8 +343,8 @@ dependencies = [
 
 [[package]]
 name = "gwz-core"
-version = "0.11.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v0.11.0#8008bf67b7786eac562d45cef46688bf43849964"
+version = "0.11.1"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v0.11.1#be693bdebbecd8208ffc61f3343f8185c06f7184"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
