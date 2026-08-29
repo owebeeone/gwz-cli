@@ -240,7 +240,8 @@ clap flags in this phase, review F7.)*
   operands" — generalize or reuse deliberately when `+lock` hits that
   path, so the message does not mis-name the operand.
 - **S2.4 — coalescing** *(~450 LOC; after S2.1, PARALLEL with S2.2; owns
-  **L-COA-1, L-COA-2, L-COA-3 (engine semantics), L-COA-4, L-COA-6**)*.
+  **L-COA-1, L-COA-2, L-COA-3 (engine semantics), L-COA-4, L-COA-6,
+  L-COA-9**)*.
   Marker-keyed grouping; the four-conjunct heuristic (incl. F24's rule:
   marked commits never join heuristic groups); provenance tags; the
   no-coalesce engine switch. S2.4 exposes a **group-assembly API built
@@ -452,3 +453,18 @@ S2.2.
   F15's distinct-home/no-`diff::log_service`-collision substance and the
   core-owns-semantics split are preserved unchanged. S2.1 review owns the
   placement and visibility check.
+- **S2.4 re-charter, 2026-08-29 (lane-owner-dictated amendment, S2.4
+  terminal NO-GO).** The terminal two-round NO-GO is accepted as recorded;
+  a bare third round remains refused. Because its blocking root includes a
+  lane-owner specification gap around marker validity and invalid-marker
+  disposition, one amended-specification remediation and review round is
+  authorized with the same reviewer. Its scope is only the RFC variant-nibble
+  validation added to L-COA-1; L-COA-9's broad-exclusion/strict-keying
+  classification and `marker-invalid` singleton provenance added to
+  L-COA-6; and the dictated wrong-variant, mangled-separator, valid-v7, and
+  two-invalid-identical-heuristic-exclusion regressions. The review checklist
+  is these amended rows plus the S2.4 round-2 findings, nothing wider. If the
+  re-chartered round returns NO-GO, S2.4 is dead as chartered: freeze the
+  lane, file the report, and return it to the operator for re-planning. No
+  fourth round exists under any framing. S1.1 and S2.2 remain frozen until
+  this round completes or terminates.

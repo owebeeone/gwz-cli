@@ -175,11 +175,16 @@ with the rest.
 
 ### Coalescing (Q-1's resolution — normative)
 
-- **L-COA-1 (v0).** Sibling commits carrying the same `GWZ-Commit-ID`
-  trailer value MUST coalesce into one entry whose member set is every
-  selected repo carrying that value. The trailer is landed production
-  machinery (see the Workspace commit concept); this row is exercised
-  against real history from day one.
+- **L-COA-1 (v0).** Sibling commits carrying the same valid
+  `GWZ-Commit-ID` trailer value MUST coalesce into one entry whose member
+  set is every selected repo carrying that value. A value is valid iff it
+  is canonical lowercase RFC-4122 text with version 7 and the RFC variant
+  bits (`10xx` in octet 8); this is the strict reading of
+  `GwzCommitMarker.md`'s "Lowercase canonical UUID text. Version 7 only."
+  Only valid values key marker coalescing. The trailer is landed
+  production machinery (see the Workspace commit concept); this row is
+  exercised against real history from day one. (Lane-owner-dictated
+  amendment, S2.4 terminal NO-GO, 2026-08-29.)
 - **L-COA-2 (v0).** Unmarked commits (history predating the marker, and
   trailer-stripped messages) MUST coalesce under a conservative heuristic
   ONLY: byte-identical full message AND identical author name+email AND
@@ -212,8 +217,10 @@ with the rest.
   and one partially deselected renders with the narrowed set (the machine
   record says so, → L-JSN-1).
 - **L-COA-6 (v0).** Machine output records merge provenance per entry:
-  `marker:<uuid>` or `heuristic` (or `none` for singletons), so consumers
-  can distinguish proven identity from inference.
+  `marker:<uuid>`, `marker-invalid`, or `heuristic` (or `none` for ordinary
+  singletons), so consumers can distinguish proven identity, invalid
+  marker claims, and inference. The `marker-invalid` token is additive.
+  (Lane-owner-dictated amendment, S2.4 terminal NO-GO, 2026-08-29.)
 - **L-COA-7 (v0) — the bounded coalescing window (the L-COA-4 ↔ L-PRF-1
   contract; S0.1 review F3, ownership fixed per round-2 F21).** The
   streaming merge MUST hold emission only within a bounded reorder window
@@ -249,6 +256,18 @@ with the rest.
   the predicate, and lands the regression test driving the
   member-succeeded/root-failed retry to ONE id; `gwz log` itself carries
   no code for this row.
+- **L-COA-9 (v0) — invalid marker disposition.** A commit whose
+  `GWZ-Commit-ID` trailer key is present in any recognizable form but whose
+  value fails L-COA-1's validity rule MUST NOT join any heuristic group
+  (it "carries a marker" per L-COA-2/F24) and MUST NOT marker-coalesce. It
+  MUST render as a singleton with machine provenance `marker-invalid`;
+  invalid identity always fails toward splitting. Detection is deliberately
+  asymmetric: exclusion uses broad detection of any trailer-like line whose
+  key is `GWZ-Commit-ID`, tolerating separator mangling such as `=` for `:`,
+  while marker keying requires the strict canonical Git-trailer colon form
+  and a valid value under L-COA-1. Broad exclusion, strict keying — fail
+  closed in both directions. (Lane-owner-dictated amendment, S2.4 terminal
+  NO-GO, 2026-08-29.)
 
 ### Tolerance
 
