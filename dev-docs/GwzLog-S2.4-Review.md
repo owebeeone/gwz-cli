@@ -111,3 +111,112 @@ Gates:
 - Exact-source negative probes reproduced Findings 1–3.
 
 **Final verdict: NO-GO due to P1/P2 findings.**
+
+## Round 2 final peer-blind re-review
+
+**Baseline:** `14bd5acf01485a6a72922ff7527d9275f0877869`
+**Candidate:** `a2ab729f95f334c13dcd2bc1c0809152976bef48`
+**Verdict:** **NO-GO — terminal under the two-round cap.**
+
+The current Q-1 `Resolution (Gianni):` remains blank, so qualifying same-message fan-outs continue to coalesce as `heuristic`.
+
+### Prior finding disposition
+
+1. **[P1] UNCURED — malformed marker values can still establish authoritative identity.**
+
+   Most filed examples are cured: arbitrary strings, uppercase, v4, empty, continued, non-UTF-8, and duplicate values now become opaque. However, [canonical_uuid_v7](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce.rs:251) validates the version nibble but not the RFC UUID variant nibble at byte 19.
+
+   Exact-candidate probe:
+
+   ```text
+   GWZ-Commit-ID: 01987b0c-2f75-7c4a-1a32-8fd22f7d7c91
+   different bodies/authors/timestamps across two repos
+   => groups=1, provenance=Marker("01987b0c-2f75-7c4a-1a32-8fd22f7d7c91")
+   ```
+
+   The fourth UUID group begins with `1`, not the required RFC variant `[89ab]`; this is not a UUIDv7 authority. It therefore retains the original false-fusion defect.
+
+   **Required remedy:** require `matches!(value[19], b'8' | b'9' | b'a' | b'b')` and add wrong-variant fixtures.
+
+2. **[P1] CURED — shipped markers after `---` are recognized.**
+
+   The generic Git trailer parser is gone. The terminal-block extraction at [coalesce.rs:206](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce.rs:206) correctly recognizes the shipped marker after arbitrary user text containing `---`, both with and without the optional origin hash.
+
+   Exact-source probe now returns:
+
+   ```text
+   production marker after patch divider:
+   groups=1, provenance=Marker("01987b0c-2f75-7c4a-9a32-8fd22f7d7c91")
+   ```
+
+3. **[P2] UNCURED — some malformed marker-shaped claims still enter the heuristic.**
+
+   The filed missing-colon and malformed-adjacent examples are cured. However, [marker_shaped_claim](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce.rs:243) recognizes only end-of-line, colon, space, or tab after the key. A conventional malformed assignment using `=` is treated as having no marker claim and reaches `Unmarked`.
+
+   Exact-candidate probe:
+
+   ```text
+   GWZ-Commit-ID=01987b0c-2f75-7c4a-9a32-8fd22f7d7c91
+   => groups=1, provenance=Heuristic
+   ```
+
+   This violates the rule that malformed marker claims fail closed and never enter heuristic grouping.
+
+   **Required remedy:** recognize `=` and other unambiguous key/value delimiters as marker-shaped malformed claims, then return `Unusable`. Add an explicit `GWZ-Commit-ID=<uuid>` fixture.
+
+4. **[P2] CURED — the real Git history/S2.1 integration fixture now exists.**
+
+   [coalesce_tests.rs:41](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce_tests.rs:41) now exercises:
+
+   `workspace_ops::handle_commit` → stored root/member Git objects → rewritten heuristic-ineligible sibling → S2.1 cursors → one marker-provenance group.
+
+   It includes `---`, the optional origin hash path, different message and author bytes, and an exact 60-second committer spread.
+
+### Additional requested gap checks
+
+- **CURED:** same author name with different email is isolated at [coalesce_tests.rs:252](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce_tests.rs:252).
+- **CURED:** marker authority over heuristic-ineligible siblings at exactly W=60 is covered at [coalesce_tests.rs:397](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce_tests.rs:397).
+- Non-UTF-8 body/message comparisons remain byte-exact.
+- Parsed duplicate, continued, nonterminal, and blank-separated claims fail closed.
+- A boundary probe placing an otherwise valid marker block before another blank paragraph produced two `None` singletons, confirming the parser does not cross the last blank boundary.
+- Ordinary prose containing the token away from a marker-shaped line cannot acquire marker authority.
+- Same-repository exclusion, distinct-marker separation, pairwise 10-second spans, rebase re-stamp protection, no-coalesce singletons, maximum committer timestamp, and valid provenance remain correct.
+- No new findings beyond the residual instances of Findings 1 and 3.
+
+### Canonical-row matrix
+
+| Row | Round-two result | Evidence |
+|---|---|---|
+| L-COA-1 | **FAIL** | Shipped terminal markers and real-history grouping are cured, but a non-RFC-variant value can still establish marker authority. |
+| L-COA-2 | **FAIL** | The four-conjunct heuristic remains correct, but an equals-delimited malformed marker claim enters it. |
+| L-COA-3 | **PASS** | Raw singleton groups with `none` provenance remain intact. |
+| L-COA-4 | **PASS** | Ordering timestamp remains the maximum sibling committer timestamp. |
+| L-COA-6 | **FAIL** | Invalid UUID authority can emit marker provenance; malformed `=` claims can emit heuristic provenance. |
+| L-COA-7 | **PASS** | W=60 is exposed without acquiring cursor, buffer, closure, ordering, or emission state. |
+
+### API and scope
+
+The assembly API remains private and stateless. S2.5 still owns the W=60 buffer, live cursors, group closure, ordering, and emission.
+
+The candidate is one squashed commit directly over the baseline. The complete diff changes only:
+
+- `src/operation/commit_log/coalesce.rs`
+- `src/operation/commit_log/coalesce_tests.rs`
+- the private module/test declarations in `src/operation/commit_log/mod.rs`
+
+No `lib.rs`, handler, protocol/generated surface, CLI, inventory, pin, dependency lockfile, or `gwz.conf` change occurred. The worktree is clean.
+
+### Command and direct-exit evidence
+
+- `cargo test --lib operation::commit_log::coalesce_tests -- --nocapture` — exit `0`, 19/19 passed.
+- `cargo test --lib operation::commit_log::` — exit `0`, 31/31 passed.
+- `cargo fmt --check` — exit `0`.
+- `cargo clippy --all-targets --all-features -- -D warnings` — exit `0`.
+- `git diff --check 14bd5acf…a2ab729f` — exit `0`.
+- Forbidden-surface `git diff --quiet` checks — exit `0`.
+- Candidate/worktree equality and porcelain status — exit `0`, empty.
+- Exact-source wrong-variant probe — exit `0`, reproduced invalid `Marker(...)` fusion.
+- Exact-source equals-delimiter probe — exit `0`, reproduced `Heuristic` fusion.
+- Exact-source blank/nonterminal boundary probe — exit `0`, correctly produced `None` singletons.
+
+**Final: NO-GO. Findings 1 and 3 remain UNCURED at P1/P2, making the result terminal under the two-round cap.**
