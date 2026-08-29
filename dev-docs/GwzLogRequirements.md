@@ -408,10 +408,18 @@ codebase. Before writing anything:
   and friends, tests in `workspace_ops/tests/g13.rs`); `gwz stash`
   spec/plan in this directory (house style for a coordinated verb's spec,
   and the machine-parseable-marker pattern).
-- Module home: the new engine lives at **`gwz-core/src/commit_log/`** —
-  NOTE the existing `gwz-core/src/diff/log_service.rs` (`DiffLog`, the
-  diff OUTPUT log) is an unrelated subsystem; do not extend or collide
-  with it.
+- Module home (operator amendment 2026-08-29): the new engine lives at
+  **`gwz-core/src/operation/commit_log/`**, re-exported with minimum visibility
+  through the existing `operation` seam. The originally adopted top-level
+  home was refused by the checked-artifact boundary as "compiler root manifest
+  changed" (exit 1) for a `lib.rs` export and "Rust source-loading edge
+  inventory changed" (exit 1) for a path mount. Those inventories, pins and
+  `lib.rs` remain untouched. This preserves F15's substance — a distinct
+  commit-history home with no extension of or collision with
+  `gwz-core/src/diff/log_service.rs` (`DiffLog`, the diff OUTPUT log) — and
+  does not change the core-owns-semantics split. S2.0 dispatches through this
+  existing seam; S2.1 implements here and its single-axis review checks both
+  placement and minimal visibility.
 - Split: `gwz-core` owns semantics (selection, operand resolution, per-repo
   cursors, coalescing, merge, tolerance, structured events, aggregate
   status); `gwz-cli` owns the clap surface — ALL log-specific flags — and

@@ -18,8 +18,10 @@ Coalescing identity: the **landed, in-production commit-marker machinery**
 live history at round 1 — `gwz-core/dev-docs/GwzCommitMarker.md`'s
 "Status: proposed" line is stale and S1.2 corrects it at source). Repo
 split: `gwz-core` owns semantics and structured events, in the new module
-home **`gwz-core/src/commit_log/`** (the existing `diff::log_service` is an
-unrelated subsystem — the diff OUTPUT log — do not touch it); `gwz-cli`
+home **`gwz-core/src/operation/commit_log/`**, re-exported with minimum
+visibility through the existing `operation` seam (the existing
+`diff::log_service` is an unrelated subsystem — the diff OUTPUT log — do not
+touch it); `gwz-cli`
 owns the clap surface (ALL log-specific flags), rendering, and the exit
 mapping.
 
@@ -85,6 +87,21 @@ mapping.
    `gwz-cli`, mirror in `gwz-py` (L-PY-1..3) — over the shared protocol
    (L-PRO-1, step S2.0). The feature is not done until the py surface
    ships (the three-channel release rule).
+10. **Module-home amendment (operator ruling 2026-08-29).** The engine's
+   physical home is `gwz-core/src/operation/commit_log/`, re-exported through
+   the existing `operation` seam with the minimum visibility required by
+   request dispatch and clients (`pub(crate)` unless implementation proves a
+   wider surface is necessary). The originally adopted
+   `gwz-core/src/commit_log/` home required either a crate-root export or an
+   out-of-tree source mount; the checked-artifact boundary refused those
+   probes verbatim as "compiler root manifest changed" (exit 1) and "Rust
+   source-loading edge inventory changed" (exit 1). No root-manifest or
+   source-loading-edge inventory moves, no pin churn, and no `lib.rs` diff are
+   authorized. The F15 substance remains unchanged: commit history has a
+   distinct home and never collides with `diff::log_service`; the
+   core-owns-semantics split is likewise unchanged. S2.1's single-axis review
+   explicitly reviews whether `operation/` is the right existing seam and
+   whether visibility stayed minimal.
 
 ## 2. Process — the gwz review loop, applied
 
@@ -181,7 +198,7 @@ agents MAY pick up parallel steps, never must). Phase 1 and Phase 2 are
 
 ### Phase 2 — the core log engine (milestone: `commit_log` emits the coalesced, tolerant, streamed entry stream)
 
-*(Engine steps in `gwz-core/src/commit_log/`; engine parameters only — no
+*(Engine steps in `gwz-core/src/operation/commit_log/`; engine parameters only — no
 clap flags in this phase, review F7.)*
 
 - **S2.0 — the protocol surface** *(gwz-core + gwz-py regen; ~250 LOC
@@ -191,7 +208,8 @@ clap flags in this phase, review F7.)*
   messages in `gwz-core/protocol/gwz.taut.py` following the
   `StatusRequest`/`DiffRequest` shapes (streamed-output precedent:
   `diff_output`); regenerate BOTH repos' artifacts; wire the core
-  dispatch to a stub the Phase-2 engine steps fill; protocol drift
+  dispatch through the existing `operation` seam to a
+  `src/operation/commit_log/` stub the Phase-2 engine steps fill; protocol drift
   check green in both repos. ADDITIVE ONLY — existing messages and
   slots byte-untouched, asserted in the step's tests. Message-shape
   choices (streaming vs paged response, degradation record form) are
@@ -203,7 +221,9 @@ clap flags in this phase, review F7.)*
   detached included; per-repo newest-first cursors preserving each
   repository's own `git log` default order; degradation records for
   unreadable/unborn cases; NO conf gate, NO network, NO mutation lock;
-  structured entry/degradation events through the message-oriented API.
+  structured entry/degradation events through the message-oriented API in
+  `src/operation/commit_log/`, re-exported with minimum visibility through the
+  existing `operation` seam per §1.10.
 - **S2.2 — operands and narrowing** *(~350 LOC; after S2.1; owns
   **L-RNG-1** (incl. its pathspec clause — the round-1 "L-PTH" citation
   was dangling, review F14), **L-RNG-3, L-SEL-3, L-TOL-2**)*. Wire `gwz
@@ -423,3 +443,12 @@ S2.2.
   operator-chartered scope, not a reviewable-finding fold — its new
   steps get their scrutiny in their own single-axis reviews (S2.0's
   message-shape decisions are that step's named review points).
+- **Module-home amendment, 2026-08-29 (operator ruling).** S2.1's two
+  boundary probes refused the adopted top-level home as "compiler root
+  manifest changed" (exit 1) and "Rust source-loading edge inventory changed"
+  (exit 1). The engine therefore moves to
+  `gwz-core/src/operation/commit_log/`, minimally re-exported through the
+  existing `operation` seam; no inventory, pin or `lib.rs` change is allowed.
+  F15's distinct-home/no-`diff::log_service`-collision substance and the
+  core-owns-semantics split are preserved unchanged. S2.1 review owns the
+  placement and visibility check.
