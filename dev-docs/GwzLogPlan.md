@@ -65,13 +65,26 @@ mapping.
 6. **No release in this plan.** Shipping `gwz log` in a vX.Y release is
    the operator's call on the standard three-channel process.
 7. **Frozen surfaces: no DIFFS under** `gwz-core/src/checked_artifact/`
-   or `workspace_ops/merge/v1_lifecycle/`; no census/inventory/wire pin
+   or `workspace_ops/merge/v1_lifecycle/`; no census or inventory pin
    moves. **Calling or reading existing core APIs — including the
    artifact readers `+snapshot`/`+lock` need — is always in charter**
-   (review F19); only a diff under those trees is out.
+   (review F19); only a diff under those trees is out. *(Corrected
+   2026-08-29 with the mirror directive: the round-2 text also said "no
+   wire pin moves" — an R2-E-era carryover that is WRONG for a new verb.
+   A new command adds protocol messages by construction; L-PRO-1 makes
+   the growth ADDITIVE-ONLY with existing slots byte-untouched and the
+   drift check green in both repos. That is the honest form of the wire
+   constraint here.)*
 8. **LOC basis, stated once** (review F13): every budget below counts
-   handwritten, non-generated LOC **including tests**. Budgets are
-   aspirational targets (<500), not hard limits.
+   handwritten, non-generated LOC **including tests** (regenerated
+   protocol artifacts excluded). Budgets are aspirational targets
+   (<500), not hard limits.
+9. **gwz-py is a full peer client** (operator directive 2026-08-29,
+   verbatim: "all gwz-cli work needs to be mirrored as gwz-py work
+   too"): every client-surface deliverable lands twice — clap in
+   `gwz-cli`, mirror in `gwz-py` (L-PY-1..3) — over the shared protocol
+   (L-PRO-1, step S2.0). The feature is not done until the py surface
+   ships (the three-channel release rule).
 
 ## 2. Process — the gwz review loop, applied
 
@@ -111,8 +124,11 @@ amended + the adopted process optimization), at feature tier:
   exactly the step that needs it). **gwz-cli landings that move command
   help/docs surface regenerate `docs/CLI.md` and run the docs gate**
   (precedent: the `--no-ff` unhide). Multi-commit trains are per-commit
-  green or land SQUASHED citing the reviewed shas (ritual 7). Worktrees
-  removed at each lane's close.
+  green or land SQUASHED citing the reviewed shas (ritual 7). **gwz-py
+  landings** run its python test suite and, whenever the schema moved
+  anywhere in the train, the protocol drift/regen check in BOTH repos
+  (the checks its own `scripts/release.py` runs are the reference set).
+  Worktrees removed at each lane's close.
 - **Traceability**: every v0 row the plan implements — **MUST or SHOULD**
   (review F17) — lands with a named test; S4.1 executes the sweep.
 - **Tier economy**: builders and reviewers Opus; mechanical work Sonnet;
@@ -165,9 +181,21 @@ agents MAY pick up parallel steps, never must). Phase 1 and Phase 2 are
 
 ### Phase 2 — the core log engine (milestone: `commit_log` emits the coalesced, tolerant, streamed entry stream)
 
-*(All steps in `gwz-core/src/commit_log/`; engine parameters only — no
+*(Engine steps in `gwz-core/src/commit_log/`; engine parameters only — no
 clap flags in this phase, review F7.)*
 
+- **S2.0 — the protocol surface** *(gwz-core + gwz-py regen; ~250 LOC
+  handwritten (schema + dispatch stub + drift-check assertions;
+  regenerated artifacts excluded); after S0.1, PARALLEL with S2.1; owns
+  **L-PRO-1**)*. Define the log request/response/entry/degradation
+  messages in `gwz-core/protocol/gwz.taut.py` following the
+  `StatusRequest`/`DiffRequest` shapes (streamed-output precedent:
+  `diff_output`); regenerate BOTH repos' artifacts; wire the core
+  dispatch to a stub the Phase-2 engine steps fill; protocol drift
+  check green in both repos. ADDITIVE ONLY — existing messages and
+  slots byte-untouched, asserted in the step's tests. Message-shape
+  choices (streaming vs paged response, degradation record form) are
+  this step's reviewable decisions.
 - **S2.1 — selection + per-repo cursors** *(~400 LOC; after S0.1; owns
   **L-SEL-2, L-RNG-2, L-RNG-5, L-ORD-1, L-TOL-1, L-TOL-3, L-TOL-4,
   L-TOL-5, L-TOL-6**)*. Read-only repo opening for the default selection
@@ -243,8 +271,22 @@ F10's bundling at exactly the budget ceiling.)*
   S3.1; owns **L-JSN-1, L-JSN-2**)*. `--json`/`--jsonl`: uniform
   `members[]` shape, provenance, degraded-member records, `--body`
   semantics in machine records.
+- **S3.5 — gwz-py CLI mirror + API** *(gwz-py; ~450 LOC; after S3.1 +
+  S2.6; owns **L-PY-1, L-PY-2**)*. The `cli_log`-family mirror: same
+  operands, flags, defaults, degradation reporting, exit semantics as
+  S3.1's surface, lowered through S2.0's protocol messages; the
+  `client.py` API (`log`/`log_output`-shaped, per the `diff` precedent);
+  py tests mirroring the flag tri-states. Py command docs/help ride
+  here.
+- **S3.6 — gwz-py rendering + machine output** *(gwz-py; ~350 LOC; after
+  S3.2 + S3.3 + S3.5; owns **L-PY-3**)*. Human rendering via the
+  `cli_render` pattern (semantic parity MUST, byte parity SHOULD);
+  `--json`/`--jsonl` byte-compatible with gwz-cli's records; parity
+  assertions against captured gwz-cli output where cheap.
 - **S3.4 — the end-to-end battery + real-workspace run** *(tests only;
-  ~300 LOC; after S3.2 + S3.3)*. CLI-level batteries over multi-repo
+  ~300 LOC; after S3.2 + S3.3 + S3.5 + S3.6 — numbered before the py
+  steps for history, dependency-ordered after them)*. Batteries drive
+  BOTH clients over the same multi-repo
   fixtures: trailer coalescing, heuristic arms (incl. the rebase
   MUST-NOT and marked-vs-heuristic-group MUST-NOT), unborn root, detached
   member, degrade + `--strict`, `+snapshot`/`+lock` ranges (root
@@ -269,12 +311,19 @@ F10's bundling at exactly the budget ceiling.)*
 
 ```text
 S0.1 ──┬── S1.1 ── S1.2                     (Phase 1: marker-trust lane)
-       │
-       └── S2.1 ──┬── S2.2 ── S2.3 ──┐
-                  │                  │
-                  └── S2.4 ──────────┴── S2.5 ── S2.6 ── S3.1 ──┬── S3.2 ──┐
-                                                                └── S3.3 ──┴── S3.4 ── S4.1
+       ├── S2.0 ─────────────────┐          (protocol surface; ∥ S2.1)
+       └── S2.1 ──┬── S2.2 ── S2.3
+                  │           │
+                  └── S2.4 ───┴── S2.5 ── S2.6 ── S3.1 ──┬── S3.2 ──┬── S3.4 ── S4.1
+                                   ▲                     ├── S3.3 ──┤
+                                   └── (S2.0 feeds the   └── S3.5 ── S3.6
+                                        request wiring       (gwz-py mirror;
+                                        from S2.2 on)          feeds S3.4)
 ```
+
+(S2.0 runs parallel with S2.1; request-facing steps from S2.2 onward
+consume its messages. S3.4's battery closes over all four client steps —
+S3.2, S3.3, S3.5, S3.6.)
 
 Phase 1 feeds nothing downstream (the trailer machinery already ships;
 S1.1 hardens it). A Phase-1 park does not block anything else. S2.2 and
@@ -361,3 +410,16 @@ S2.2.
   at S2.3. **The plan is ADOPTED as of this record**, with builder
   launches gated on the operator's word (and, for S1.1/S2.4/S3.1, on
   the F25 ruling or the quota reset per §2).
+- **Operator scope directive, 2026-08-29 (post-adoption amendment;
+  verbatim: "all gwz-cli work needs to be mirrored as gwz-py work
+  too").** Folded same day by the lane owner: gwz-py made a full peer
+  client (§1.9; requirements L-PY-1..3 + Orientation precedents); the
+  protocol surface made an explicit foundational step (S2.0, owning the
+  new L-PRO-1) — which also corrected §1.7's "no wire pin moves"
+  carryover to the honest additive-only form; Phase 3 gained S3.5
+  (py CLI mirror + API) and S3.6 (py rendering + machine parity); the
+  S3.4 battery now drives BOTH clients and closes over all four client
+  steps; §2 gained the gwz-py landing gates. The amendment is
+  operator-chartered scope, not a reviewable-finding fold — its new
+  steps get their scrutiny in their own single-axis reviews (S2.0's
+  message-shape decisions are that step's named review points).

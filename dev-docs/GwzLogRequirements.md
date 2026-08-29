@@ -12,8 +12,12 @@ standing resolutions govern until changed. The Rezo stays authoritative
 where the two documents disagree. Ready for implementation planning.
 
 Scope: a unified commit log across the workspace — `@root` plus member
-repositories — as one command. CLI surface in `gwz-cli`; semantics in
-`gwz-core`, following the same split as `gwz diff` and `gwz status`.
+repositories — as one command. Semantics in `gwz-core`; client surface in
+`gwz-cli` **AND mirrored in `gwz-py`** (operator directive 2026-08-29,
+verbatim: "all gwz-cli work needs to be mirrored as gwz-py work too") —
+both clients lower to the same protocol, exactly as `gwz diff` and
+`gwz status` do. The protocol therefore grows the log request/response
+messages, additively (the Protocol and Python surface section).
 
 ## Problem
 
@@ -49,6 +53,9 @@ failing because one member is odd (Q-1).
   gates on `gwz.conf` integrity. A member that cannot contribute (missing
   ref, unborn branch, unreadable repo) degrades that member, not the command.
 - Machine output (`--json` / `--jsonl`) suitable for tooling.
+- **`gwz-py` parity**: the Python distribution ships the same command with
+  the same semantics in the same release (the three-channel rule: the
+  feature is not done until PyPI moves too).
 
 ## Non-Goals
 
@@ -323,6 +330,30 @@ with the rest.
   (member id + reason) so consumers can distinguish "no commits" from
   "could not read".
 
+### Protocol and Python surface (operator directive 2026-08-29)
+
+- **L-PRO-1 (v0).** The protocol (`gwz-core/protocol/gwz.taut.py`) gains
+  the log surface — request, response/entry stream, and degradation
+  records — **additively only**: existing messages and slots stay
+  byte-untouched, the regenerated artifacts land in BOTH repos
+  (`gwz-core` generated.rs; `gwz-py` generated IR), and the protocol
+  drift/regen check is green in both. Precedent: `StatusRequest`/
+  `DiffRequest` message shapes and the `commit_marker` slot's two-client
+  consumption.
+- **L-PY-1 (v0).** `gwz-py`'s CLI MUST expose `gwz log` with the same
+  operands, flags, defaults, degradation reporting, and exit semantics as
+  `gwz-cli`'s, lowered through the same protocol request (per-family
+  mirror precedent: `cli_diff.py`, `cli_read.py`).
+- **L-PY-2 (v0).** The Python API (`client.py`) MUST expose the log
+  programmatically — entries and degradations as structured records
+  carrying the L-JSN-1/L-JSN-2 shapes (precedent: `async def diff` /
+  `diff_output`).
+- **L-PY-3 (v0).** Human rendering parity: `gwz-py` renders via its
+  `cli_render` pattern; semantic parity with `gwz-cli`'s compact and
+  `--full` forms is MUST, byte parity SHOULD where the existing render
+  layers make it cheap. Machine output (`--json`/`--jsonl`) MUST be
+  byte-compatible between the two clients.
+
 ### Exit codes
 
 - **L-EXIT-1 (v0).** Exit codes follow the house convention: `0` success
@@ -384,8 +415,13 @@ codebase. Before writing anything:
 - Split: `gwz-core` owns semantics (selection, operand resolution, per-repo
   cursors, coalescing, merge, tolerance, structured events, aggregate
   status); `gwz-cli` owns the clap surface — ALL log-specific flags — and
-  rendering, including the exit-code mapping. Core's message-oriented API
-  is the boundary — rendering consumes entry/degradation events.
+  rendering, including the exit-code mapping; `gwz-py` mirrors the whole
+  client surface (L-PY-1..3) over the same protocol. Core's
+  message-oriented API is the boundary — rendering consumes
+  entry/degradation events. gwz-py precedents: `cli_diff.py` /
+  `cli_read.py` (command mirrors), `cli_render.py` + `cli_render_parts/`
+  (rendering), `client.py`'s `diff`/`diff_output` (API), and the
+  protocol drift/regen tooling its release script runs.
 - House rules that bind you: read-only commands never gate on conf
   integrity; no network; `gwz.conf/` is machine-managed (never hand-edit —
   structural changes only via the gwz CLI; READING artifacts through
