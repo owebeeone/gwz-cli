@@ -254,3 +254,170 @@ semantics insufficiently protected and the checked long high-water fixture
 slightly misses the terminal probe's constant-density shape. One final,
 test-focused round is authorized. No core edit, landing, or push was performed
 by the reviewer.
+
+## Round 2 — terminal final review
+
+**Verdict: GO.**
+
+- **Required S2.5-B base / sole parent:**
+  `f165040207fbfa9d8ae7ab990b7bdf5df81a388a`
+- **Round-1 candidate:** `fee91150baee6161f003edb13efcc5022a02e40e`
+- **Final core candidate:** `638cdcdeabc1dc272b28ce7387c4fbec1333edaa`
+- **Round-2 CLI authority:** `ace5d30a26ca8b8bcafca3ac74ad0d1b75e40d3c`
+- **Mode:** terminal round 2; round-1 P2 cure and final integrity only; core
+  read-only
+- **Round-2 finding count:** 0 P0 / 0 P1 / 0 P2 / 0 P3
+
+The round-1 P2 is cured. The final candidate leaves the reviewed production
+state machine byte-identical and replaces only its frontier regression. The
+checked-in test now kills all four prescribed contract mutations, exercises
+the exact historical boundary state and K epoch, proves same-marker immutable
+fragmentation, and uses genuinely constant-density tails of 100 and 1,000
+entries. The beyond-cap sentinel and all five preserved S2.5 cures remain
+unchanged.
+
+This terminal review did not reopen any preserved base surface and found no
+new issue. S2.5-B is eligible to land.
+
+### Round-1 cure matrix
+
+| Round-1 remediation gate | Terminal result | Evidence |
+|---|---|---|
+| Monotone seen-below-before-open state | **CURED** | The exact three-cursor marker sequence is checked. Replacing the cumulative minimum with the current head incorrectly combines the final `0-2` and `1-2` entries and fails the assertion. |
+| Exact K epoch: 63 joins, 64 closes | **CURED** | The checked fixture admits `b-late` on the 63rd post-open yield and fragments `c-late` on the 64th. Initializing the opening serial one yield late fails. |
+| Joining a sibling does not reset K | **CURED** | `b-join` joins the pending marker group before the boundary; `c-late` still fragments at the original group's 64th post-open yield. Resetting the epoch on join fails. |
+| Valid-marker late fragment retains provenance | **CURED** | The closed result is `[[a,b-join],[c-late]]`; both groups are marker groups built from the same valid `MARKER_A`. Exempting marker groups from patience incorrectly absorbs `c-late` and fails. The retained exact provenance regression also passes independently. |
+| Exact-density high water | **CURED** | The two inverted cursors use frontier zero and tails beginning at 1,000,000 with 61-second spacing. Lengths 100 and 1,000 emit all 202 and 2,002 groups with identical exact high water 66 and maximum W-density two. |
+| Four exact mutations recorded RED | **CURED** | Current-head-only state fails the exact seen sequence. Opening-serial `+1`, reset-on-join, and marker-only patience disable each produce the forbidden `[[a,b-join,c-late]]` merge and fail the checked test. |
+
+The consolidated acceptance test is
+`l_coa_7_frontier_eligibility_is_exact_and_bounded` at
+`src/operation/commit_log/merge_tests.rs:360-404`. Its compact construction
+keeps the cumulative base-to-final delta below the hard cap without weakening
+the exact outputs.
+
+### Final S2.5-B matrix
+
+| Chartered item | Final result | Evidence |
+|---|---|---|
+| Amended L-COA-7: seen-below, exhausted, represented, K=64 | **PASS** | Production remains the round-1-correct implementation. The final fixture now distinguishes historical minimum from current head and pins the original opening epoch at both sides of K. |
+| Amended L-COA-7: immutable closure and repeated provenance | **PASS** | Yield 64 seals before the late compatible marker is admitted; it becomes a second marker fragment. The marker-only K mutation is killed. |
+| Amended L-ENV-4 high-water probe | **PASS** | Exact density-two tails 100/1,000 emit every group and remain flat at 66. |
+| Amended L-ENV-4 mutation tightness | **PASS** | All four exact round-1 mutations fail the checked-in test independently. |
+| Amended L-ENV-3 zero beyond-cap yield | **PASS** | The byte-unchanged cap regression still observes exactly three prime pulls and no beyond-cap degradation; the production return remains before successor advancement. |
+| Cumulative hard cap | **PASS** | Base-to-final delta is 115 additions plus 54 deletions = **169 changed handwritten LOC**, 31 below 200. |
+| Base/replay integrity | **PASS** | The final candidate is a direct one-parent child of exact `f165040`; temp-index replay produces its tree exactly. |
+| F1/F2/F4/F5/F6 preservation | **PASS** | Production is byte-identical to round 1, and those five regressions plus the cap sentinel are unchanged. |
+
+### Mutation evidence
+
+The reviewer independently applied each mutation to an isolated disposable
+copy of exact `638cdcde` and ran the focused merge suite:
+
+1. **Current-head-only boundary state:** replace the cumulative `min` with
+   `Some(current_seconds)`. The exact sequence fails because the final two
+   singleton marker groups become one `['0-2', '1-2']` group.
+2. **Opening epoch one late:** store
+   `yield_serial.saturating_add(1)`. The K fixture fails because `c-late` is
+   absorbed into `['a', 'b-join', 'c-late']`.
+3. **Reset epoch on join:** update `opened_at_yield` whenever a sibling joins.
+   The same forbidden three-member group appears and the fixture fails.
+4. **Marker-only patience exemption:** disable the K arm for
+   `CommitLogProvenance::Marker`. The same forbidden merge appears and the
+   fixture fails.
+
+After each isolated mutation the source was restored byte-for-byte. The
+disposable worktree was removed. The reviewed core worktree remained clean.
+
+### Final integrity and scope
+
+The final candidate is a sibling amendment of round 1, not an additive child:
+
+```text
+f165040207fbfa9d8ae7ab990b7bdf5df81a388a
+├─ fee91150baee6161f003edb13efcc5022a02e40e  round 1
+└─ 638cdcdeabc1dc272b28ce7387c4fbec1333edaa  final
+```
+
+That topology is valid: `638cdcde` is exactly one commit ahead of the required
+base, and core main `20d7c4bea41d51983fa4a136b983bedb9ec017a6` remains its
+merge base and ancestor. The production `merge.rs` blob at both `fee91150` and
+`638cdcde` is
+`f56f7c950dd2b0ca5b85844f52d95a0646d52fbc`. Relative to round 1, only
+`merge_tests.rs` changes, +33/-15.
+
+Cumulative scope from exact `f165040` is:
+
+```text
+src/operation/commit_log/merge.rs        +65/-27
+src/operation/commit_log/merge_tests.rs  +50/-27
+total                                    +115/-54 = 169 changed LOC
+```
+
+All changed lines are handwritten. There is no generated, dependency,
+protocol, public or `pub(super)` visibility, mode, rename, handler, output,
+filter, request, CLI, or S2.6 change. The path-history CPU/process-startup
+tradeoff recorded in round 1 is unchanged and outside this test-only cure.
+
+Final identity:
+
+- **Tree:** `cc20f810fd38390c8fc62dd680c2fa85b75241e7`
+- **Cumulative stable patch ID:**
+  `f00b456bc8ac1346864927388503c69544971a60`
+- **Cumulative binary-diff SHA-256:**
+  `443650c3afbb614ce0a1cd6098d22c847ff2144e0f872504726224054eddf37c`
+
+Temp-index replay from exact `f165040` reproduced the final tree byte-for-byte.
+The repository is non-shallow with no replacements. `git diff --check` is
+clean. Both base and final core worktrees finished clean and read-only.
+
+### Round-2 verification
+
+Reviewer-run gates on exact `638cdcde`:
+
+- consolidated L-COA-7 acceptance — 1/1 passed;
+- focused merge suite — 12/12 passed;
+- complete commit-log suite — 82/82 passed;
+- four exact disposable contract mutations — each failed the consolidated
+  acceptance as required;
+- exact cap sentinel — 1/1 passed with three prime pulls and no later event;
+- `cargo fmt --all -- --check` — exit 0;
+- `cargo check --locked --all-targets` — exit 0;
+- strict all-target/all-feature clippy with `-D warnings` — exit 0;
+- protocol regeneration check — exit 0;
+- checked-artifact boundary — exit 0, 15 visible entries and 5 classified
+  modules;
+- release-boundary suite — 6/6 passed.
+
+The builder's exact pinned complete run is accepted as broad evidence and was
+not repeated:
+
+```text
+TAUT_PYTHON=$PWD/protocol/.regen-venv/bin/python cargo test --locked
+exit 0 on 638cdcdeabc1dc272b28ce7387c4fbec1333edaa:
+  lib:         1,778 passed / 0 failed / 1 ignored (742.78s)
+  diff-render: 10/10
+  protocol:    33/33
+  publish:      9/9
+  rename:       2/2
+  doctests:     0
+```
+
+The builder also reported exit 0 for the exact acceptance, merge 12/12,
+commit-log 82/82, format, locked all-target check, strict locked clippy,
+protocol regeneration, checked boundary, release 6/6, no-FF wire 7/7, privacy
+aggregate (95.1s), call-graph/boundary compiler mutation suite (555.5s),
+post-commit format/merge checks, and lane gates at `8552568`, `f165040`, and
+`638cdcd`. The builder independently recorded the same four mutation failures,
+constant-density group counts and high water, production blob identity, LOC,
+replay tree, and binary-diff digest.
+
+### Terminal decision
+
+**GO. S2.5-B final candidate
+`638cdcdeabc1dc272b28ce7387c4fbec1333edaa` is approved to land.**
+
+The sole round-1 finding is cured, all terminal gates pass, and there are no
+round-2 findings or conditions. This closes the two-round S2.5-B review with a
+successful verdict; no third round is needed or authorized. The reviewer did
+not modify, land, or push core.
