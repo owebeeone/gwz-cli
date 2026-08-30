@@ -260,42 +260,17 @@ with the rest.
   (Round-2 validation on this workspace's real history: 153 multi-repo
   marker groups, maximum committer-date spread 1 s — W has ~60×
   headroom.)
-- **L-COA-8 (v0) — identity stability.** One workspace-level change MUST
-  carry ONE `GWZ-Commit-ID` across partial-commit retries. The landed
-  implementation is NOT retry-idempotent (a fresh UUIDv7 is minted per
-  invocation; members commit before root, so a member-succeeded /
-  root-failed retry permanently splits one change across two ids — S0.1
-  review F5), and L-COA-2 forbids the heuristic from healing the split.
-  **The retry-sameness predicate (round-2 F22):** whether an invocation
-  is "a retry of the same operation" MUST be determined from **durable
-  per-operation state recorded before the operation's first commit** —
-  never inferred after the fact from message similarity or timing. When
-  sameness cannot be PROVEN from that state, a NEW id MUST be minted:
-  a false fuse (two different changes under one id) is strictly worse
-  than a false split, so the predicate fails toward splitting. Plan step
-  S1.1 designs the durable state (the marker artifact's own
-  pending-then-finalized lifecycle is the natural candidate), implements
-  the predicate, and lands the regression test driving the
-  member-succeeded/root-failed retry to ONE id; `gwz log` itself carries
-  no code for this row.
-  **Trust envelope (amended 2026-08-30, from the S1.1 terminal NO-GO —
-  the envelope was unstated and the step ballooned defending across
-  it):** the mechanism operates inside the product's standing
-  **cooperating-same-user boundary**. It defends against ACCIDENT —
-  crash, interruption, honest retry — and NOT against the user's own
-  adversarial acts: hooks that amend or rewrite, hand-git surgery,
-  index-flag games (assume-valid/skip-worktree), or byte-tampering of
-  local state. Same-user acts that defeat the sameness proof are
-  ACCEPTED RESIDUALS, enumerated in the step's record; fail-toward-
-  splitting still bounds honest damage. **Mechanism constraint:** the
-  sameness proof MUST be read-only over already-durable git state (the
-  trailer-carrying HEADs; byte-equal message; the remaining targets
-  being the plan's complement) plus the existing marker artifact where
-  present; the step MUST NOT mint new durable files, namespaces, or
-  lifecycles (no WAL, no retirement journals, no sidecar rewrites) and
-  MUST NOT alter shipped `gwz commit` selection, no-op, hook, or
-  marker-disabled semantics in any way. A crash mid-member-loop splits
-  — the documented, fail-safe residual.
+- **L-COA-8 (v2 — DEFERRED) — identity stability.** One workspace-level
+  change SHOULD carry one `GWZ-Commit-ID` across partial-commit retries,
+  and v2 will use artifact-assisted association to heal retry splits
+  without false fusion. **There is no v0 retry-identity guarantee:** the
+  shipped writer may mint a fresh UUIDv7 after a partial commit, and v0
+  `gwz log` renders the resulting marker groups separately because
+  L-COA-2 forbids heuristic healing across marked commits. This is the
+  pre-authorized S1.1-B terminal fallback, executed 2026-08-30 after the
+  final review returned NO-GO (`GwzLog-S1.1-B-Review.md`): the capped
+  read-only proof could not cover ordinary Git cleanup configuration and
+  crash-cut evidence safely without guessing. No v0 step owns this row.
 - **L-COA-9 (v0) — invalid marker disposition.** A commit whose
   `GWZ-Commit-ID` trailer key is present in any recognizable form but whose
   value fails L-COA-1's validity rule MUST NOT join any heuristic group

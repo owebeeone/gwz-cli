@@ -607,3 +607,17 @@ S2.2.
   L-* rows; no separate S0.2 review round (lane-owner spec act per §2's
   remediation-ownership rule, scrutinized by the consuming steps'
   reviews).
+
+- **S1.1-B TERMINAL NO-GO / PRE-AUTHORIZED FALLBACK EXECUTED,
+  2026-08-30.** The final capped candidate `0baf281` and terminal section
+  of `GwzLog-S1.1-B-Review.md` leave two P1 and one P2 blockers: ordinary
+  `commit.cleanup` variation defeats hard-coded message canonicalization;
+  no-marker recovery can erase or over-trust incomplete evidence before
+  the mutation decision; and the real atomic-writer crash leaves a sibling
+  temp that can be staged with the canonical marker. The two-round cap is
+  exhausted. Per the standing order in the S1.1-B charter, there is no
+  third round and the candidate does NOT land. **L-COA-8 is now v2
+  DEFERRED** (artifact-assisted association is the v2 direction); v0 makes
+  no retry-identity guarantee and retains the safe split behavior. Phase 1
+  is closed, and because it fed no downstream dependency, execution moves
+  on without changing the §4 chain.
