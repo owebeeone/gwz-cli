@@ -277,3 +277,268 @@ A duplicate full-suite run was intentionally interrupted with exit 130 after the
 **NO-GO.**
 
 S2.2 must not land at `e541be4dc24fb117b17b535aa39e447dd33186e3`. F1 and F2 are blocking safety/tolerance failures; F3-F7 are material owned-row or acceptance gaps. The P1/P2 findings trigger the plan’s required second-axis escalation. Round 2 should review the exact remediated candidate, with focused regressions for every finding and all standard gates rerun.
+
+## Round 2 final peer-blind re-review
+
+**Verdict: NO-GO — terminal under the fixed review cap**
+
+- Baseline/parent: `dd31d54439e9244cba876d159383a5fc5e9584b2`
+- Candidate: `8ec04f1d66f15ab21a99e04b73823b2845602bed`
+- Merge-base: `dd31d54439e9244cba876d159383a5fc5e9584b2`
+- Worktree: `/Users/owebeeone/limbo/gwz-log-worktrees/s2.2/gwz-core`
+- Uncured finding count: **0 P0 / 0 P1 / 3 P2 / 0 P3**
+- The three P2 dispositions comprise two independent semantic defects, F5 and F6, plus F7’s overlapping false-pass test guards.
+
+F1–F4 and F8 are cured on the assigned S2.2 axis. F9 is accepted with the explicit scope/LOC justification below. F5 and F6 remain materially non-compliant, and their regressions expose an uncured F7 test-quality finding. Under the fixed cap, any uncured P0/P1/P2 is terminal.
+
+### F1 — CURED [former P1]
+
+Path-limited history now sets both:
+
+```text
+GIT_OPTIONAL_LOCKS=0
+GIT_NO_LAZY_FETCH=1
+```
+
+at `src/operation/commit_log/mod.rs:218-230`. A failed offline `rev-list` becomes a target-scoped `HistoryUnreadable` degradation.
+
+Independent real-promisor evidence:
+
+- Fresh `--filter=tree:0` clone had a locally missing tree, one packed object, and one pack.
+- Exact candidate subprocess shape with `GIT_NO_LAZY_FETCH=1` exited 128.
+- Trace contained no fetch, upload-pack, index-pack, transport helper, or maintenance invocation.
+- Full `.git` content digest, packs, objects, refs, `FETCH_HEAD`, commit graph, and multi-pack-index state were unchanged.
+- A fresh negative-control clone omitting only `GIT_NO_LAZY_FETCH` exited 0, invoked fetch/upload-pack/index-pack/maintenance, and changed objects and packs from 1 to 2.
+- The candidate regression emitted exactly one structured `HistoryUnreadable` event and byte-compared every regular `.git` file before and after.
+
+No residual F1 issue was found.
+
+### F2 — CURED [former P1]
+
+The S2.2 log/diff paths now confine and bind snapshot operands:
+
+- `artifact::snapshot_path` validates the requested ID before joining it to the snapshot directory.
+- Empty, absolute, slash/backslash, parent-containing, and other non-portable IDs fail before filesystem access.
+- `read_snapshot` verifies that the embedded `snapshot_id` equals the requested filename ID.
+- Diff and log share the same loader.
+- Log’s former snapshot lookup `expect` is gone; the fallback is a typed degradation rather than a panic.
+- Malformed and mismatched artifacts produce typed errors, not raw I/O failures.
+
+The implementation is cured. The “before access” regression itself remains a false-pass and is recorded under F7.
+
+### F3 — CURED [former P2]
+
+The shared diff/log snapshot loader now accepts the current manifest workspace ID and rejects an artifact whose `SnapshotArtifact.workspace_id` differs.
+
+The regression uses the adversarial case required by round 1: matching snapshot and member IDs with a locally present OID but a foreign workspace ID. It is rejected before member resolution. Both diff and log pass `manifest.workspace.id` to the shared loader.
+
+### F4 — CURED [former P2]
+
+Snapshot validation now runs over the selector-selected plans before path routing at `src/operation/commit_log/request.rs:102-104`. `route_pathspecs` preserves any already-degraded plan at lines 230-244.
+
+The combined regression proves that:
+
+- `@root` retains its required `SnapshotEntryMissing` record;
+- the path-routed ready member contributes history;
+- an off-path selected member absent from the snapshot also retains its degradation record;
+- target order is `@root`, routed member, missing member;
+- degraded histories emit exactly one degradation and no entries.
+
+### F5 — UNCURED [P2]
+
+The original `.` normalization defect is fixed: root and member-root `.` now retain native empty-commit and merge-simplification behavior, and companion exclusions work when invoked at a repository root.
+
+However, valid Git-magic exclusions are still corrupted when invoked from a subdirectory.
+
+`request.rs:206-218` passes the complete raw token through filesystem-oriented `route_pathspec`. From `src/`, this native request:
+
+```text
+-- . :(exclude)artifact
+```
+
+is lowered to:
+
+```text
+rev-list <head> -- src src/:(exclude)artifact
+```
+
+The second token no longer begins with Git’s pathspec-magic signature, so it becomes an ordinary path and the exclusion silently disappears.
+
+Independent exact-candidate probe:
+
+```text
+git -C src rev-list HEAD -- . ':(exclude)artifact'
+```
+
+returned 242 commits.
+
+```text
+git --git-dir="$(git rev-parse --absolute-git-dir)" \
+  rev-list "$(git rev-parse HEAD)" -- src 'src/:(exclude)artifact'
+```
+
+returned 244 commits. Comparing the sequences exited 1. The two incorrectly retained commits were:
+
+```text
+8b9953bb36e92cd2234726c7ca7dfdc758ec7535  src/artifact/mod.rs
+e1413a6d6665236055dd4244231e118f0af363f0  src/artifact/mod.rs
+```
+
+The correctly rerooted spelling, `:(exclude)src/artifact`, matched native Git.
+
+**Required remedy:** make routing pathspec-magic-aware, preserving the magic prefix while rerooting only its pattern payload. Cover long and short exclusion forms, top semantics, root/member subdirectories, and workspace-root fan-out into member exclusions.
+
+### F6 — UNCURED [P2]
+
+The candidate reserves adjacent dots in snapshot IDs and preserves internal single-dot IDs such as `release.one`. That does not make the grammar disjoint.
+
+`validate_snapshot_id` rejects only `value.contains("..")`; trailing single dots remain valid. `split_range` checks `...` before `..`. Therefore a valid snapshot ID `release.` cannot safely participate in L-RNG-3 ranges:
+
+- Intended two-dot range `+release.` + `..` + `+tip` spells `+release...+tip`.
+- The parser silently interprets that as the three-dot range `+release...+tip`, drops the trailing dot, and selects snapshot `release` instead.
+- If both `release.` and `release` exist, this silently selects the wrong snapshot and wrong range semantics.
+- Intended three-dot range from `release.` spells `+release....+tip`; the four-dot guards reject it as a range, after which it becomes one invalid snapshot endpoint.
+
+Both diff and log share this defect.
+
+The compatibility response is also incomplete:
+
+- Released `v0.11.1` at `be693bdebbecd8208ffc61f3343f8185c06f7184` accepted adjacent-dot IDs through unrestricted portable-slug validation.
+- The candidate retains schema `gwz.snapshot/v0`.
+- There is no migration, schema change, or compatibility note.
+- Existing adjacent-dot artifacts would now make `list_snapshots` fail.
+- An independent scan found no adjacent-dot IDs among 24 discoverable local artifacts, but that cannot establish compatibility for already-deployed workspaces.
+
+**Required remedy:** make endpoint and range spellings truly disjoint—at minimum reject trailing-dot IDs while retaining internal dots, or define an explicit escaping scheme. Add create/read/diff/log coverage for internal dotted IDs on both sides of `..` and `...`, trailing-dot rejection or escaping, and a documented compatibility path for previously valid adjacent-dot `gwz.snapshot/v0` artifacts.
+
+### F7 — UNCURED [P2]
+
+Most named round-one guards are now strong:
+
+- entry/degradation helpers panic on the opposite event type;
+- strictness covers all four strict/non-strict × degraded/clean cases using observed events;
+- bare pre-`--` path and real path/revision ambiguity are covered;
+- absent-everywhere and distributed/no-intersection tag cases are covered;
+- the criss-cross fixture proves two best merge bases and compares the complete history with Git;
+- ordinary two-dot mixed-member resolution asserts one exact degradation.
+
+The overall finding remains uncured because required F1–F6 regressions still false-pass:
+
+- The F2 “before access” test creates readable valid YAML at the escaped destinations and checks only the eventual error. A join/read-first implementation followed by validation would pass it.
+- F5 tests invoke exclusions only at repository roots, missing the subdirectory corruption above.
+- F6 tests cover internal `release.one`, not leading/trailing dots, range-boundary collisions, or end-to-end dotted snapshot ranges.
+
+These gaps directly allowed both remaining P2 defects through a green focused suite.
+
+**Required remedy:** add an access-order sentinel or injected read counter for F2, subdirectory/native-parity magic tests for F5, and boundary-dot plus end-to-end diff/log range tests for F6.
+
+### F8 — CURED [former P3]
+
+One contextual classifier is shared:
+
+- `classify_operands` retains established `gwz diff` wording.
+- Log invokes the same implementation with `gwz log`.
+- Existing diff tests assert byte-exact ambiguous and unknown messages.
+- Log tests require the `gwz log` synopsis and reject any `gwz diff` occurrence.
+
+Focused diff behavior remained green.
+
+### F9 — CURED for acceptance [former P3]
+
+Exact diff:
+
+```text
+13 files changed, 2038 insertions(+), 173 deletions(-)
+```
+
+Independent handwritten-LOC split:
+
+- Production: +902/-139, net +763
+- Tests: +1136/-34, net +1102
+- Total: net +1865
+
+This remains about 5.3× the approximately 350-line S2.2 target. The plan explicitly makes that budget aspirational rather than hard. The overage is recorded and accepted here because it comprises the four-row request planner, shared classifier/snapshot safety seams, streaming native path-history cursor, and the adversarial remediation matrix.
+
+The former accessor concern is cured: `RepositoryHistory::pathspecs` is now private and `#[cfg(test)]`. Cross-module helpers remain `pub(crate)`, `operation::commit_log` remains private, and no external crate surface was widened.
+
+## Requirement-row matrix
+
+| Row / constraint | Result | Evidence |
+|---|---|---|
+| **L-RNG-1** | **FAIL** | Grammar is genuinely shared; normal A..B/A...B, bare classifier wiring, and post-`--` leading `+` work. Subdirectory rerouting destroys exclusion magic (F5), and the snapshot/range language remains ambiguous at trailing-dot boundaries (F6). |
+| **L-RNG-3** | **FAIL** | Per-member snapshot resolution, root/member degradation, snapshot/snapshot, snapshot/HEAD, identity binding, and path-routing visibility are cured. A valid trailing-dot snapshot cannot safely participate in required ranges (F6). |
+| **L-SEL-3** | **PASS** | Exact local tags, all-tag intersection, same-named branch rejection, absent/distributed negative cases, and the shared exact `+snapshot` refusal are implemented and tested. |
+| **L-TOL-2** | **PASS in implementation** | Ordinary mixed resolution degrades per member; exact events and the observed-event strict truth table are correct. Core exposes only the strict overlay, not the later CLI flag/exit mapping. |
+| A..B semantics | **PASS except F6 boundary grammar** | Normal ranges push B and hide A; one-member endpoint failure degrades only that member. |
+| A...B semantics | **PASS except F6 boundary grammar** | Normal ranges push both endpoints and hide every best merge base; a two-base criss-cross fixture matches Git. |
+| Leading `+` after `--` | **PASS** | It bypasses operand classification and remains a literal path. |
+| Native path history | **FAIL** | Root/member `.` and merge simplification are fixed, but valid subdirectory exclusion magic is lost (F5). |
+| Snapshot confinement/body/workspace identity | **PASS** | Requested IDs are validated before joining, body IDs are bound, foreign workspaces are rejected, and no log panic remains. |
+| Inherited no-network/read-only invariant | **PASS** | Real-promisor positive and negative controls establish that lazy fetch is disabled and repository bytes remain unchanged. |
+| S2.1 selection/cursors/tolerance | **PASS** | Root plus active members, HEAD/detached/unborn/shallow/unreadable behavior, and no-conf-gate behavior remain green. |
+| Shared `gwz diff` behavior | **PASS with shared F6 defect noted** | Classifier/tag/refusal implementations are genuinely shared and 106 focused diff tests pass; F6 affects the common grammar rather than representing duplicated log behavior. |
+| Strict ownership boundary | **PASS** | No CLI flag, exit mapping, renderer, handler production, or output implementation was added. |
+| S2.4 declarations after rebase | **PASS** | `coalesce.rs` is byte-unchanged; the 60-second admission declaration and assembly seam remain. The sole coalescing-test change supplies the new private `source_kind` field. |
+| S2.3/S2.5/later scope | **PASS** | No `+lock`, k-way merge, jobs, depth, coalescing consumer, handler, or output creep. |
+| Frozen inventories/pins/protocol | **PASS** | No checked-artifact/lifecycle, `lib.rs`, Cargo, protocol, inventory, census, or pin diff. |
+| Visibility | **PASS** | Commit-log remains private; shared seams are no wider than `pub(crate)`; the test accessor is private. |
+| LOC/scope | **ACCEPTED DEVIATION** | Net +1865 is materially above the aspirational target, with the production/test split and justification recorded above. |
+
+## Commands and direct exits
+
+### Identity and exact diff
+
+- `git rev-parse HEAD` — exit 0; `8ec04f1d66f15ab21a99e04b73823b2845602bed`
+- `git rev-parse HEAD^` — exit 0; `dd31d54439e9244cba876d159383a5fc5e9584b2`
+- `git merge-base dd31d544... 8ec04f1d...` — exit 0; exact parent
+- `git diff --stat dd31d544...8ec04f1d` — exit 0; 13 files, 2,038 insertions, 173 deletions
+- `git diff --check dd31d544...8ec04f1d` — exit 0
+- Final `git status --short` — exit 0; empty
+
+### Focused tests
+
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" cargo test --locked operation::commit_log -- --nocapture` — exit 0; 60 passed
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" cargo test --locked diff:: -- --nocapture` — exit 0; 106 passed
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" cargo test --locked artifact::tests:: -- --nocapture` — exit 0; 56 passed
+- Exact F1 promisor regression — exit 0; 1 passed
+- F7-focused commit-log guards — exit 0; 5 passed
+- F8-focused diagnostic guard — exit 0; 1 passed
+- Strict-overlay truth table — exit 0; 1 passed
+- Exact tag and two-tree focused groups — exit 0
+
+### Adversarial probes
+
+- F1 exact offline promisor `rev-list` — exit 128 as required; no transport or mutation
+- F1 negative control without `GIT_NO_LAZY_FETCH` — exit 0; fetch and pack mutation reproduced
+- F5 native subdirectory `.` plus exclusion — exit 0; 242 commits
+- F5 candidate-shaped subprocess — exit 0; 244 commits
+- F5 sequence comparison — exit 1, proving loss of exclusion semantics
+- F5 corrected magic-preserving spelling comparison — exit 0
+- F6 split-grammar probe — exit 0:
+  - `+release.one` → one snapshot endpoint
+  - `+release.one..+tip.one` → two-dot range
+  - `+release...+tip` → three-dot range from `release`, proving trailing-dot loss
+  - `+release....+tip` → no range
+- Released-contract audit — exit 0; `v0.11.1` used unrestricted portable-slug validation
+- Local artifact scan — exit 0; 24 artifacts, no adjacent-dot IDs found
+
+### Formal gates
+
+- `cargo fmt --all -- --check` — exit 0
+- `cargo check --all-targets` — exit 0
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" CLIPPY_CONF_DIR="$PWD" cargo clippy --all-targets --all-features -- -D warnings` — exit 0
+- `cargo metadata --format-version 1 --locked --no-deps` — exit 0
+- Exact lane-commit gate — exit 0
+- Checked-artifact boundary — exit 0; 15 visible entries, 5 classified modules
+- Release-boundary unit tests — exit 0; 6 passed
+- `protocol/regen.py --check` — exit 0
+- Additive protocol fingerprint — exit 0; expected fingerprint
+- Frozen-path, handler, coalescer, Cargo, `lib.rs`, and protocol quiet checks — exit 0
+
+The long full suite was deliberately not started; landing owns it.
+
+## Final decision
+
+**NO-GO — terminal.**
+
+Do not land or push `8ec04f1d66f15ab21a99e04b73823b2845602bed`. F5, F6, and F7 remain uncured P2 findings, and the fixed round-two cap makes that terminal for this review charter. Further work requires lane-owner re-chartering or disposition, not another review round under this S2.2 cap.
