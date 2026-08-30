@@ -355,3 +355,155 @@ Executed disposable real-repository regressions:
 - NotEnrolled root-only wedge reproduction: exit 0 while asserting two consecutive `IoError` results and retained RootReady WAL.
 
 No candidate file, report or source was edited; nothing was committed, pushed, or sent to the builder.
+
+# GWZ Log S1.1/S1.2 final peer review
+
+## Verdict
+
+**NO-GO.**
+
+Exact core candidate:
+
+- Candidate: `c6ea63643166cc871422b01586cc322317c6a74a`
+- Baseline and sole parent: `dd31d54439e9244cba876d159383a5fc5e9584b2`
+- Candidate tree: `f435daf509a3027cf8fffe5e4c930903b6fd08e2`
+
+Open severity count:
+
+- P0: 0
+- P1: 9
+- P2: 3
+- P3: 1
+
+The nominal focused matrix passes, but the candidate still permits false fusion through amend hooks, can publish the private WAL, launders unsafe marker publications, overwrites boundary evidence, wedges crash recovery, fails to bind hidden tracked changes, lacks true WAL CAS, and breaks marker publication on non-Unix platforms. Any one is terminal.
+
+## Round-one finding dispositions
+
+| Finding | Disposition | Final-review evidence |
+|---|---|---|
+| P1-1 porcelain-hook transitions | **NOT CURED** | A `post-commit` hook can stage extra content and execute `git commit --amend --no-edit`. The amended C2 retains the durable parent and exact X-trailed message, so the checks in [repository.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/git/gitbackend/repository.rs:482) accept it and [handle_commit.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/workspace_ops/handle_commit.rs:1608) checkpoints it under X. The root-selected path has the same gap. Tests cover only a child C2, not an amended sibling. |
+| P1-2 marker-disabled stale lock | **NOT CURED overall** | The stale lock itself is refreshed, but [handle_commit.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/workspace_ops/handle_commit.rs:1806) now makes `committed_member` independently trigger root porcelain publication. A marker-disabled member-only request therefore advances an unselected root, consumes unrelated staged root content, and runs root hooks. The new test at [g13_retry_review.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/workspace_ops/tests/g13_retry_review.rs:52) positively asserts this incompatible behavior. |
+| P1-3 private WAL publication | **NOT CURED** | A root post-commit hook can force-add `.gwz/commit/open.yaml` and create C2. `commit_checked` rejects C2 at [handle_commit.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/workspace_ops/handle_commit.rs:1840), before the private-path scan and rollback at line 1852. The WAL remains reachable in live root history. |
+| P1-4 foreign boundary evidence | **NOT CURED** | Candidate index hashes fix the reported foreign-marker-index case, but `boundary_worktree_is_owned` at [handle_commit.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/workspace_ops/handle_commit.rs:473) omits `conf-integrity.yml`. Partial recovery can accept a foreign third-value sidecar worktree preimage and overwrite it through sidecar refresh before complete classification. |
+| P1-5 unsafe publication laundering | **NOT CURED** | If C1 publishes X plus a sibling and hook-created C2 removes X while retaining the sibling, retry treats C2 as baseline. The full proof is gated on X existing in current HEAD at lines 1480–1487 and 2182–2191; the sibling is then grandfathered by `committed.contains` at lines 2599–2610 and Y succeeds above C2. |
+| P1-6 ignored orphan markers | **CURED for the reported publishing case** | Pinned raw physical enumeration plus raw index/tree evidence now catches ignored and non-UTF-8 physical orphan entries before publication and after Git transitions. A narrower staged-only/no-op defect remains as new P2-N1 below. |
+| P1-7 crash-surviving temps | **NOT CURED** | Artifact-write temps moved to `.gwz/artifact-tmp`, but `MarkerStore::remove_exact` at [handle_commit.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/workspace_ops/handle_commit.rs:2954) renames X to an unjournaled `.retired-*` inside `gwz.conf/markers` before unlinking it. A crash after the rename leaves evidence every retry rejects. |
+| P1-8 public/custom backends | **CURED for the reported late-runtime failure** | Explicit evidence-v1 capability refusal occurs before ordinary fresh-operation WAL/Git mutation, and marker-disabled legacy behavior remains callable. Preflight ordering during existing-state recovery remains new P2-N2. |
+| P1-9 special index states | **NOT CURED** | Flagged states are accepted, but the CLI checkpoint fallback at [preservation.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/git/gitbackend/preservation.rs:496) uses Git commands that honor assume-valid/skip-worktree. A measured tracked-byte edit under assume-unchanged left all five checkpoint inputs identical, allowing X reuse despite changed tracked content. |
+| P1-10 WAL CAS | **NOT CURED** | Unix `consume_open` compares bytes, renames the source pathname, then verifies at [handle_commit.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/workspace_ops/handle_commit.rs:960). Source replacement in that gap moves foreign bytes and wedges recovery. Non-Unix fallbacks remain check-then-rename and can overwrite a destination race. |
+| P1-11 confinement | **NOT CURED** | Unix capability handling materially improved. On non-Unix, however, [artifact/mod.rs](/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-core/src/artifact/mod.rs:795) calls `symlink_metadata(target)?`; normal first-marker absence returns `NotFound`, so rename is never attempted. Marker-enabled operations fail, potentially after a member commit, and the fallback remains check-then-rename. |
+| P2-1 exact scoped publication recovery | **CURED** | RootReady scoped recovery verifies exact parent, message, candidates, member transitions and namespaces, then retains X. Focused regression passes. |
+| P2-2 NotEnrolled root-only wedge | **CURED** | Missing integrity state is created before checkpointing and carried in the exact boundary plan. Focused regression passes on Unix. |
+| P2-3 unknown WAL fields | **CURED** | Durable local structs deny unknown fields and open/state reads require byte-exact canonical encoding. Top-level and nested tamper regressions pass. |
+| P2-4 structured errors | **CURED** | Backend and filesystem errors retain their typed codes through post-publication checks; focused unsupported/I/O tests pass. |
+| P2-5 monolithic lifecycle | **NOT CURED** | The delta is now +7,154/−230 and `handle_commit.rs` is 3,197 lines. WAL/state transitions, recovery, boundary planning, publication and retirement remain concentrated there; the confirmed branch-specific regressions demonstrate the auditability issue remains material. |
+| P3-1 matrix omissions | **NOT CURED** | Coverage expanded substantially, but misses amended-sibling hooks, marker-retirement crash, hidden flagged-worktree drift, staged-only orphan/no-op, pending-backend preflight order and non-Unix first publication. |
+
+## New P2 findings
+
+- **P2-N1 — staged-only orphan marker bypasses pre-no-op refusal.** If a new marker is staged and then deleted from the worktree, `physical_marker_paths` sees nothing. A clean member-only invocation returns success/no-op at lines 1334–1341 before the raw index scan at lines 1350–1367, contradicting the documented staged-or-worktree orphan refusal.
+
+- **P2-N2 — backend capability preflight can follow durable mutation.** `read_attempt` may republish `open.yaml`, and torn-sidecar recovery may rewrite `conf-integrity.yml`, before `commit_evidence_version` is checked at lines 1318–1332. An unsupported custom backend can therefore receive `UnsupportedOperation` only after durable local mutation.
+
+## L-COA-8 / G13 matrix
+
+| Axis | Verdict |
+|---|---|
+| Durable identity before first irreversible commit | Partial pass; nominal WAL ordering passes, but capability ordering is not fully non-mutating. |
+| Exact same-ID retry only from durable proof | **Fail**: hidden assume-valid/skip-worktree edits leave checkpoint evidence unchanged. |
+| False fusion forbidden | **Fail**: amend-created C2 is accepted and claimed under X. |
+| Unproved sameness splits safely | **Fail**: unsafe C1/C2 publication can be laundered into Y. |
+| Member-succeeded/root-failed convergence | **Fail**: `.retired-*` crash state wedges recovery; non-Unix marker publication fails. |
+| Marker retirement exact and recoverable | **Fail**: retirement nonce is not journaled and is created in the reserved namespace. |
+| WAL tamper/CAS | **Fail**: source-path replacement race remains. |
+| Hook and private-runtime postconditions | **Fail**: combined C2/private-WAL publication remains in history. |
+| Selection/index/worktree preservation | **Fail**: marker-disabled member-only commits the unselected root; integrity sidecar and hidden flagged bytes are not fully protected. |
+| Marker-disabled/no-op compatibility | **Fail**: root-selection regression and staged-only orphan no-op. |
+| Public backend/API behavior | Partial: additive/source-compatible capability surface, but recovery can mutate before capability refusal. |
+| Schema and root association | Pass: `merge` remains represented and ordinary root lookup remains trailer-first. |
+
+## Scope, APIs and frozen boundaries
+
+The exact core delta is 12 files, `+7,154/−230`:
+
+- `dev-docs/GwzCommitMarker.md`
+- `src/artifact/conf_integrity.rs`
+- `src/artifact/mod.rs`
+- `src/git/gitbackend/contract.rs`
+- `src/git/gitbackend/preservation.rs`
+- `src/git/gitbackend/repository.rs`
+- `src/workspace_ops/handle_commit.rs`
+- `src/workspace_ops/tests/g01.rs`
+- `src/workspace_ops/tests/g01/tracking_backend.rs`
+- `src/workspace_ops/tests/g13.rs`
+- `src/workspace_ops/tests/g13_retry_review.rs`
+- `src/workspace_ops/tests/mod.rs`
+
+Frozen/lane boundaries pass: no changes under `checked_artifact`, `workspace_ops/merge/v1_lifecycle`, the commit-log lane, Cargo/lib/protocol, inventories, pins or `gwz.conf`. The boundary checker passed.
+
+Public changes are additive: `COMMIT_EVIDENCE_V1` and defaulted `GitBackend` methods preserve source compatibility, with no inappropriate production visibility widening. Their runtime contract is nevertheless incomplete because of P2-N2.
+
+## Direct commands and exits
+
+```text
+git rev-parse HEAD
+exit 0
+c6ea63643166cc871422b01586cc322317c6a74a
+
+git show -s --format='%H%n%P%n%T' c6ea63643166cc871422b01586cc322317c6a74a
+exit 0
+candidate: c6ea63643166cc871422b01586cc322317c6a74a
+parent:    dd31d54439e9244cba876d159383a5fc5e9584b2
+tree:      f435daf509a3027cf8fffe5e4c930903b6fd08e2
+
+git merge-base --is-ancestor dd31d544... c6ea636...
+exit 0
+
+git diff --check dd31d544...c6ea636...
+exit 0
+
+git status --short
+exit 0
+<empty>
+
+cargo fmt --all -- --check
+exit 0
+
+python3 scripts/checks/check_checked_artifact_boundaries.py
+exit 0
+
+cargo test --locked workspace_ops::tests::g13 -- --nocapture
+exit 0
+39 passed; 0 failed
+
+cargo test --locked workspace_ops::tests::g13_retry_review -- --nocapture
+exit 0
+30 passed; 0 failed
+
+cargo test --locked git::tests::g13
+exit 0
+7 passed; 0 failed
+```
+
+A Windows cross-check was attempted but exited 101 because the host cross-compilation environment lacked required MSVC/zlib headers; it is not credited. The canonical long full suite was deliberately not repeated.
+
+## CLI report branch
+
+Required rebase verification completed in `/Users/owebeeone/limbo/gwz-log-worktrees/s1.1/gwz-cli`:
+
+```text
+git rebase b8fd105489675f871591a25eca8adde928077c41
+exit 0
+Current branch codex/gwz-log-s1-1 is up to date.
+```
+
+Before and after:
+
+- Report commit: `d87f6ae9cf1ffba82ccb08321c04449bdb3fbe5c`
+- Parent: `b8fd105489675f871591a25eca8adde928077c41`
+- Report blob: `804cc0cdffb12da5e0ffebf4e1af57fe856c2237`
+- Blob-preservation comparison: exit 0
+- Diff from CLI main: only `A dev-docs/GwzLog-S1.1-Review.md`
+- CLI worktree: clean
+
+No normative document was changed, no final text was appended, and nothing was pushed.
