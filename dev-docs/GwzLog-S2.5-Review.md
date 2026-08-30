@@ -371,3 +371,265 @@ Round-2 remediation must, at minimum:
    exact regressions for every finding above.
 
 No core remediation belongs in this review lane.
+
+---
+
+## Round 2 — terminal final review
+
+**Verdict: NO-GO — TERMINAL. S2.5 freezes.**
+
+- **Integrated core base:** `20d7c4bea41d51983fa4a136b983bedb9ec017a6`
+- **Rebased S2.5 commit:** `85525681048228bf4e7c95695c6d21742bdfd9db`
+- **Remediation / reviewed HEAD:** `f165040207fbfa9d8ae7ab990b7bdf5df81a388a`
+- **Normative CLI authority:** `64e159064a1d0a050fb4a63414e3d0a62fe67aa9`
+- **Mode:** final round-2 review of the five round-1 P1 cures, the P2
+  acceptance cure, rebase integrity, S2.5 envelope preservation, and the
+  disclosed path-history tradeoff only; core read-only
+- **Round-2 finding count:** 0 P0 / 1 P1 / 1 P2 / 0 P3
+
+The complete 373-line round-1 report above was reread from exact CLI authority
+`64e1590` before round-2 review action. The round-1 authority chain and its
+executed S0.2 L-ENV-1..14 requirements remain controlling; no stale core copy
+was substituted. This section is the terminal decision for the exact integrated
+train. It does not open a wider third discovery round.
+
+Four production cures are sound, and the jobs/determinism acceptance cure is
+materially stronger. Sealed groups are no longer mutable, late group membership
+inherits repository-local predecessors, all path-reader process lifetime is
+inside the jobs budget, and both cap branches stop before their successor read.
+The complete-event jobs test now forces real overlap and compares full event
+values.
+
+The non-monotone memory cure is incomplete. It bounds the checked one-sided
+inversion only when the other cursor ends at its old frontier. Two simultaneously
+live inverted cursors still make pending memory grow linearly with history at
+constant W-density. Separately, the default-coalescing cap regression admits a
+mutation that restores a beyond-cap successor read, although the reviewed
+production code is correct.
+
+### Round-1 cure matrix
+
+| Round-1 finding | Round-2 result | Evidence |
+|---|---|---|
+| F1 sealed-but-output-blocked membership | **CURED** | `PendingGroup.sealed` is independent of readiness; `try_join` rejects sealed groups. The exact two-fragment marker regression passes with repeated provenance. |
+| F2 late-membership repository precedence | **CURED** | Per-cursor last-group state and an acyclic predecessor graph carry native precedence through late joins. The exact probe and held-group variant pass. |
+| F3 non-monotone no-limit high water | **NOT CURED** | The checked one-sided 20/200-tail regression is bounded, but the exact same-finding two-live-cursor extension grows from 23 to 103 buffered entries as tail depth grows from 20 to 100. See R2-F1. |
+| F4 path readers outside `--jobs` | **CURED** | Path cursor construction is inert; each synchronous child is started, waited, and reaped inside a read permit. The production `jobs=1` path-reader test reports and observes one active reader. |
+| F5 beyond-cap successor work | **CURED in production; acceptance incomplete** | Both merge branches check/return before advancing. The exact no-coalesce entry/degradation regression passes, but the coalescing test admits a branch-local reversion. See R2-F2. |
+| F6 weak jobs/determinism acceptance | **CURED** | Jobs 1, 2, and 8 over four cursors force exact overlap 1, 2, and 4; reported concurrency matches, and full `Vec<CommitLogMergedEvent>` values, including degradation and byte-carrying entry fields, compare equal. |
+
+## Round-2 findings
+
+### [P1 R2-F1] Two live non-monotone cursors still retain history outside W
+
+The F3 remediation adds `frontier_blocker_cursor` at
+`src/operation/commit_log/merge.rs:431-462`. It advances a cursor that prevents
+an unsealed predecessor from closing when a sealed descendant waits behind that
+predecessor. This is sufficient for the checked regression at
+`merge_tests.rs:357-381`: cursor A has the inverted tail, while cursor B ends
+after its `@0` frontier.
+
+It is not sufficient when both cursors remain live. A disposable exact-source
+probe used unique, unmarked entries:
+
+```text
+cursor A: a-frontier@0, a-tail-0@10000, a-tail-1@9939, ...
+cursor B: b-frontier@0, b-tail-0@10000, b-tail-1@9939, ...
+coalesce=true, no cap, jobs=1
+```
+
+Every adjacent tail instant differs by 61 seconds. At each instant there are
+only the A/B pair; time zero has only the two frontier entries. Messages and
+hashes are member-qualified, so heuristic coalescing is impossible. Thus every
+inclusive 60-second interval contains at most two entries regardless of tail
+depth.
+
+Exact results on `f165040` were:
+
+```text
+tail length 20:   max_buffered_entries = 23
+tail length 100:  max_buffered_entries = 103
+```
+
+The 100-tail run emitted all 202 singleton groups, and each repository retained
+its exact native sequence `frontier, tail-0, ..., tail-99`; correctness was not
+traded for the high-water result. The scheduler instead chooses one old
+unsealed root and drains the other live cursor until it passes that root's
+threshold. Each drained tail group remains blocked behind that other cursor's
+own `@0` predecessor, so the pending set grows with the tail. Switching roots
+does not recover the already accumulated bound.
+
+The probe's high-water assertion (`<= 6`) failed, as expected, with `short=23`
+and `long=103`; 0/1 passed, 1 failed. A byte comparison confirmed the probe's
+`merge.rs` was identical to the candidate; its only source delta was the added
+test. This is the same round-1 F3 envelope, now exercised with two still-live
+cursors, not a new third-round feature case.
+
+The implementation remains O(history) for this accepted non-monotone input,
+not O(selected repositories × entries within W). It violates L-COA-7,
+L-PRF-1, and L-ENV-2.
+
+### [P2 R2-F2] Default-coalescing cap termination is correct but not mutation-tight
+
+The reviewed production code cures F5 in both paths. No-coalesce emits and
+checks the limit before `advance_cursor` at `merge.rs:260-273`. Coalescing
+admits, absorbs already-seen siblings, and force-emits at the satisfied cap
+before the later advance at `merge.rs:276-293`.
+
+The exact round-1 entry/degradation probe at `merge_tests.rs:184-206` is strong
+but sets `coalesce=false`. The default-coalescing acceptance test at lines
+143-181 permits `pulls <= 4`. A disposable branch-local mutation moved only the
+coalescing `advance_cursor` from after its cap block to before it. All 12 merge
+tests still passed.
+
+In the existing three-cursor cap-one fixture, correct execution performs
+exactly three prime pulls. The mutant adds one successor pull from the selected
+cursor, totaling four, which the assertion explicitly admits. If that successor
+is a degradation, the mutated reader emits it and pulls EOF; the helper also
+reduces raw events to groups before checking membership. The code is presently
+correct, so this is an acceptance P2 rather than a production P1. A protecting
+test would assert exactly three pulls and inspect raw events with a
+beyond-cap degradation or panic/block sentinel.
+
+## Final owned-row matrix
+
+| Row | Round-2 result | Evidence |
+|---|---|---|
+| L-COA-7 | **FAIL** | Inclusive W=60 joining, W=61 splitting, sealing, and repeated marker provenance pass. R2-F1 still retains an unbounded pending tail for two live inversions at constant W-density. |
+| L-ORD-2 | **PASS** | Absolute committer seconds and least-sibling `(member_id, hash)` ties remain deterministic. The two-live probe preserves both native cursors; its timestamp escape is confined to L-ENV-2's explicit exception. No wider ordering relaxation was found. |
+| L-DEP-1 | **PASS** | Global post-coalescing default 50, explicit positive N, zero/no-limit, explicit range/since/until lift, and explicit-N override are unchanged and pass. |
+| L-PRF-1 | **FAIL** | Ordinary monotone and checked one-sided inputs stream without whole-history collection. R2-F1 makes pending memory linear in tail depth while entries within W remain constant. |
+| L-PRF-2 | **PASS** | Every production reader setup/read and complete path-child lifetime is under the standard jobs budget; jobs greater than repository count bottom out naturally and results remain complete-event identical. |
+| L-ENV-1 | **PASS** | Signed `i64` absolute instants, saturation at extremes, preserved offsets, and offset-independent ordering are unchanged. |
+| L-ENV-2 | **FAIL** | F1 sealing and F2 predecessor cures pass, but the bounded frontier escape is incomplete for two simultaneously inverted live cursors. |
+| L-ENV-3 | **FAIL acceptance** | The production cap implementation closes only observed siblings and performs no successor work after satisfaction. R2-F2 shows the default-coalescing regression is not mutation-tight. |
+| L-ENV-4 | **PASS** | The forced-overlap test reaches exact ceilings for 1/intermediate/>repositories and compares complete event values across schedules. No jobs-dependent semantic branch was found. |
+
+## Path-history process/CPU tradeoff
+
+F4's cure deliberately replaces one persistent path-history `git rev-list`
+child with a synchronous command for each pull:
+
+```text
+git rev-list --max-count=1 --skip=N ... -- <pathspecs>
+```
+
+The constructor now stores only the resolved OID plan, pathspecs, and skip
+counter. `serve_cursor` holds the read permit across `next()`, and
+`Command::output` waits for and reaps the child before releasing it. This makes
+the jobs ceiling honest and removes persistent-child cleanup ambiguity.
+
+The cost is real and explicitly accepted for this review axis: exhausting a
+D-entry path cursor requires D+1 process starts, and repeated `--skip=N` may do
+roughly quadratic traversal work for a deep unlimited path history. The
+ordinary default cap bounds the requested result depth; explicit
+range/no-limit path requests can be materially slower. Bare no-path deep
+histories remain on the streaming libgit2 revwalk, so this tradeoff does not
+cure R2-F1 and does not itself fail L-PRF-1 or L-PRF-2. It is recorded as
+non-blocking technical debt, not hidden as free performance.
+
+## Rebase, scope, and identity
+
+The train is exact and linear:
+
+```text
+f165040207fbfa9d8ae7ab990b7bdf5df81a388a
+  parent 85525681048228bf4e7c95695c6d21742bdfd9db
+85525681048228bf4e7c95695c6d21742bdfd9db
+  parent 20d7c4bea41d51983fa4a136b983bedb9ec017a6
+20d7c4bea41d51983fa4a136b983bedb9ec017a6
+  parent 2214eace46b72915f76ab28e03e16716ce9d1a60
+```
+
+Trees are respectively:
+
+```text
+20d7c4b  e9c81c4ad6393d1f0761d21e0d8480a6d20cb9ce
+8552568  caf09fd573cf39ba24d9781547f112c66e5c343e
+f165040  a33438c9e816481279e9ae9f9775c289af2e58c0
+```
+
+`range-diff` from original `2214eac..ba525e9` to integrated
+`20d7c4b..8552568` shows only the expected S2.3 conflict resolutions: the
+landed lock argument remains in `open_history(..., lock.as_ref())`, and the
+test import context retains S2.3's removal of now-unused snapshot symbols while
+adding the S2.5 merge imports. No S2.5 hunk is silently lost.
+
+The remediation delta `8552568..f165040` is confined to four private
+commit-log implementation/test files:
+
+```text
+src/operation/commit_log/merge.rs        +203/-101
+src/operation/commit_log/merge_tests.rs  +251/-38
+src/operation/commit_log/mod.rs          +114/-68
+src/operation/commit_log/tests.rs         +42/-0
+```
+
+The larger state-machine rewrite is within the five required cures. No handler,
+output, filter implementation, request protocol/schema/generated artifact,
+CLI, S2.6 wiring, dependency, or lockfile changed. The merge remains a private
+child; its API stays `pub(super)`; path-reader probes are test-only. Public
+handler/output/filter/protocol surfaces remain untouched.
+
+The base-to-final binary diff SHA-256 is
+`ed6d318d3778b60c1a6d35a983385e28cc2f6041546bc7bd29c051f7a56a1431`;
+the remediation-only binary diff SHA-256 is
+`c1bed1c6f88d6b7fa02400e9805dc97583600f25302928517e66b5421fcbcef8`.
+The repository is non-shallow, has no replacements or grafts, and `git fsck`,
+`git diff --check`, worktree, and index checks pass. The core worktree remained
+clean and read-only throughout both rounds.
+
+## Round-2 verification
+
+Reviewer-run proportional gates on exact `f165040`:
+
+- `cargo test --locked --lib operation::commit_log::merge_tests -- --nocapture`
+  — 12/12 passed.
+- `cargo test --locked --lib operation::commit_log:: -- --nocapture` — 82/82
+  passed.
+- Exact disposable two-live F3 high-water probe — expected RED, 0/1 passed;
+  `short=23`, `long=103`.
+- Disposable coalescing-only pre-cap-advance mutation — unexpectedly 12/12
+  merge tests passed, proving R2-F2.
+- `cargo fmt --all -- --check` — exit 0.
+- `cargo check --locked --all-targets` — exit 0.
+- `CLIPPY_CONF_DIR="$PWD" cargo clippy --locked --all-targets --all-features --
+  -D warnings` — exit 0.
+- `protocol/.regen-venv/bin/python protocol/regen.py --check` — exit 0.
+- checked-artifact boundary — exit 0; 15 visible entries, 5 classified
+  modules.
+- release-boundary unit suite — 6/6 passed.
+- per-commit lane gates — exit 0 at both `8552568` and `f165040`.
+
+The builder's exact complete pinned broad run is valid evidence, but it does
+not contain the missing two-live probe:
+
+```text
+TAUT_PYTHON=$PWD/protocol/.regen-venv/bin/python cargo test --locked
+exit 0 on f165040:
+  lib:         1,778 passed / 0 failed / 1 ignored
+  diff-render: 10/10
+  protocol:    33/33
+  publish:      9/9
+  rename:       2/2
+  doctests:     0
+```
+
+A preceding unpinned run was not green: it exited 101 after the lib
+1,778/0/1 and diff-render 10/10 portions because ambient Homebrew Python lacked
+`taut`. The exact pinned protocol rerun was 33/33 before the complete pinned
+full run above. The builder also reported merge 12/12, commit-log 82/82,
+fmt/check/clippy, protocol regeneration, checked boundary, the privacy/call-
+graph aggregate including its 558.7-second compiler suite, release 6/6,
+no-ff 7/7, and both per-commit lane gates all at exit 0. The reviewer did not
+repeat the full approximately 20-minute suite.
+
+## Terminal decision
+
+**NO-GO. Do not land or push `85525681048228bf4e7c95695c6d21742bdfd9db`
+or `f165040207fbfa9d8ae7ab990b7bdf5df81a388a`.**
+
+R2-F1 leaves the original P1 memory envelope unsatisfied; R2-F2 leaves a
+mandated cap acceptance seam unprotected. Under the final-review charter this
+decision is terminal: S2.5 freezes, no round-3 remediation is authorized, and
+the core remains unchanged. No landing or push was performed by the reviewer.
