@@ -565,3 +565,26 @@ S2.2.
 
   Sequencing: S1.1-B ∥ S2.2-B immediately; S2.4 lands per its GO;
   S2.5+ wait on S0.2.
+
+- **S0.2 EXECUTED, 2026-08-30 (lane owner, on the operator's "run the
+  sweep now").** Fourteen envelope rows minted as the requirements'
+  "Validity envelopes" section — L-ENV-1..4 (S2.5: absolute-instant
+  ordering over any i64 git records; inclusive W boundary + the
+  non-monotone-cursor frontier escape reusing L-COA-7's shared-key
+  form; honest cap truncation; jobs-determinism), L-ENV-5..7 (S2.6:
+  regex-crate grammar as a named git divergence, full-message matching,
+  typed pattern refusals; RFC3339/epoch-only dates with approxidate
+  refused-teaching; filter-narrowing unified with selection-narrowing),
+  L-ENV-8..9 (S3.1: flag conflicts, worst-class exit precedence, EPIPE
+  = clean exit 0), L-ENV-10..11 (S3.2: lossy + C0 sanitization —
+  terminal-escape injection impossible in human mode; record-own-offset
+  dates; no truncation), L-ENV-12..13 (S3.3: lossy flag, schema-tagged
+  records per the git_status_json house precedent), L-ENV-14 (S3.6:
+  byte-parity pinned at the lossy edge), plus the S3.4 battery fixture
+  list and S4.1 sweep coverage. House-grounded where precedent exists
+  (to_string_lossy idiom; schema-field convention). **The S0.2 gate on
+  S2.5, S2.6, and S3.x is LIFTED** — their launches now wait only on
+  their §4 dependencies. Step reviews key on L-ENV rows exactly like
+  L-* rows; no separate S0.2 review round (lane-owner spec act per §2's
+  remediation-ownership rule, scrutinized by the consuming steps'
+  reviews).

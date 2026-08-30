@@ -443,6 +443,120 @@ matching stays valid.
   standard `--jobs` ceiling; output ordering must be unaffected by
   concurrency.
 
+## Validity envelopes (the S0.2 sweep, EXECUTED 2026-08-30)
+
+One pass minting the previously-undefined input/edge envelopes for every
+remaining unbuilt step, after four envelope-class terminal findings
+(marker validity; pathspec magic; dotted ids twice; the L-COA-8 trust
+envelope). Each row names its owning step; step reviews key on these rows
+exactly like L-* rows. House defaults honored: lossy conversion is the
+standing non-UTF-8 idiom (`to_string_lossy` throughout gwz-cli); machine
+outputs carry `schema` fields (the `git_status_json`/`gwz.protocol/v0`
+precedent); refusals teach; read sides never break.
+
+**Ordering, time, and the window — owner S2.5:**
+
+- **L-ENV-1 (v0).** The ordering key is the committer time's ABSOLUTE
+  instant (epoch seconds, i64); the recorded UTC offset affects display
+  only, never order. Any timestamp git records is accepted — pre-epoch
+  (negative) and far-future values included, no clamping, no warnings
+  (present what the records say). Total order: epoch seconds, then the
+  deterministic tiebreak — for coalesced entries the tiebreak key is the
+  lexicographically-least sibling member id, then that sibling's hash.
+- **L-ENV-2 (v0).** The L-COA-7 window boundary is INCLUSIVE: a sibling
+  joins its group iff its committer instant ≥ (group's newest − W).
+  Cursors are NOT assumed monotone (git's default order can invert
+  around topology): an entry arriving BEHIND the emission frontier that
+  would have joined an already-emitted group emits separately under the
+  same provenance key — the L-COA-7 escape extended to frontier
+  violations, tested with a deliberately non-monotone fixture.
+- **L-ENV-3 (v0).** Reaching the depth cap terminates the walk; any
+  group still open at termination closes as-is with the siblings seen so
+  far (cap truncation is honest truncation — the machine record carries
+  no false completeness claim; L-JSN-1's members[] is what was seen).
+  `-n` takes an unsigned integer (clap rejects negatives); `--jobs`
+  inherits the existing global's validation unchanged.
+- **L-ENV-4 (v0).** Determinism row: identical inputs produce
+  byte-identical output for every `--jobs` value — L-PRF-2 made
+  testable.
+
+**Filters — owner S2.6:**
+
+- **L-ENV-5 (v0).** `--grep` and `--author` take Rust `regex`-crate
+  patterns (a NAMED divergence from git's POSIX flavors, stated in
+  help); `--grep` matches the FULL message (subject + body) regardless
+  of `--body`; `--author` matches the combined `Name <email>` string;
+  matching is case-sensitive; an invalid pattern is a typed refusal at
+  invocation (exit 2) naming the pattern error. No locale-dependent
+  behavior anywhere: comparisons are over bytes and absolute instants.
+- **L-ENV-6 (v0).** `--since`/`--until` accept RFC3339/ISO-8601
+  timestamps (date-only forms mean local midnight; offset-less forms are
+  LOCAL time) and `@<epoch-seconds>`; anything else — including git's
+  approxidate ("yesterday") — is a typed teaching refusal naming the
+  accepted forms (approxidate is a v2 candidate). Both bounds are
+  INCLUSIVE and compare against the committer instant.
+- **L-ENV-7 (v0).** Filters run per-repo pre-merge (L-COA-5): a
+  coalesced group whose siblings are partially removed by a filter
+  (e.g. `--no-merges` removing one repo's merge sibling) renders with
+  the SURVIVORS — the same narrowing rule as selection, one rule, no
+  special case. An empty result set is success: empty stdout, exit 0,
+  no degradation.
+
+**Flags and process behavior — owner S3.1:**
+
+- **L-ENV-8 (v0).** `-n` conflicts with `--no-limit` (clap-refused);
+  `--color` admits exactly always|never|auto; repeated flags follow
+  clap's standard last-wins/deny semantics — no bespoke handling.
+  Exit precedence: invalid invocation (2) beats everything; otherwise
+  the worst observed class wins (read-failure 1 over degraded-ok 0;
+  `--strict` promotes per L-EXIT-1).
+- **L-ENV-9 (v0).** EPIPE on stdout (e.g. piped to `head`) is clean
+  early termination: stop emitting, exit 0, no error spray — the
+  composability twin of the no-pager decision.
+
+**Human rendering — owner S3.2:**
+
+- **L-ENV-10 (v0).** Non-UTF-8 in messages, names, or paths renders
+  lossy (U+FFFD), never panics. Subjects are the first line; C0 control
+  characters in rendered subjects/names are sanitized (tab becomes one
+  space; other C0 bytes become U+FFFD) — terminal-escape injection via
+  commit message must be impossible in human mode. Machine mode
+  preserves content via JSON escaping instead (L-ENV-12).
+- **L-ENV-11 (v0).** The compact line's date renders as
+  `YYYY-MM-DD HH:MM:SS ±hhmm` in the COMMIT'S OWN recorded offset
+  (present what the records say; no locale, no local-time conversion).
+  No width-aware truncation anywhere in v0 (pipe-friendly); `--color=
+  auto` keys on stdout tty-ness only. Zero entries: empty stdout,
+  exit 0.
+
+**Machine output — owner S3.3 (byte-parity binds S3.6):**
+
+- **L-ENV-12 (v0).** JSON is UTF-8: any field whose source bytes were
+  not valid UTF-8 is emitted lossy AND the entry carries `"lossy":
+  true` (absent otherwise) — cheap honesty consumers can key on.
+  Hashes are full 40-char lowercase hex; parents keep git's recorded
+  order; times are `{"time": <epoch_seconds>, "offset_min": <n>}`;
+  JSONL records are guaranteed single-line (JSON escaping suffices).
+- **L-ENV-13 (v0).** Machine output is schema-tagged per house
+  precedent: the `--json` envelope object carries
+  `"schema": "gwz.log/v0"`; `--jsonl` begins with a header record
+  `{"record": "header", "schema": "gwz.log/v0"}`; every subsequent
+  record carries `"record": "entry"` or `"record": "degradation"`.
+- **L-ENV-14 (v0).** gwz-py's machine output byte-matches gwz-cli's
+  for identical inputs INCLUDING the lossy rule — the same U+FFFD
+  substitution points (L-PY-3's byte-compatibility made testable at
+  the envelope's hardest edge).
+
+**Battery additions — owner S3.4:** fixtures for: a non-UTF-8 path and
+a non-UTF-8 + C0-control commit message (human sanitization AND machine
+lossy-flag asserted, both clients); pre-epoch and far-future timestamps;
+equal-timestamp tiebreak determinism across `--jobs` values; the
+inclusive W-boundary case; the non-monotone-cursor frontier case; an
+invalid `--grep` pattern and an approxidate `--since` refusal.
+
+**S4.1:** the traceability sweep covers L-ENV-1..14 like every other
+implemented row.
+
 ## Deferred (v2 candidates)
 
 - The grouped (per-repository sections) rendering — Q-9's deferral
