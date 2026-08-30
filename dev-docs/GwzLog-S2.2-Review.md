@@ -542,3 +542,383 @@ The long full suite was deliberately not started; landing owns it.
 **NO-GO — terminal.**
 
 Do not land or push `8ec04f1d66f15ab21a99e04b73823b2845602bed`. F5, F6, and F7 remain uncured P2 findings, and the fixed round-two cap makes that terminal for this review charter. Further work requires lane-owner re-chartering or disposition, not another review round under this S2.2 cap.
+
+## Terminal re-chartered peer-blind review
+
+**Verdict: NO-GO — terminal; freeze S2.2**
+
+- Amendment authority: gwz-cli main `b8fd105489675f871591a25eca8adde928077c41`
+- Core baseline/parent: `dd31d54439e9244cba876d159383a5fc5e9584b2`
+- Core candidate: `7e2cd3caa57d18cffdf00bf85c046ed3aa96e905`
+- Core merge-base: `dd31d54439e9244cba876d159383a5fc5e9584b2`
+- Core worktree: `/Users/owebeeone/limbo/gwz-log-worktrees/s2.2/gwz-core`
+- Rebased report-branch HEAD: `04c1fe3995a0b34292e48ecb847b451f8933e24c`
+- Review scope: amended F5/F6/F7, no regression of cured F1-F4/F8, and strict ownership/frozen boundaries
+- Uncured finding count: **0 P0 / 0 P1 / 2 P2 / 0 P3**
+
+F5 is cured across the mandated native-Git parity matrix. F1-F4 and F8 remain cured, including the now mutation-tight F2 access-order sentinel. F6 remains non-compliant for open two-dot ranges with stored legacy dotted snapshot IDs, and F7 remains uncured because the amended regression matrix does not exercise those forms. The shared defect affects both diff and log.
+
+Under the one-terminal-review charter, either P2 is independently terminal. No further remediation/review round exists under this charter.
+
+### Report-branch rebase
+
+The clean isolated gwz-cli report branch was rebased onto the exact amendment authority before review.
+
+Before rebase:
+
+```text
+HEAD:        3064bd4380af3193d61feee12f4a47c34c6d9a6a
+report blob: 23455183cc7cd8705a5e0d8091d36bf963a87f85
+```
+
+After `git rebase b8fd105489675f871591a25eca8adde928077c41`:
+
+```text
+HEAD:        04c1fe3995a0b34292e48ecb847b451f8933e24c
+parent:      e334606c04c2b4dc231d672eda648c285887e1bd
+merge-base:  b8fd105489675f871591a25eca8adde928077c41
+report blob: 23455183cc7cd8705a5e0d8091d36bf963a87f85
+```
+
+The report bytes were preserved. Relative to the authority commit, the branch adds only:
+
+```text
+A  dev-docs/GwzLog-S2.2-Review.md
+```
+
+No normative document was changed.
+
+## F1-F9 dispositions
+
+### F1 — CURED; no regression [former P1]
+
+Path-limited history still launches `git rev-list` with both:
+
+```text
+GIT_OPTIONAL_LOCKS=0
+GIT_NO_LAZY_FETCH=1
+```
+
+The real-promisor regression creates a fresh `--filter=tree:0` clone, proves the required tree is absent locally, installs an observable upload-pack helper, byte-captures the complete `.git` file set, and requests path-limited history.
+
+It emits exactly one structured `HistoryUnreadable` degradation, invokes no transport helper, and leaves all captured repository bytes unchanged. This rechecks transport, objects, packs, refs, `FETCH_HEAD`, and maintenance side effects rather than relying on a fully materialized repository.
+
+### F2 — CURED; access-order guard is now mutation-tight [former P1]
+
+The common snapshot reader now validates the requested ID through `snapshot_path` before invoking its injected filesystem reader at `src/artifact/mod.rs:398-404`. It then binds the loaded body ID to the requested filename at lines 405-409.
+
+The new sentinel at `src/artifact/mod.rs:1006-1020` supplies a reader closure that increments a counter on its first call, requests `../escape`, and requires both `InvalidRequest` and a zero read count. A join/read-first mutant necessarily invokes that closure and changes the counter before later validation, so it fails even if it eventually returns the same error code. This cures the prior false-pass seam.
+
+Malformed, absolute, parent-containing, and filename/body-mismatched IDs remain typed failures. The log path contains no snapshot lookup `expect` or panic.
+
+### F3 — CURED; no regression [former P2]
+
+Diff and log still pass `manifest.workspace.id` to their shared referenced-snapshot loader. A foreign artifact with matching snapshot/member IDs and a locally present OID is rejected before per-member resolution.
+
+The focused foreign-workspace regression remains green.
+
+### F4 — CURED; no regression [former P2]
+
+Snapshot validation still runs over the selector-selected set before path routing at `src/operation/commit_log/request.rs:112-114`. Routing preserves already-degraded plans at lines 253-267.
+
+The combined snapshot-plus-member-path regression continues to retain:
+
+- the required `@root` snapshot-missing degradation;
+- the routed ready member’s entries;
+- the off-path selected member’s snapshot-missing degradation;
+- exact target order and mutually exclusive event sequences.
+
+### F5 — CURED [former P2]
+
+`GitPathspec` at `src/operation/commit_log/request.rs:270-324` separates the magic envelope from its payload. Routing uses only the payload, then reconstructs the token with the original envelope. It recognizes:
+
+- complete long-form `:(...)` envelopes;
+- short exclusions `:!` and `:^`;
+- long `top` and `/` magic;
+- short top form `:/`.
+
+Workspace-root exclusions are also carried into member fan-out without losing their magic prefix.
+
+The four F5 regressions compare complete OID vectors, not counts or sets, against native Git. They cover:
+
+- root `.` and a companion exclusion;
+- member-root `.` with an empty commit and merge simplification;
+- root-repository and member-repository subdirectory invocation;
+- long `:(exclude)`, short `:!`, and short `:^`;
+- long `:(top)` and short `:/`;
+- workspace-root fan-out to root and member histories.
+
+All four passed. No residual defect was found within the amended F5 matrix.
+
+### F6 — UNCURED [P2]
+
+Closed legacy ranges, standalone legacy access, creation-only refusal, and safe internal dots are implemented. Open two-dot ranges remain outside the teaching-refusal logic.
+
+The shared guard is:
+
+```text
+src/diff/operands.rs:109-115
+```
+
+```rust
+(token.starts_with(&left) && token.len() > left.len())
+    || (token.ends_with(&right) && token.len() > right.len())
+```
+
+The strict `>` requires content beyond the legacy endpoint plus delimiter. That is true for closed ranges, but false when the opposite side is omitted. Open sides are part of the shared grammar: `split_range` explicitly defaults an empty endpoint to `HEAD` at `src/diff/operands.rs:312-328`.
+
+With a stored legacy snapshot `trailing.`, the intended open two-dot range:
+
+```text
++trailing. + .. + <empty>
+```
+
+is spelled:
+
+```text
++trailing...
+```
+
+The candidate does not return the required typed refusal naming `trailing.`. Because `split_range` tries `...` first, it instead returns:
+
+```text
+Range {
+    left: Snapshot("trailing"),
+    right: Revision("HEAD"),
+    symmetric: true,
+}
+```
+
+It has silently changed all three relevant meanings:
+
+- snapshot `trailing.` became snapshot `trailing`;
+- two-dot became three-dot;
+- the required teaching refusal disappeared.
+
+If a separate snapshot `trailing` exists, the command silently reads the wrong artifact and executes the wrong range semantics. If it does not exist, the request fails later for the wrong snapshot ID rather than teaching about `trailing.`.
+
+Adjacent-dot IDs have the same open-two-dot hole. With stored `adjacent..dots`, this operand:
+
+```text
++adjacent..dots..
+```
+
+is accepted as:
+
+```text
+Range {
+    left: Snapshot("adjacent"),
+    right: Revision("dots.."),
+    symmetric: false,
+}
+```
+
+An exact-source harness compiling the candidate’s `src/diff/operands.rs` produced:
+
+```text
++trailing... => Ok(Range { left: Snapshot("trailing"), right: Revision("HEAD"), symmetric: true })
++trailing.... => Err(... snapshot id 'trailing.' is ambiguous ...)
++adjacent..dots.. => Ok(Range { left: Snapshot("adjacent"), right: Revision("dots.."), symmetric: false })
++adjacent..dots... => Err(... snapshot id 'adjacent..dots' is ambiguous ...)
+```
+
+Thus three-dot open forms happen to be caught through the shorter-delimiter prefix, while two-dot open forms bypass the refusal. L-RNG-6 requires the teaching refusal whenever a stored ambiguous legacy `+` endpoint participates in `..` or `...`; it does not exempt open ranges. L-RNG-1 also requires the shared diff range grammar, whose own documented behavior includes empty sides.
+
+Both clients are affected through the intended shared seam:
+
+- log calls `parse_revision_arg_with_snapshot_ids` at `src/operation/commit_log/request.rs:90-95`;
+- diff calls `parse_comparison_with_snapshot_ids` at `src/diff/handle_diff.rs:119-125`;
+- both enumerate the same stored snapshot IDs through `artifact::snapshot_ids_for_operand_parsing`.
+
+This is shared implementation, not duplicated-client drift.
+
+**Required remedy for any future re-plan:** after exact whole-token stored-ID matching has already won, recognize legacy IDs at an open range boundary as participating endpoints too. Add parser and end-to-end diff/log cases for both open sides of `..` and `...`, including the collision where the shorter non-legacy snapshot also exists.
+
+### F7 — UNCURED [P2]
+
+The previously named guards remain strong:
+
+- entry/degradation helpers reject mixed event streams;
+- strictness covers the complete observed-event truth table;
+- bare classification and contextual diagnostics are exercised;
+- absent/distributed tag intersections are negative-tested;
+- criss-cross history proves all best merge bases are hidden;
+- ordinary two-dot resolution degrades only the member missing one endpoint;
+- F2’s access-order test is now mutation-tight;
+- F5 uses exact native OID sequences.
+
+The amended F6 tests nevertheless false-pass the defect above.
+
+All teaching-refusal fixtures provide a non-empty safe opposite endpoint:
+
+```text
++<legacy-id>..<safe-id>
++<safe-id>..<legacy-id>
++<legacy-id>...<safe-id>
++<safe-id>...<legacy-id>
+```
+
+That always makes `token.len() > boundary.len()` true. The end-to-end diff/log tests likewise use closed ranges. None exercise the existing shared grammar’s open-side forms, even though an omitted side defaults to `HEAD`.
+
+Accordingly, all ten named `l_rng_6` tests pass while the open two-dot parser silently selects an alternate meaning. This is a material acceptance false-pass, not merely optional additional coverage.
+
+**Required remedy for any future re-plan:** include legacy adjacent/leading/trailing IDs on both sides of open `..` and open `...`, assert the exact `InvalidRequest` code and complete teaching message, and include a shorter stored snapshot whose accidental selection would otherwise succeed.
+
+### F8 — CURED; no regression [former P3]
+
+The contextual classifier remains one shared implementation. Existing diff tests preserve exact `gwz diff` wording; log tests require `gwz log` and reject any `gwz diff` occurrence. The 111 focused diff tests passed.
+
+### F9 — accepted deviation remains recorded [former P3]
+
+The exact candidate diff is:
+
+```text
+14 files changed, 2707 insertions(+), 198 deletions(-)
+```
+
+Handwritten split:
+
+```text
+Production: +1259 / -166, net +1093
+Tests:      +1448 /  -32, net +1416
+Total:      +2707 / -198, net +2509
+```
+
+This is approximately 7.2 times the aspirational 350-line S2.2 estimate. The budget is not a hard acceptance limit, and the re-charter expressly required the F5/F6/F7 remediation matrix, so F9 is not reopened as a priority finding.
+
+The change remains topically contained. The size does, however, reinforce why the surviving open-range seam is material.
+
+## Requirement and review matrix
+
+| Row / constraint | Result | Evidence |
+|---|---|---|
+| **L-RNG-1** | **FAIL** | The classifier and normal range grammar are genuinely shared, and the amended pathspec clause passes. The same grammar documents open range sides, but a legacy open two-dot endpoint is silently reinterpreted under F6. |
+| **L-RNG-3** | **FAIL** | Safe snapshot/snapshot and snapshot/HEAD ranges, per-member resolution, and visible root/member degradation work. A stored legacy snapshot cannot safely occupy an open two-dot endpoint. |
+| **L-RNG-6** | **FAIL** | Schema-v0 list/read/standalone compatibility, creation-only refusal, compatibility note, internal dots, and closed teaching refusals work. Open two-dot legacy endpoints bypass the typed refusal and can select the wrong snapshot/range. |
+| **L-SEL-3** | **PASS** | Exact local tag sets, all-tag intersection, negative distributed/absent cases, same-named branch rejection, and shared `+` refusal remain green. |
+| **L-TOL-2** | **PASS** | Per-member ordinary-resolution degradation, exact event sequences, and strict overlay semantics remain correct without owning CLI exit mapping. |
+| **F1 offline/read-only** | **PASS** | Real missing-tree promisor regression proves no transport helper and byte-identical repository state. |
+| **F2 confinement/binding/order** | **PASS** | ID validation precedes the injected filesystem read, body ID is bound, malformed paths are typed, and no panic remains. |
+| **F3 workspace identity** | **PASS** | Foreign snapshot identity is rejected by the shared diff/log loader before member resolution. |
+| **F4 degradation visibility** | **PASS** | Selector-wide snapshot degradation survives path routing with exact event sequences. |
+| **F5 pathspec parity** | **PASS** | Long and short magic, top, root/member subdirectories, `.`, empty commits, merges, exclusions, and workspace fan-out match native full OID sequences. |
+| A..B ordinary semantics | **PASS except legacy open boundary** | Normal B-push/A-hide lowering and mixed-member degradation work; F6 breaks an open two-dot legacy endpoint. |
+| A...B ordinary semantics | **PASS** | Both endpoints are pushed and every best merge base is hidden; criss-cross parity remains green. |
+| Leading `+` after `--` | **PASS** | Explicit pathspecs bypass operand classification. |
+| Existing `gwz diff` behavior | **PASS outside shared F6** | 111 focused diff tests pass and diagnostic wording is preserved. F6 is a common-parser defect affecting diff and log equally. |
+| Strict ownership | **PASS** | Core exposes only semantic planning/strictness. No CLI flag, exit mapping, renderer, output producer, or handler implementation was added. |
+| S2.4 declarations | **PASS** | `coalesce.rs` is unchanged; the 60-second admission declaration and group-assembly seam survive. The sole coalescing-test change adds the new `source_kind` fixture field. |
+| S2.3/S2.5/later scope | **PASS** | No `+lock`, k-way merge, depth, jobs, window consumer, handler, renderer, or machine-output creep. |
+| Frozen protocol/inventories/pins/lifecycle | **PASS** | No checked-artifact/lifecycle, crate-root, Cargo, protocol, generated catalog, inventory, census, or pin change. Formal boundary/protocol gates are green. |
+| Visibility | **PASS** | `operation::commit_log` remains private; new shared seams are `pub(crate)`; no external crate surface was widened. |
+| LOC/scope | **ACCEPTED DEVIATION** | Net +2509 is materially above the aspirational budget but topically contained and explicitly recorded. |
+
+## Scope and visibility assessment
+
+Changed files:
+
+```text
+src/artifact/mod.rs
+src/diff/classify.rs
+src/diff/handle_diff.rs
+src/diff/mod.rs
+src/diff/operands.rs
+src/diff/tagged.rs
+src/diff/tests/t_classify.rs
+src/diff/tests/t_handle.rs
+src/diff/tests/t_plan.rs
+src/operation/commit_log/coalesce_tests.rs
+src/operation/commit_log/mod.rs
+src/operation/commit_log/request.rs
+src/operation/commit_log/tests.rs
+src/workspace_ops/handle_materialize.rs
+```
+
+Positive scope results:
+
+- `src/operation/commit_log/handler.rs` is unchanged and remains the refusal stub.
+- `src/operation/commit_log/coalesce.rs` is unchanged.
+- The coalescing test change is the one-field fixture adaptation required by `CommitLogTarget::source_kind`.
+- The `handle_materialize` change only adapts duplicate-snapshot checking to the now-fallible confined `snapshot_path`.
+- No CLI, Python, renderer, handler production, output production, `+lock`, merge/depth/jobs/window-consumer, dependency, schema, protocol, pin, or inventory work was added.
+- Shared artifact/operand/classifier/tag seams are `pub(crate)` where newly exposed.
+- Commit-log remains private through `operation`.
+
+The implementation is structurally disciplined despite its size. The terminal result is caused by the owned F6 semantic hole, not by scope creep.
+
+## Commands and direct exits
+
+### Report-branch rebase
+
+- `git rebase b8fd105489675f871591a25eca8adde928077c41` — exit 0
+- `git merge-base b8fd105489675f871591a25eca8adde928077c41 HEAD` — exit 0; exact amendment authority
+- `git hash-object dev-docs/GwzLog-S2.2-Review.md` before/after — exit 0; unchanged `23455183cc7cd8705a5e0d8091d36bf963a87f85`
+- `git diff --name-status b8fd1054..HEAD` — exit 0; only `A dev-docs/GwzLog-S2.2-Review.md`
+- `git diff --check b8fd1054..HEAD` — exit 0
+- Final CLI `git status --short` — exit 0; empty
+
+### Core identity and diff
+
+- `git rev-parse HEAD` — exit 0; `7e2cd3caa57d18cffdf00bf85c046ed3aa96e905`
+- `git rev-parse HEAD^` — exit 0; `dd31d54439e9244cba876d159383a5fc5e9584b2`
+- `git merge-base dd31d544... 7e2cd3ca...` — exit 0; exact baseline
+- `git diff --stat dd31d544...7e2cd3ca` — exit 0; 14 files, 2,707 insertions, 198 deletions
+- `git diff --check dd31d544...7e2cd3ca` — exit 0
+- Final core `git status --short` — exit 0; empty
+
+### Focused tests
+
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" cargo test --locked operation::commit_log -- --nocapture` — exit 0; 65 passed
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" cargo test --locked diff:: -- --nocapture` — exit 0; 111 passed
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" cargo test --locked artifact::tests:: -- --nocapture` — exit 0; 58 matched tests passed
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" cargo test --locked f5_ -- --nocapture` — exit 0; 4 passed
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" cargo test --locked l_rng_6 -- --nocapture` — exit 0; 10 passed
+- Exact F2 access-order sentinel — exit 0; 1 passed
+
+### Adversarial parser probe
+
+An ephemeral Rust harness imported the exact candidate `src/diff/operands.rs`; only the model types and the candidate-equivalent legacy-ID predicate were supplied as stubs.
+
+- `rustc --edition=2024 -o /tmp/gwz-s2-2-parser-probe -` — exit 0
+- `/tmp/gwz-s2-2-parser-probe` — exit 0; produced:
+
+```text
++trailing... => Ok(Range { left: Snapshot("trailing"), right: Revision("HEAD"), symmetric: true })
++trailing.... => Err(... snapshot id 'trailing.' is ambiguous ...)
++adjacent..dots.. => Ok(Range { left: Snapshot("adjacent"), right: Revision("dots.."), symmetric: false })
++adjacent..dots... => Err(... snapshot id 'adjacent..dots' is ambiguous ...)
+```
+
+The temporary binary was deleted after the probe. No core source was edited.
+
+### Compatibility audit
+
+- `git rev-list -n1 v0.11.1` — exit 0; `be693bdebbecd8208ffc61f3343f8185c06f7184`
+- `git show v0.11.1:src/artifact/mod.rs` audit — exit 0; released schema-v0 creation/read used unrestricted portable-slug validation
+- Candidate artifact tests hand-write and list/read adjacent, leading, and trailing dotted schema-v0 artifacts — exit 0
+- Candidate carries the explicit permanent-read compatibility note at `src/artifact/mod.rs:725-728`
+
+### Formal gates
+
+- `cargo fmt --all -- --check` — exit 0
+- `cargo check --all-targets` — exit 0
+- `TAUT_PYTHON="$PWD/protocol/.regen-venv/bin/python" CLIPPY_CONF_DIR="$PWD" cargo clippy --all-targets --all-features -- -D warnings` — exit 0
+- `cargo metadata --format-version 1 --locked --no-deps` — exit 0
+- `bash scripts/checks/check_lane_commits.sh dd31d544... 7e2cd3ca...` — exit 0; exact candidate accepted
+- `PYTHONDONTWRITEBYTECODE=1 python3 scripts/checks/check_checked_artifact_boundaries.py --source src` — exit 0; 15 visible entries, 5 classified modules
+- `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest scripts/checks/test_release_boundary.py -v` — exit 0; 6 passed
+- `PYTHONDONTWRITEBYTECODE=1 python3 protocol/regen.py --check` — exit 0
+- `protocol/.regen-venv/bin/python protocol/check_log_additive.py` — exit 0; expected additive fingerprint
+- Frozen-path, handler, coalescer, Cargo, crate-root, protocol, inventory, and pin quiet checks — exit 0
+
+The long full suite was deliberately not started; landing would have owned it had the candidate passed review.
+
+## Final decision
+
+**NO-GO — terminal. Freeze S2.2.**
+
+Do not land or push `7e2cd3caa57d18cffdf00bf85c046ed3aa96e905`.
+
+F6 remains an owned-row P2 because open two-dot ranges with stored legacy dotted snapshot IDs bypass the mandatory typed teaching refusal and can silently select a different snapshot and range meaning. F7 remains an overlapping P2 because all amended tests omit the exact open-range forms that expose the defect.
+
+Per the lane-owner’s terminal re-charter, there is no further remediation or review round under this S2.2 charter.
