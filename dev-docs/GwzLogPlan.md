@@ -497,3 +497,71 @@ S2.2.
   the only re-chartered round: if it returns NO-GO, freeze S2.2, file the
   report, and return the lane to the operator for re-planning. No further
   remediation or review round exists under any framing.
+
+- **RE-PLAN, 2026-08-30 (lane owner, on the operator's "it looks like we
+  need to redesign the log plan").** State at re-plan: S2.0 and S2.1
+  reviewed and recorded; **S2.4's re-chartered round returned GO** (all
+  amended rows pass; landing proceeds per §2 if not already landed);
+  S2.2's re-chartered round terminal NO-GO with ONE surviving residue
+  (open-boundary legacy ids — the L-RNG-6 addendum now in the
+  requirements); S1.1 terminal NO-GO with 9 P1 / 3 P2
+  (`GwzLog-S1.1-Review.md`) — candidate `c6ea636` (+7,154/−230, 12
+  files) is **ABANDONED, not remediated**: the charter defect was the
+  lane owner's — L-COA-8 never stated its trust envelope, and the
+  builder defended across the product's cooperating-same-user boundary
+  (hook-adversarial WAL/CAS/checkpoint machinery), re-deriving
+  checked-artifact-scale durability problems inside `gwz commit` and
+  regressing shipped selection semantics (its P1-2). Worktree doc
+  commits consolidated onto main at this record (S2.2 review ×3, S1.1
+  review ×2, cherry-picked); reports and amendments land on MAIN
+  directly from now on.
+
+  **S1.1-B — retry identity under the stated envelope** *(gwz-core;
+  replaces S1.1; HARD production-delta cap 300 LOC — approach it and
+  STOP-AND-REPORT; fresh two-round cap)*. Owns L-COA-8 as amended
+  (trust envelope + mechanism constraint). Shape: a READ-ONLY sameness
+  proof over already-durable git state — reuse X iff every
+  already-trailered target's HEAD carries X, the trailed message
+  byte-equals the request's, and the remaining targets are exactly the
+  plan's complement; else mint fresh, failing toward splitting. The
+  uncommitted marker artifact is retained when it matches, rewritten
+  fresh otherwise. FORBIDDEN: new durable files/namespaces/lifecycles
+  (no WAL, no retirement journals, no sidecar rewrites), git-backend
+  contract changes, and ANY change to shipped selection/no-op/hook/
+  marker-disabled semantics — with a MANDATORY pinned regression:
+  marker-disabled member-only requests never touch the root (the old
+  candidate's P1-2 class). Salvage from `c6ea636`: test fixtures that
+  fit this charter only. Review checklist: sameness-proof soundness
+  WITHIN the envelope; the S1.1 review's L-COA-8 matrix REGRADED
+  against the envelope (every old P1 becomes either an in-envelope
+  must-pass or a NAMED accepted residual — silence on any is a
+  finding); the regression pins. **Pre-authorized fallback:** if
+  S1.1-B's round 2 fails, L-COA-8 DESCOPES to v2 (artifact-assisted
+  association heals retry splits there) by this standing order — no
+  further rounds, no operator round-trip; record and move on.
+
+  **S2.2-B — open-boundary legacy ids** *(gwz-core, shared operand
+  seam; replaces the frozen S2.2 residue; HARD cap 150 LOC; fresh
+  two-round cap)*. Exactly the terminal review's recorded remedy and
+  the L-RNG-6 addendum: after exact whole-token stored-id matching,
+  recognize stored ambiguous legacy ids at OPEN `..`/`...` boundaries
+  as participating endpoints and refuse typed — never shorter-id
+  selection; standalone exact matching preserved. Tests: parser +
+  end-to-end diff AND log, both open sides of both spellings, including
+  the shorter-snapshot-also-exists collision and the
+  `+adjacent..dots..` shape from the review's exact-source harness.
+  Nothing else rides.
+
+  **S0.2 — validity-envelope sweep** *(lane owner, Fable-tier, small;
+  GATES the launches of S2.5, S2.6, and all S3.x)*. Grounds: four
+  envelope-class failures in a row (marker validity; pathspec magic;
+  dotted ids twice; the L-COA-8 trust envelope). One pass over every
+  remaining unbuilt row minting the missing envelopes — S2.5:
+  clock-skew extremes, identical timestamps at the cap and W
+  boundaries; S2.6: filter pattern grammar and locale; S3.x: non-UTF-8
+  paths and commit messages, encoding in machine output,
+  terminal-width and color edges; py-parity edges. Executes on the
+  operator's word or at the Fable reset, whichever first.
+
+  Sequencing: S1.1-B ∥ S2.2-B immediately; S2.4 lands per its GO;
+  S2.5+ wait on S0.2.

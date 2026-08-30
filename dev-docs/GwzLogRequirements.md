@@ -278,6 +278,24 @@ with the rest.
   the predicate, and lands the regression test driving the
   member-succeeded/root-failed retry to ONE id; `gwz log` itself carries
   no code for this row.
+  **Trust envelope (amended 2026-08-30, from the S1.1 terminal NO-GO —
+  the envelope was unstated and the step ballooned defending across
+  it):** the mechanism operates inside the product's standing
+  **cooperating-same-user boundary**. It defends against ACCIDENT —
+  crash, interruption, honest retry — and NOT against the user's own
+  adversarial acts: hooks that amend or rewrite, hand-git surgery,
+  index-flag games (assume-valid/skip-worktree), or byte-tampering of
+  local state. Same-user acts that defeat the sameness proof are
+  ACCEPTED RESIDUALS, enumerated in the step's record; fail-toward-
+  splitting still bounds honest damage. **Mechanism constraint:** the
+  sameness proof MUST be read-only over already-durable git state (the
+  trailer-carrying HEADs; byte-equal message; the remaining targets
+  being the plan's complement) plus the existing marker artifact where
+  present; the step MUST NOT mint new durable files, namespaces, or
+  lifecycles (no WAL, no retirement journals, no sidecar rewrites) and
+  MUST NOT alter shipped `gwz commit` selection, no-op, hook, or
+  marker-disabled semantics in any way. A crash mid-member-loop splits
+  — the documented, fail-safe residual.
 - **L-COA-9 (v0) — invalid marker disposition.** A commit whose
   `GWZ-Commit-ID` trailer key is present in any recognizable form but whose
   value fails L-COA-1's validity rule MUST NOT join any heuristic group
@@ -394,6 +412,17 @@ with the rest.
   `--full` forms is MUST, byte parity SHOULD where the existing render
   layers make it cheap. Machine output (`--json`/`--jsonl`) MUST be
   byte-compatible between the two clients.
+
+**L-RNG-6 addendum (2026-08-30, from the S2.2 terminal re-charter
+review's exact-source probes):** the typed teaching refusal applies at
+**open range boundaries too**. After exact whole-token stored-id matching
+has been given its chance, a stored ambiguous legacy id participating at
+an OPEN `..` or `...` boundary (`+legacy..`, `..+legacy`, and the
+three-dot forms) is a participating endpoint and MUST refuse — never
+silently resolve to a shorter stored id (`+trailing...` must not select
+snapshot `trailing`; `+adjacent..dots..` must not become
+`Snapshot("adjacent")..Revision("dots..")`). Standalone exact legacy
+matching stays valid.
 
 ### Exit codes
 
