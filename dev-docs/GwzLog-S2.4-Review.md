@@ -220,3 +220,89 @@ No `lib.rs`, handler, protocol/generated surface, CLI, inventory, pin, dependenc
 - Exact-source blank/nonterminal boundary probe — exit `0`, correctly produced `None` singletons.
 
 **Final: NO-GO. Findings 1 and 3 remain UNCURED at P1/P2, making the result terminal under the two-round cap.**
+
+## Re-chartered amended-specification review
+
+**Authoritative amendment:** `ad34e0f4f54a6e9979e52d5ad180411fead0214a`
+**Baseline:** `14bd5acf01485a6a72922ff7527d9275f0877869`
+**Prior terminal candidate:** `a2ab729f95f334c13dcd2bc1c0809152976bef48`
+**Re-chartered candidate:** `dd31d54439e9244cba876d159383a5fc5e9584b2`
+**Verdict:** **GO**
+
+The candidate directly parents the baseline. The prior and re-chartered candidates are sibling squashes with the baseline as their merge base.
+
+### Terminal-finding disposition
+
+1. **[P1] CURED — wrong-variant UUIDv7-looking values no longer marker-key.**
+
+   [coalesce.rs:259](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce.rs:259) enforces canonical 36-byte lowercase hexadecimal UUID text, version `7`, and at line 265 restricts the textual high nibble of octet 8 to `8|9|a|b`, exactly the RFC `10xx` variant.
+
+   An exact-source probe using `01987b0c-2f75-7c4a-1a32-8fd22f7d7c91` produced two singleton `MarkerInvalid` groups. The same probe against the prior candidate produced one authoritative `Marker(...)` group, confirming the regression guard catches the former false pass.
+
+2. **[P2] CURED — equals-delimited marker claims no longer enter heuristic grouping.**
+
+   [marker_shaped_claim](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce.rs:251) broadly recognizes the exact key followed by `=`, while strict authority at line 228 still requires literal canonical `GWZ-Commit-ID: ` form and a valid value.
+
+   Two byte-identical `GWZ-Commit-ID=<valid-v7>` claims with identical authors and timestamps produced two singleton `MarkerInvalid` groups. The prior candidate produced one `Heuristic` group.
+
+No new finding exists within the re-chartered axis.
+
+### Amended-row matrix
+
+| Row | Result | Evidence |
+|---|---|---|
+| L-COA-1 | **PASS** | Lowercase canonical syntax, version `7`, and RFC variant nibble `[89ab]` are all required before marker keying. Wrong-variant values fail closed. |
+| L-COA-6 | **PASS** | `CommitLogProvenance::MarkerInvalid` is additive. Invalid claims receive it under enabled and disabled coalescing; valid marker, heuristic, and ordinary singleton provenance remain unchanged. |
+| L-COA-9 | **PASS** | Broad exclusion recognizes the exact key with mangled `=`, while strict marker authority remains canonical colon form plus a valid UUIDv7. Each unusable claim creates an independent singleton and has no heuristic or marker acceptance path. |
+
+Invalid claims enter separate opaque pending groups at [coalesce.rs:87](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce.rs:87) and finish as `MarkerInvalid` at line 169. With coalescing disabled, lines 52–60 preserve the same invalid provenance while valid and ordinary entries remain `None`.
+
+### Required fixtures and false-pass guards
+
+- Wrong RFC variant → one singleton `MarkerInvalid`: [coalesce_tests.rs:200](/Users/owebeeone/limbo/gwz-log-worktrees/s2.4/gwz-core/src/operation/commit_log/coalesce_tests.rs:200).
+- Mangled `=` separator → one singleton `MarkerInvalid`: line 218.
+- Valid lowercase RFC-variant UUIDv7 → one two-member `Marker(...)` group: line 230.
+- Two byte-identical invalid claims with identical author/timestamps → exactly two singleton `MarkerInvalid` groups: line 249.
+- Invalid provenance with `coalesce=false`: line 424.
+- Combined provenance fixture retains `Marker`, `Heuristic`, `None`, and adds `MarkerInvalid`: line 508.
+
+Exact-candidate probe results:
+
+```text
+wrong-variant: groups=2, members=[1, 1], provenance=[MarkerInvalid, MarkerInvalid]
+mangled-identical: groups=2, members=[1, 1], provenance=[MarkerInvalid, MarkerInvalid]
+valid-v7: groups=1, members=[2], provenance=[Marker("01987b0c-2f75-7c4a-9a32-8fd22f7d7c91")]
+ordinary-heuristic: groups=1, members=[2], provenance=[Heuristic]
+ordinary-singleton: groups=1, members=[1], provenance=[None]
+invalid-no-coalesce: groups=1, members=[1], provenance=[MarkerInvalid]
+```
+
+### API, ownership, and scope
+
+**PASS.** The assembly API remains `pub(super)` behind private `mod coalesce`; group fields remain private and all grouping state is finite and call-local. The amendment does not alter the W=60 constant, assembly signature, cursor ownership, buffering, closure, ordering, or emission responsibilities reserved for S2.5.
+
+Prior-to-candidate changes are limited to:
+
+- `src/operation/commit_log/coalesce.rs`
+- `src/operation/commit_log/coalesce_tests.rs`
+
+The delta is 105 insertions and 9 deletions. Baseline-to-candidate changes remain confined to those files plus the private module/test declarations in `src/operation/commit_log/mod.rs`.
+
+No frozen, protocol/generated, inventory, pin, handler, CLI, workspace-operation, manifest, dependency, lockfile, or `gwz.conf` change occurred.
+
+### Command and direct-exit evidence
+
+- `cargo test --lib operation::commit_log::coalesce_tests -- --nocapture` — exit `0`, 23/23 passed.
+- `cargo test --lib operation::commit_log::` — exit `0`, 35/35 passed.
+- `cargo fmt --check` — exit `0`.
+- `cargo clippy --all-targets --all-features -- -D warnings` — exit `0`.
+- Exact-source amended probe — exit `0`; all required counts and provenance matched.
+- Exact-source prior-candidate false-pass probe — exit `0`; reproduced the former wrong-variant marker fusion and `=` heuristic fusion.
+- `git diff --check` for both prior→candidate and baseline→candidate — exit `0`.
+- Amendment and complete-diff allowlist checks — exit `0`.
+- Frozen/protocol/handler/inventory/pin surface checks — exit `0`.
+- Candidate/worktree equality — exit `0`.
+- Final porcelain status — exit `0`, clean.
+- No long full suite was started.
+
+**Final: GO. Both terminal findings are CURED, all three amended rows pass, and no in-scope P0–P3 finding remains.**
