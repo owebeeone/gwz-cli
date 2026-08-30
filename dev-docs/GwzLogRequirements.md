@@ -244,10 +244,29 @@ with the rest.
   marker claims, and inference. The `marker-invalid` token is additive.
   (Lane-owner-dictated amendment, S2.4 terminal NO-GO, 2026-08-29.)
 - **L-COA-7 (v0) — the bounded coalescing window (the L-COA-4 ↔ L-PRF-1
-  contract; S0.1 review F3, ownership fixed per round-2 F21).** The
-  streaming merge MUST hold emission only within a bounded reorder window
-  **W = 60 seconds** of stream time: a group MUST be closed when every
-  live cursor has advanced past (group's newest committer timestamp − W).
+  contract; S0.1 review F3, ownership fixed per round-2 F21; CLOSURE
+  RULE REPLACED 2026-08-30 by the S2.5 terminal review's own analysis —
+  its F3 proved the original "every live cursor has advanced past"
+  phrasing unimplementable with bounded memory under the accepted
+  non-monotone envelope).** The streaming merge MUST hold emission only
+  within a bounded reorder window **W = 60 seconds** of stream time,
+  closed by the **group-eligible frontier rule**: a group MUST close
+  once EVERY live cursor satisfies ANY of —
+  (a) it has yielded, at any point, an entry with committer instant
+  below (group newest − W) — seen-below-boundary, order-independent,
+  so inversions cannot un-satisfy it;
+  (b) it is exhausted;
+  (c) it is already REPRESENTED in the group (same-repo siblings are
+  forbidden by L-COA-2, so it can contribute nothing further);
+  (d) **bounded patience**: it has yielded **K = 64** entries since the
+  group became closure-pending without satisfying (a)-(c) — the group
+  closes anyway.
+  **A closed group is IMMUTABLE** — output-blocked or not, no later
+  sibling is ever absorbed into it; any later compatible entry is a
+  window FRAGMENT (a separate entry sharing the provenance key —
+  L-ENV-2's mechanism, which rules (c) and (d) feed by construction).
+  Buffering is therefore hard-bounded at O(selected repos × (entries
+  within W + K)) for ANY input, monotone or not.
   Siblings falling OUTSIDE the window MUST emit as separate entries
   carrying the SAME provenance key (`marker:<uuid>` repeats), so
   consumers can re-join what the stream could not — memory MUST stay
@@ -450,10 +469,21 @@ precedent); refusals teach; read sides never break.
   far (cap truncation is honest truncation — the machine record carries
   no false completeness claim; L-JSN-1's members[] is what was seen).
   `-n` takes an unsigned integer (clap rejects negatives); `--jobs`
-  inherits the existing global's validation unchanged.
+  inherits the existing global's validation unchanged. **Sentinel
+  addendum (2026-08-30, S2.5 terminal):** after cap termination the
+  merge MUST NOT request further cursor yields, and the regression MUST
+  prove it by killing a beyond-cap-read mutant — an instrumented
+  yield-counting cursor asserting zero post-termination yields, not an
+  output-only check.
 - **L-ENV-4 (v0).** Determinism row: identical inputs produce
   byte-identical output for every `--jobs` value — L-PRF-2 made
-  testable.
+  testable. **High-water addendum (2026-08-30, S2.5 terminal F3):** the
+  L-PRF-1 memory-bound regression MUST use NON-MONOTONE cursors in the
+  terminal review's own probe shape (an inverted frontier followed by a
+  long W-sparse tail, two cursors): max buffered entries MUST stay flat
+  as the post-inversion tail grows. A monotone-only high-water test is
+  insufficient by demonstrated counterexample (23 → 103 on constant
+  window density).
 
 **Filters — owner S2.6:**
 

@@ -621,3 +621,30 @@ S2.2.
   no retry-identity guarantee and retains the safe split behavior. Phase 1
   is closed, and because it fed no downstream dependency, execution moves
   on without changing the §4 chain.
+
+- **S2.5-B re-charter, 2026-08-30 (lane owner; S2.5 terminal NO-GO —
+  the blocking root is the lane owner's contract, per the terminal
+  review's own words: F3 proved L-COA-7/L-ENV-2 and L-PRF-1 "not
+  simultaneously implementable" under the accepted non-monotone
+  envelope with the original closure phrasing).** The contract is
+  clarified at source: L-COA-7 now carries the **group-eligible
+  frontier** closure rule — per-cursor closure by seen-below-boundary
+  (order-independent), exhaustion, already-represented (grouping-safe
+  per L-COA-2), or bounded patience K = 64 — with **closed groups
+  immutable** and late compatibles becoming window fragments by
+  construction; L-ENV-4 gains the non-monotone high-water regression
+  (the review's own two-cursor inversion probe, flat under tail
+  growth); L-ENV-3 gains the beyond-cap yield sentinel (mutant-killing,
+  instrumented cursor). **S2.5-B replaces S2.5 IN THE §4 CHAIN** (the
+  standing -B mapping rule). Base, explicit: the terminal round's
+  candidate **`f165040`**, whose F1/F2/F4/F5/F6 cures are preserved
+  review evidence — rebase onto current gwz-core main, then a delta
+  HARD-capped at 200 LOC: (i) the closure scheduler replaced to
+  implement amended L-COA-7 exactly; (ii) the beyond-cap sentinel and
+  its mutant-killing regression; (iii) the non-monotone high-water
+  fixture. Review = the delta against the amended rows + base
+  integrity by diff against `f165040` modulo the rebase (the cured
+  surface is not re-reviewed); fresh two-round cap; if round 2 fails,
+  S2.5-B is dead as chartered and returns to the operator — no further
+  rounds. S2.6 and all S3.x unblock on S2.5-B's landing, per the
+  unchanged chain.
