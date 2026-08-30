@@ -335,3 +335,317 @@ Round 2 must, at minimum:
 
 No amendment may add a WAL, durable sidecar/lifecycle, namespace, backend
 contract, or selection/no-op/hook/marker-disabled behavior. Round 2 is final.
+
+# GWZ Log S1.1-B terminal round-two review
+
+## Final-review identity
+
+- **Step:** S1.1-B, terminal round 2 of 2.
+- **Date:** 2026-08-30.
+- **Mode:** same independent reviewer; remediation-only review against the
+  exact filed round-one report above.
+- **Amended core candidate:**
+  `0baf281c62a369413438427f33eb96c5665901dc`.
+- **Sole parent / grading base:**
+  `dd31d54439e9244cba876d159383a5fc5e9584b2`.
+- **Candidate tree:** `a640517006765d8ce93d386aee0bf6820cdbfec2`.
+- **Round-one candidate:**
+  `186c8253b2a5ad445c3372648d92434c7b0d0b91`.
+- **Filed round-one report commit / this report's parent:**
+  `19f1e3d471c70385f1069180b9552ab7cbfa3649`.
+- **Current landed gwz-core main used only for integration risk:**
+  `2214eace46b72915f76ab28e03e16716ce9d1a60`.
+
+The exact filed report was reread completely before inspecting the amendment.
+The amendment is exactly one commit over the dictated base, with subject
+`fix(commit): preserve marker identity across root retries`; there is no red
+intermediate commit. Review was confined to the two round-one P1s, two P2s,
+cheap P3 strengthening, preserved passes/residuals, the hard cap, and
+base/integration integrity. Accepted out-of-envelope architectures were not
+reopened.
+
+## Terminal verdict
+
+# NO-GO
+
+Severity count:
+
+- P0: 0
+- P1: 2
+- P2: 1
+- P3: 0
+
+Round 2 cures the default-cleanup reproduction, raw pending-YAML discovery,
+write-new-before-unlink replacement order, the coupled changed-message test,
+the pending-artifact unavailable-HEAD/A-empty cases, root-selected origin/tail
+coverage, and marker-disabled root-index coverage. The focused tests are green,
+the final production delta is exactly 295/300 gross changed LOC, and the
+candidate integrates cleanly with landed main.
+
+Two in-envelope correctness failures nevertheless remain. First, the expected
+message is always normalized with libgit2's default prettifier while the shipped
+porcelain commit path honors repository `commit.cleanup`; an unchanged honest
+retry still splits under normal non-default configuration such as `verbatim`.
+Second, the new post-all-members/no-marker inference discards proof failures
+before `will_mutate`: after that exact crash cut a changed message can return a
+false-success no-op, a changed selection can reuse X, and partial/unavailable
+HEAD evidence can no-op or reuse from only the readable members. These outcomes
+contradict fail-toward-fresh and are not any named adversarial residual.
+
+The exact atomic-writer cut also commits its stale sibling temp on recovery.
+That is lower severity because X itself converges, but the root history gains a
+noncanonical `*.yaml.<pid>.<seq>.tmp` artifact. The test named for the cut
+constructs a clean no-artifact state and therefore misses the writer state the
+round-one gate expressly named.
+
+This is the terminal review. Per the standing 2026-08-30 fallback, L-COA-8
+descopes to v2; there is no round 3.
+
+## Terminal findings
+
+### [P1 F6] Canonical retry bytes still disagree with configured porcelain cleanup
+
+Round 2 changes `head_message_equals` to compare raw HEAD bytes with
+`canonical_commit_message(expected)` at
+`gwz-core/src/workspace_ops/handle_commit.rs:453-457`. The helper at
+`gwz-core/src/operation/commit_log/mod.rs:38-42` unconditionally calls
+`git2::message_prettify(message, None)`. That exactly cures the round-one
+default-whitespace fixture and the strengthened positive test proves the
+default subject/body/trailer result.
+
+The shipped writer remains porcelain `git commit -m` at
+`gwz-core/src/git/gitbackend/repository.rs:291-305`, expressly so Git
+configuration is honored. Its cleanup is controlled by repository
+`commit.cleanup`; it is not unconditionally libgit2-default cleanup. A direct
+Git 2.52 probe with `commit.cleanup=verbatim` and the strengthened fixture shape
+stored the leading blank lines, trailing spaces, repeated blank lines, and tab
+verbatim:
+
+```text
+$
+$
+do the work   $
+$
+$
+second line\t$
+$
+$
+GWZ-Commit-ID: 01999999-9999-7999-8999-999999999999$
+GWZ-Workspace-ID: ws-probe$
+```
+
+`message_prettify(..., None)` removes that whitespace. The same request on an
+honest retry therefore cannot put the already-committed member in A and mints
+Y rather than retaining X. `commit.cleanup=strip` plus comment-shaped message
+content supplies the inverse configuration-sensitive class. Repository Git
+configuration is ordinary cooperating-user product behavior, not a hook
+rewrite, hand-Git intervention between attempts, or local-state tamper.
+
+Round-one F1 required the canonical bytes the **shipped commit path actually
+stores, including applicable Git cleanup behavior**. The default-only helper
+and test do not meet that gate.
+
+### [P1 F7] Post-loop recovery cannot preserve fail-fresh across message, selection, or unavailable evidence
+
+`recover_post_loop_marker` at
+`gwz-core/src/workspace_ops/handle_commit.rs:336-381` reconstructs X only from
+the **current** selected members whose readable HEAD message matches the
+**current** request. A mismatching or unreadable HEAD is silently skipped at
+lines 348-365. The caller at lines 131-147 invokes this only when pending YAML
+and member work are both empty, then feeds only a successful reconstruction
+into `will_mutate`.
+
+Consequently the exact post-all-members/pre-marker crash state has this formal
+path table (A and B are members already committed under X; no `X.yaml` exists):
+
+| Retry state | Candidate execution | Required disposition |
+|---|---|---|
+| Same message, same A+B selection, both HEADs readable | Reconstruct and reuse X | Reuse X; pass |
+| Changed message only | Both HEAD messages mismatch, reconstruction is `None`, `will_mutate` is false, return success/no-op | Mint fresh Y |
+| Changed selection A+B to A | Scan only A, reconstruct X, publish an artifact whose current plan omits B, and reuse X | Mint fresh Y |
+| Same selection, A readable at X and B unavailable | Skip B and reuse X from A alone | Fail fresh or refuse explicitly |
+| Same selection, sole completed HEAD unavailable | Reconstruct nothing and return success/no-op | Fail fresh or refuse explicitly |
+
+Changing only root-selected versus root-unselected has the same selection-loss
+problem because the recovery helper receives no original root-selection plan.
+Scanning only current selection also means the emitted `committed_targets` and
+`members` maps can omit a sibling that already carries X.
+
+These are not attacks. They are ordinary retries after the exact accident cut
+round one required round 2 to cure. The read-only mechanism may use trailer
+HEADs and the marker where present, but it must still fail toward splitting
+when sameness is unproved. Here proof failure is erased before the no-op gate,
+repeating the semantic core of round-one F2. The new changed-message and
+unavailable-evidence tests exercise the pending-`X.yaml` path, so they do not
+detect this no-artifact branch.
+
+### [P2 F8] The actual atomic-write crash artifact is staged and committed during X recovery
+
+The atomic marker writer stages and fsyncs a sibling
+`<X>.yaml.<pid>.<seq>.tmp` before rename at
+`gwz-core/src/artifact/mod.rs:471-503,542-551`. A crash in that interval is the
+precise post-member/pre-marker cut called out in round-one F2. On retry,
+`pending_marker_ids` accepts only exact `.yaml` names at
+`handle_commit.rs:320-333`, so it ignores the stale temp and enters post-loop
+recovery. Writing canonical `X.yaml` does not remove a prior-process temp.
+Finally `sync_workspace_boundary` stages the whole `gwz.conf` directory through
+`stage_workspace_git_metadata` at
+`gwz-core/src/workspace_ops/stage_workspace_git_metadata.rs:7-13`; only
+`gwz.conf/.tmp/` is excluded, not sibling temps in `gwz.conf/markers/`.
+
+The root commit therefore contains canonical `X.yaml` **and** the stale
+writer-temp path. Marker listing ignores the latter, so assertions based only
+on `list_markers().len() == 1` do not catch it. The round-two
+`post_member_pre_marker_cut_recovers_head_identity` fixture manually commits a
+member and writes the lock, but creates no staged writer temp and does not
+assert the complete root tree. Identity X converges, so this is P2 rather than
+another P1, but accident recovery does not converge to the canonical durable
+artifact set and publishes process/sequence implementation detail into history.
+
+## Round-one remediation disposition
+
+| Round-one finding / requested gate | Terminal disposition | Evidence |
+|---|---|---|
+| P1 F1: cleanup-sensitive byte-exact retry | **Partial / fail** | Default cleanup, root-selected shape, origin trailer, uniqueness and exact tail pass. Configured porcelain cleanup still disagrees with the fixed libgit2 prettifier; F6. |
+| P1 F2: raw evidence suppresses no-op | Pass for status-visible exact `.yaml` paths | Raw filename discovery precedes qualification. Unreadable and index-A/worktree-D paths both force fresh publication. |
+| P1 F2: publish Y before unlink X | Pass by code order | `write_marker(fresh)` is line 259; old-path removal is line 260. A crash with multiple visible YAMLs is re-read as multiple pending ids and causes another fresh publication before unlink. |
+| P1 F2: post-all-member/pre-marker cut | **Partial / fail** | Exact simple retry reconstructs X, but fail-fresh message/selection/unavailable cases are F7 and the real writer temp is F8. |
+| P2 F3: changed-message mutation tightness | Pass | The amended test changes only the message. With no new work, weakening member-message participation would retain X and fail the Y assertion. |
+| P2 F4: unavailable HEAD and isolated A-empty convergence | Pass in pending-artifact fixtures; fail in post-loop branch | The two new fixtures converge to exactly one Y for pending X. F7 shows the new no-artifact branch still no-ops/reuses on unavailable evidence. |
+| P3 F5: root-selected/origin/tail/index strengthening | Pass | Positive retry is root-selected and cleanup-sensitive, pins the origin trailer and byte-exact unique tail; root-only A-empty and marker-disabled unrelated index-A status are pinned. |
+
+## Complete terminal S1.1-B named-row matrix
+
+| Named row / frozen axis | Terminal verdict | Evidence |
+|---|---|---|
+| L-COA-8 cooperating-same-user accident envelope | **Fail** | F6 is ordinary repository configuration; F7 and F8 are crash/honest-retry paths. |
+| Read-only P/A/R proof | Pass with pending artifact; **fail after post-loop cut** | Pending proof still forms P, A, P-minus-A and R. Without YAML, recovery substitutes current selection for the missing durable plan and erases mismatches; F7. |
+| `A != empty` | Pass in `retry_marker`; **fail-to-fresh incomplete** | Empty A returns `None`, but only raw pending YAML keeps `will_mutate` true. Post-loop empty evidence returns false-success no-op; F7. |
+| Every completed HEAD carries X | Pass for pending proof; **fail for partial post-loop evidence** | `retry_marker` checks every P member. Recovery skips unavailable selected HEADs and can reuse from a readable subset; F7. |
+| Byte-equal request message + canonical trailers | **Fail across shipped configurations** | Default cleanup and exact tail pass; configured cleanup is F6. |
+| Remaining targets exactly equal plan complement | Pass with pending artifact; **unproved post-loop** | Equality remains exact in `retry_marker`. Recovery has no original selected/committed plan and can reuse changed selection; F7. |
+| Unproved sameness fails fresh | **Fail** | Raw pending YAML now fresh-splits safely; no-artifact mismatch/unavailability may no-op or partially reuse; F7. |
+| Nominal member-succeeded/root-failed X reuse | Pass for default cleanup | Same id, member HEAD, artifact bytes, root-selected commit, origin and exact canonical tail are pinned. F6 is the configuration qualification. |
+| Root-failure retry convergence | **Fail overall** | Pending/default cases converge; F6 and F7 remain ordinary nonconvergence/wrong-disposition cases. |
+| Marker artifact retain when proof matches | Pass in pinned pending fixture | Exact X bytes remain unchanged and are committed. `AR-ARTIFACT-BYTE-TAMPER` remains accepted. |
+| Marker artifact replace when proof differs | Pass for pending YAML and normal execution | Fresh YAML is written before old YAMLs are unlinked; unreadable/deleted paths converge. F7 covers absent-YAML proof failure, and F8 covers temp residue. |
+| Raw/unreadable/index-only-deleted pending evidence | Pass | Each status-visible exact YAML path suppresses no-op and fresh-splits to one canonical YAML. |
+| Fresh-Y publish/unlink crash order | Pass structurally, with F8 qualification | New YAML publication precedes unlink. A retry with multiple pending YAML ids fresh-splits again; sibling writer temps are not converged. |
+| Multiple pending YAML convergence | Pass structurally | More than one raw id makes `retry_marker` fail fresh; write-new-before-remove-old converges the next uninterrupted attempt to one YAML. |
+| Changed message, single-axis mutation kill | Pass for pending path; **fail after post-loop cut** | The amended fixture kills the round-one mutant. F7's no-YAML path false-no-ops. |
+| Changed selection splits | Pass for pending path; **fail after post-loop cut** | Stored `selected_targets` rejects pending X. Recovery scans only current selection; F7. |
+| Changed complement/new member work splits | Pass | Nonempty `members_to_commit` disables post-loop reuse; the isolated complement fixture remains green. |
+| Post-all-members/pre-marker cut | **Fail overall** | Simple exact retry reuses X and refreshes the lock. Cross-axis fail-fresh cases are F7; stale temp publication is F8. |
+| Mid-member-loop crash split | Pass as accepted residual | Remaining member work disables post-loop recovery, so the existing X/Y split fixture remains green. |
+| Unavailable/custom HEAD evidence | **Fail in new recovery branch** | Pending-artifact fixture fresh-splits without backend expansion. Post-loop `None` is skipped and can no-op/reuse; F7. |
+| Isolated A-empty fresh convergence | Pass with pending X; **fail without YAML** | Root-only and unavailable pending fixtures commit exactly one Y. Post-loop changed-message/unavailable A-empty no-ops; F7. |
+| Marker-disabled member-only root isolation | Pass | Root HEAD is unchanged; unrelated root index entry remains `A`; root hook tripwire and lock refresh are preserved. |
+| Ordinary fan-out/root-only/no-op/hook behavior | Pass except recovery false no-op | Existing ordinary tests remain green and no GitBackend/hook path changed. F7 creates a recovery-only false no-op. |
+| No new durable lifecycle / WAL / namespace | Pass structurally; runtime pollution F8 | No designed file/schema/lifecycle was added. Accident recovery can nevertheless commit an existing atomic temp path. |
+| No GitBackend contract change | Pass | No `src/git/**` delta and no trait method. New visibility is internal only. |
+| No public API / backend-selection expansion | Pass | `MarkerIdentity` is only `pub(super)` and the three helper re-exports are only `pub(crate)`. |
+| Hard 300 production changed-LOC cap | Pass | Base-to-round-2 production gross is `+267/-28 = 295/300`; test LOC are excluded. |
+| Frozen checked-artifact / merge lifecycle | Pass | No changed path under either surface; boundary checker passes. |
+| Cargo/protocol/generated/inventory/pin/lib root boundaries | Pass | No relevant file changed; no dependency, schema, wire, generated, census or external export move. |
+| Privacy | Pass for message/URL handling; F8 qualification | Raw messages stay local and origin stays hashed. F8 publishes a PID/sequence temp pathname and duplicate intended marker bytes. |
+| Visibility | Pass | No externally public item. Internal coalescer parsing is reused without widening the crate API. |
+| Integration with landed core main `2214eac` | Pass, low conflict risk | Merge base is exact parent; synthetic merge exits 0 and yields tree `00c5a05a2ae480a7732f3df7d595c1821f37d976`. |
+
+## Old S1.1 P1 terminal regrade and accepted-risk preservation
+
+| Old row | Terminal regrade under amended envelope | Round-two disposition |
+|---|---|---|
+| P1-1 porcelain hooks create/amend transitions | `AR-HOOK-REWRITE` — accepted | Preserved out of envelope; ordinary hook execution remains shipped behavior. |
+| P1-2 marker-disabled stale lock/root publication | **In-envelope must-pass** | Pass, including unrelated root index-A preservation and no root hook/commit. |
+| P1-3 hook publishes private WAL | `AR-HOOK-PRIVATE-PUBLISH` — accepted | Preserved and structurally absent; no WAL/private namespace. |
+| P1-4 foreign staged/worktree boundary evidence | `AR-HAND-BOUNDARY-SURGERY` — accepted | Preserved; no checkpoint/third-value defense added. |
+| P1-5 unsafe hook publication laundering | `AR-HOOK-HISTORY-SURGERY` — accepted | Preserved; forged/re-written matching history remains excluded. |
+| P1-6 ignored orphan marker | `AR-HIDDEN-NAMESPACE-SURGERY` — accepted | Preserved for intentional same-user hide/ignore surgery. Ordinary absent/unreadable evidence is still in envelope and fails in F7. |
+| P1-7 crash-surviving temp/recovery wedge | **In-envelope must-pass** | **Fail:** false no-op/partial reuse after the post-loop cut is F7; tracked stale temp is F8. YAML replace order itself is cured. |
+| P1-8 public/custom backend compatibility | Must preserve API; `AR-EVIDENCE-UNAVAILABLE` permits split | API preservation passes. Pending evidence splits, but post-loop unavailable evidence no-ops or partial-reuses rather than splitting/refusing; F7. |
+| P1-9 assume-valid/skip-worktree | `AR-INDEX-FLAGS` — accepted | Preserved out of envelope; no flag defense added. |
+| P1-10 WAL CAS/replacement | `AR-LOCAL-BYTE-RACE` — accepted | Preserved; no WAL. Candidate-owned YAML replacement order is new-before-old and passes. |
+| P1-11 confinement/non-Unix | Normal publication must-pass; `AR-PATH-SURGERY` accepted | No path-confinement/non-Unix regression in the delta. Intentional parent/symlink surgery remains excluded. |
+
+The additional round-one register remains exact and unchanged:
+
+- `AR-SAME-TARGET-CONTENT-CHANGE`: same-user staged-content change inside an
+  already-remaining target may fuse because the forbidden pre-failure
+  index/tree witness is absent.
+- `AR-ARTIFACT-BYTE-TAMPER`: same-user edits to non-proof fields of retained
+  pending YAML may be committed.
+- The documented **mid-member-loop crash split** remains accepted.
+
+F6-F8 do not demand defenses against any of those residuals. Configured cleanup
+exists before both attempts; F7 changes request axes or loses evidence without
+local-state surgery; F8 is produced by the shipped atomic writer itself.
+
+## Delta, integration, gates and cleanliness
+
+Exact base-to-round-2 diff:
+
+```text
+2    2   src/operation/commit_log/coalesce.rs
+22   0   src/operation/commit_log/mod.rs
+1    0   src/operation/mod.rs
+242  26  src/workspace_ops/handle_commit.rs
+564  3   src/workspace_ops/tests/g13.rs
+```
+
+Production gross changed LOC is exactly 295. All paths are existing `100644`
+files; there is no add/delete/rename/mode/submodule transition and no generated
+change.
+
+Exact round-one-to-round-two remediation delta:
+
+```text
+2    2   src/operation/commit_log/coalesce.rs
+14   0   src/operation/commit_log/mod.rs
+1    1   src/operation/mod.rs
+95   38  src/workspace_ops/handle_commit.rs
+227  19  src/workspace_ops/tests/g13.rs
+```
+
+The candidate and landed main remain siblings over exact base `dd31d544`.
+`git merge-tree --write-tree 2214eac... 0baf281...` exits 0 with tree
+`00c5a05a2ae480a7732f3df7d595c1821f37d976`. Landing would still own a
+post-merge build/test, but there is no textual or structural merge blocker.
+
+Focused/formal review evidence:
+
+```text
+git diff --check dd31d544...0baf281c
+exit 0
+
+cargo fmt --all -- --check
+exit 0
+
+python3 scripts/checks/check_checked_artifact_boundaries.py
+exit 0
+checked-artifact boundary: ok (15 visible entries, 5 classified modules)
+
+cargo clippy -p gwz-core --lib -- -D warnings
+exit 0
+
+cargo test -p gwz-core --lib workspace_ops::tests::g13 -- --nocapture
+exit 0
+14 passed; 0 failed
+
+cargo test -p gwz-core --lib operation::commit_log -- --nocapture
+exit 0
+35 passed; 0 failed
+
+git merge-tree --write-tree 2214eac... 0baf281c...
+exit 0
+00c5a05a2ae480a7732f3df7d595c1821f37d976
+```
+
+The formal post-loop table above is direct path evaluation of lines 131-147
+and 336-381, not a claim based on an adversarial mutation. The configured-Git
+probe used a disposable repository and made no core change. The canonical
+15-minute full suite was deliberately not repeated; landing owns it and the
+builder's full evidence remains canonical.
+
+The core review worktree remained exactly at `0baf281c...` and clean throughout.
+No core file, ref, index or commit was changed. The report worktree was clean at
+the required parent `19f1e3d...` before this report-only commit.
