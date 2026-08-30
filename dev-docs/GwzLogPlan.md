@@ -226,12 +226,26 @@ clap flags in this phase, review F7.)*
   existing `operation` seam per §1.10.
 - **S2.2 — operands and narrowing** *(~350 LOC; after S2.1; owns
   **L-RNG-1** (incl. its pathspec clause — the round-1 "L-PTH" citation
-  was dangling, review F14), **L-RNG-3, L-SEL-3, L-TOL-2**)*. Wire `gwz
-  diff`'s operand classifier; `+snapshot` per-member resolution with the
-  root-degrades-with-record divergence L-RNG-3 records; pathspecs after
-  `--`; `--tagged` narrowing with its existing `+`-operand refusal;
-  per-member resolve-or-degrade with the strictness escalation semantics
-  (the `--strict` FLAG itself is S3.1's).
+  was dangling, review F14), **L-RNG-3, L-RNG-6, L-SEL-3, L-TOL-2**)*.
+  Wire `gwz diff`'s operand classifier; `+snapshot` per-member resolution
+  with the root-degrades-with-record divergence L-RNG-3 records; pathspecs
+  after `--`, preserving the long `:(...)` and short `:!` / `:^` magic
+  envelopes while rerooting only their payloads; `--tagged` narrowing with
+  its existing `+`-operand refusal; per-member resolve-or-degrade with the
+  strictness escalation semantics (the `--strict` FLAG itself is S3.1's).
+  The shared artifact/operand seams implement L-RNG-6's creation-only dotted
+  ID restriction, permanent schema-v0 read compatibility, standalone legacy
+  access, and typed teaching refusal for ambiguous legacy `+` range
+  endpoints; the artifact module records the compatibility split. The
+  re-chartered acceptance matrix is mandatory: an access-order sentinel
+  proves invalid snapshot IDs are rejected before filesystem access; native
+  Git parity fixtures cover root/member subdirectories, top magic, long and
+  short exclusions, `.`, empty commits, merges, and workspace-root fan-out;
+  creation/read/parser boundary fixtures and end-to-end diff AND log tests
+  cover internal/adjacent/leading/trailing dotted IDs and both range forms;
+  and a compatibility audit covers shipped/canonical fixtures and
+  real-workspace artifacts without treating absence as permission to break
+  any legacy schema-v0 artifact.
 - **S2.3 — the `+lock` pseudo-operand** *(~150 LOC; after S2.2; owns
   **L-RNG-4**)*. Per-member resolution from `gwz.lock.yml`'s `members:`
   map; `@root` degrades with a record per §1.5's decision. The project's
@@ -468,3 +482,18 @@ S2.2.
   lane, file the report, and return it to the operator for re-planning. No
   fourth round exists under any framing. S1.1 and S2.2 remain frozen until
   this round completes or terminates.
+- **S2.2 re-charter, 2026-08-29 (lane-owner-dictated amendment;
+  `S2.2 terminal NO-GO, F5/F6`).** The terminal round-two NO-GO is accepted;
+  a bare third round remains refused. Its surviving F5/F6 roots exposed
+  lane-owner specification gaps in magic-aware pathspec rerooting and the
+  backward-compatible snapshot-ID/range language, so exactly one
+  amended-specification remediation and review is authorized with the same
+  reviewer. L-RNG-1 now preserves Git pathspec-magic envelopes and reroots
+  only payloads; new L-RNG-6 freezes schema-v0 legacy reads, restricts only
+  new dotted-ID creation, and requires typed teaching refusals for ambiguous
+  legacy snapshot range endpoints while standalone access remains valid.
+  F7's access-order sentinel, native-parity F5 fixtures, and boundary plus
+  end-to-end diff/log F6 regressions are mandatory review evidence. This is
+  the only re-chartered round: if it returns NO-GO, freeze S2.2, file the
+  report, and return the lane to the operator for re-planning. No further
+  remediation or review round exists under any framing.

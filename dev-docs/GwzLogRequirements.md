@@ -148,7 +148,12 @@ with the rest.
 - **L-RNG-1 (v0).** Operands MUST be classified by core using the same
   grammar as `gwz diff`: zero or more revisions, ranges (`A..B`, `A...B`),
   or `+snapshot` ids; pathspecs come after `--` and a leading `+` after `--`
-  is a path.
+  is a path. Repository routing MUST be Git-pathspec-magic-aware: preserve
+  the complete long-form `:(...)` envelope and the short-form `:!` / `:^`
+  prefix byte-for-byte, and reroot only the pattern payload. Root and member
+  subdirectory routing, top magic, and workspace-root fan-out MUST match
+  native `git rev-list`'s complete commit sequence in fixtures that include `.`
+  and companion exclusions.
 - **L-RNG-2 (v0).** With no operands, each repository contributes its
   current `HEAD` history (detached HEAD included, from the detached commit).
 - **L-RNG-3 (v0).** A `+snapshot` operand resolves per-member to the ref or
@@ -172,6 +177,23 @@ with the rest.
   resolution feature, not a classifier change.
 - **L-RNG-5 (v0).** Ref resolution is strictly local. The command MUST NOT
   perform network operations.
+- **L-RNG-6 (v0) — snapshot-ID/range compatibility.** Snapshot artifacts
+  remain schema `gwz.snapshot/v0`; read-side compatibility is permanent.
+  Listing, reading, and standalone exact `+<id>` access MUST continue to
+  accept every previously valid v0 ID, including IDs with adjacent dots or
+  a leading/trailing dot. Creation validation alone MUST reject NEW IDs
+  containing adjacent dots or a leading/trailing dot; separated internal
+  dots remain valid. An exact whole-token match to a stored legacy ID MUST be
+  treated as standalone access before range interpretation. A legacy
+  ambiguous `+` snapshot endpoint may therefore be used standalone, but when
+  it participates in `..` or `...` the shared operand grammar MUST return a
+  typed teaching refusal rather than silently choosing another snapshot or
+  range meaning. Snapshot validation and operand parsing MUST be shared by
+  diff and log, not forked. The artifact module MUST carry an explicit
+  schema-v0 compatibility note at the creation/read validation split. Named
+  creation/read/parser tests plus end-to-end diff AND log regressions MUST
+  cover internal, adjacent, leading, and trailing dots on range boundaries.
+  (Lane-owner-dictated amendment, `S2.2 terminal NO-GO, F5/F6`, 2026-08-29.)
 
 ### Coalescing (Q-1's resolution — normative)
 
