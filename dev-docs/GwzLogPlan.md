@@ -360,6 +360,12 @@ S0.1 ──┬── S1.1 ── S1.2                     (Phase 1: marker-trust
 consume its messages. S3.4's battery closes over all four client steps —
 S3.2, S3.3, S3.5, S3.6.)
 
+*(RE-PLAN mapping, 2026-08-30: read "S1.1" as **S1.1-B** and "S2.2" as
+**S2.2-B** everywhere in this sketch — the §6 re-plan charters replace
+those steps IN PLACE in the chain. S2.5's dependency is therefore
+S2.2-B + S2.4; with S2.4 landed, S2.5 unblocks the moment S2.2-B lands.
+No other edge changed.)*
+
 Phase 1 feeds nothing downstream (the trailer machinery already ships;
 S1.1 hardens it). A Phase-1 park does not block anything else. S2.2 and
 S2.4 are the parallel pair off S2.1; S2.3 is the small decision step off
@@ -541,9 +547,22 @@ S2.2.
   further rounds, no operator round-trip; record and move on.
 
   **S2.2-B — open-boundary legacy ids** *(gwz-core, shared operand
-  seam; replaces the frozen S2.2 residue; HARD cap 150 LOC; fresh
-  two-round cap)*. Exactly the terminal review's recorded remedy and
-  the L-RNG-6 addendum: after exact whole-token stored-id matching,
+  seam; replaces S2.2 IN THE §4 CHAIN — S2.5's "after S2.2" now reads
+  S2.2-B, exactly as S1.1-B replaces S1.1; HARD cap 150 LOC on the
+  delta; fresh two-round cap)*. **Base, explicit (2026-08-30
+  disambiguation — the S2.2 surface never landed, so the base is
+  named):** the terminal re-charter round's reviewed core candidate
+  **`7e2cd3c`** (`GwzLog-S2.2-Review.md`, terminal section), whose
+  every finding EXCEPT the open-boundary residue was graded CURED
+  across three review passes. S2.2-B rebases that candidate onto
+  current gwz-core main, applies the ≤150-LOC residue delta, and its
+  review verifies (a) the delta against the L-RNG-6 addendum and (b)
+  BASE INTEGRITY — the rebased base diffs clean against `7e2cd3c`
+  modulo the rebase (no fourth full re-review of the cured surface;
+  the three filed passes are its evidence). The landing carries the
+  whole (base + delta) as one reviewed package per ritual 7. Delta
+  scope, exactly the terminal review's recorded remedy and the
+  L-RNG-6 addendum: after exact whole-token stored-id matching,
   recognize stored ambiguous legacy ids at OPEN `..`/`...` boundaries
   as participating endpoints and refuse typed — never shorter-id
   selection; standalone exact matching preserved. Tests: parser +
