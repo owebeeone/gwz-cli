@@ -189,6 +189,10 @@ impl Cli {
                 let workspace_cwd = workspace_relative_cwd(&workspace_root, current_dir);
                 args.request(meta, workspace_cwd)
             }
+            CommandArgs::Log(args) => {
+                let workspace_cwd = workspace_relative_cwd(&workspace_root, current_dir);
+                args.request(meta, workspace_cwd)
+            }
         }
     }
 

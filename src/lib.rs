@@ -24,6 +24,12 @@ mod globalargs;
 mod impl_from_syncarg_for_gwz_core_syncbehavior;
 mod init_after;
 mod init_long;
+mod log_after;
+mod log_exec;
+mod log_long;
+mod log_machine;
+mod log_render;
+mod logargs;
 mod lsargs;
 mod materialize_after;
 mod materialize_long;
@@ -85,6 +91,12 @@ pub(crate) use git_transfer_progress_json::*;
 pub(crate) use globalargs::*;
 pub(crate) use init_after::*;
 pub(crate) use init_long::*;
+pub(crate) use log_after::*;
+pub(crate) use log_exec::*;
+pub(crate) use log_long::*;
+pub(crate) use log_machine::*;
+pub(crate) use log_render::*;
+pub(crate) use logargs::*;
 pub(crate) use lsargs::*;
 pub(crate) use materialize_after::*;
 pub(crate) use materialize_long::*;
@@ -163,6 +175,38 @@ pub fn run() {
                             }
                         }
                         std::process::exit(1);
+                    }
+                }
+            }
+            // Log owns a finite core spool and writes its no-pager plumbing
+            // response through an EPIPE-aware sink. S3.2/S3.3 replace the
+            // plumbing line with record rendering without changing lifecycle.
+            if let CliRequest::Log(log) = &invocation.request {
+                match log_exec::run_log(
+                    log,
+                    invocation.output,
+                    invocation.start_dir.as_path(),
+                    new_operation_id(),
+                ) {
+                    Ok(exit) => std::process::exit(exit.code),
+                    Err(error) => {
+                        let exit = exit_code_for_log_error(&error);
+                        match invocation.output {
+                            OutputMode::Json | OutputMode::Jsonl => {
+                                let mut stdout = std::io::stdout().lock();
+                                match write_log_machine_error(&error, &mut stdout) {
+                                    Ok(write_exit) => std::process::exit(write_exit.code),
+                                    Err(write_error) => {
+                                        eprintln!("gwz: {}", write_error.human_message());
+                                        std::process::exit(1);
+                                    }
+                                }
+                            }
+                            OutputMode::Human | OutputMode::Porcelain => {
+                                eprintln!("gwz: {}", error.human_message());
+                            }
+                        }
+                        std::process::exit(exit);
                     }
                 }
             }

@@ -64,6 +64,25 @@ Tags are checked out through materialization:
 gwz materialize --tag v0.9.0
 ```
 
+## Workspace History
+
+`gwz log` reads the workspace root and selected member repositories as one
+newest-first history. The default selection is the root plus every active
+member. The same global selectors used by other commands can narrow it.
+
+Coordinated commits carrying the same valid GWZ commit marker normally
+coalesce into one workspace entry. A conservative message/author/time
+heuristic can coalesce compatible unmarked commits; `--no-coalesce` exposes
+the underlying per-repository commits. Machine output identifies the result as
+`none`, `heuristic`, `marker:<uuid-v7>`, or `marker-invalid` provenance.
+
+Revision and snapshot operands use the shared range grammar. For example,
+`+release..HEAD` starts each repository at its `release` snapshot entry, while
+`+lock..HEAD` starts at the revision recorded in the workspace lock. Pathspecs
+belong after `--` and are interpreted relative to the invocation directory.
+See the [`log` command page](commands/log.md) for limits, filters, output modes,
+and failure policy.
+
 ## Selection
 
 Selection flags are global:

@@ -17,6 +17,7 @@ workspace, make a cross-repository change, and learn the repository lifecycle.
 | Build or change GWZ itself | [Root Workspaces](RootWorkspace.md) |
 | Embed the engine or build a remote client | [gwz-core documentation](https://github.com/owebeeone/gwz-core/tree/main/docs) |
 | Script the CLI | [Machine Output](MachineOutput.md) and [CLI Reference](CLI.md) |
+| Inspect history across the whole workspace | [`gwz log`](commands/log.md) |
 | Get out of a merge that will not finish or close | [Merge Recovery Runbook](MergeRecovery.md) |
 
 GWZ resolves the workspace from the current directory, including from inside a
@@ -28,6 +29,7 @@ member repository. Use `--root <path>` only to override that discovery.
 - [Concepts](Concepts.md): roots, members, manifests, locks, snapshots,
   selections, remotes, and progress.
 - [Workflows](Workflows.md): task-oriented multi-repository recipes.
+- [`gwz log`](commands/log.md): one history across the root and member repositories.
 - [Repository Member Lifecycle](RepoLifecycle.md): clone, create, publish,
   detach, attach, evidence-backed re-add, and replacement.
 - [Root Workspaces](RootWorkspace.md): work in a GWZ-managed development root.

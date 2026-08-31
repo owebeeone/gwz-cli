@@ -76,6 +76,7 @@ nav:
           - ls: commands/ls.md
           - status: commands/status.md
           - diff: commands/diff.md
+          - log: commands/log.md
           - add: commands/add.md
           - commit: commands/commit.md
           - capture: commands/capture.md

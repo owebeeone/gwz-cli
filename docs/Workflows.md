@@ -22,6 +22,34 @@ If the change must be backed out to the snapshot:
 gwz materialize --snapshot before-change
 ```
 
+## Inspect Workspace History
+
+Start with the compact workspace stream, then expand only the entries you need:
+
+```sh
+gwz log -n 20
+gwz log --full --body -n 5
+```
+
+Compare a topic across the selected repositories or inspect only a path:
+
+```sh
+gwz log main..topic
+gwz log +lock..HEAD -- services/api
+```
+
+For automation, select a machine framing before the command. JSON returns one
+`gwz.log/v0` object; JSONL streams a schema header followed by entry and
+degradation records:
+
+```sh
+gwz --json log -n 20
+gwz --jsonl log --since 2026-08-01T00:00:00Z
+```
+
+See [`gwz log`](commands/log.md) for coalescing, filters, the default global
+limit, revision operands, and exit behavior.
+
 ## Prepare A Release Tag
 
 ```sh

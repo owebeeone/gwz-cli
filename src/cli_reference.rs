@@ -124,6 +124,7 @@ fn command_page(path: &[String]) -> Option<&'static str> {
         Some("forall") => Some("forall"),
         Some("init") => Some("init"),
         Some("ls") => Some("ls"),
+        Some("log") => Some("log"),
         Some("materialize") => Some("materialize"),
         Some("merge") => Some("merge"),
         Some("pull") => Some("pull"),

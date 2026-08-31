@@ -242,6 +242,11 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             // bytes and owns its exit code); it never reaches the envelope path.
             unreachable!("diff is handled by diff_exec::run_diff, not execute_invocation")
         }
+        CliRequest::Log(_) => {
+            // Log is dispatched in `run()` because it owns the output registry,
+            // stdout lifecycle, and aggregate exit code.
+            unreachable!("log is handled by log_exec::run_log, not execute_invocation")
+        }
         CliRequest::ListSnapshots(request) => {
             gwz_core::workspace_ops::handle_list_snapshots(start, request.clone(), operation_id)
                 .map(|response| CliResponse {

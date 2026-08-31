@@ -58,6 +58,8 @@ pub(crate) enum CliRequest {
     /// Diff is special: it streams patch bytes and owns its own exit code rather
     /// than returning a rendered response envelope. Boxed to keep the enum small.
     Diff(Box<DiffInvocation>),
+    /// Log owns a finite output spool and an EPIPE-aware no-pager lifecycle.
+    Log(Box<LogInvocation>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
