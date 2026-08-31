@@ -174,3 +174,102 @@ integrity. Accept only if:
 
 If this final round fails, S3.5-B freezes and returns to the operator with no
 further remediation round.
+
+## Terminal round-2 review
+
+- Date: 2026-08-31
+- Exact final `gwz-py` candidate:
+  `dc6915545b8c65d01cebc02ba1c3c7f1df9a5f8b`
+- Exact base / sole parent:
+  `f827e30fd28c7322c9d70883b8a6d9a873bbfd0a`
+- Round-1 comparison candidate:
+  `12e3f5f1c928461e65c9bb6329c5b4e80c5269bf`
+- Scope: S3.5-B-F1 and terminal integrity only
+
+### Terminal verdict: GO
+
+The round-1 P2 is fully cured. The amendment adds only the missing acceptance
+tests; production is byte-identical to the already-reviewed round-1
+implementation. Inline and mixed value spellings, the post-`--` pathspec
+boundary, and the `log`-only command guard are now directly pinned. All three
+exact round-1 mutants are red.
+
+No P0, P1, P2, or P3 finding remains in the bounded terminal regrade. The
+exact candidate above is approved for landing without conditions.
+
+### Round-1 finding regrade
+
+| Round-1 gate | Terminal result | Exact evidence |
+|---|---|---|
+| Inline/mixed `=` duplicates | **CURED** | Seven value-taking singletons x two spellings x three placements produce 42 checked-in cases. Replacing `token.partition("=")[0]` with `token` makes all 42 fail. |
+| Post-`--` pathspec boundary | **CURED** | Three repeated singleton-looking pathspec cases plus one real-option-before-separator sentinel pass. Scanning to `len(raw_args)` makes all four fail. |
+| `log`-only command scope | **CURED** | Status, diff, and ls preserve their existing duplicate behavior across the representative placements. Removing the command guard makes all three fail. |
+| Cumulative hard cap | **PASS** | +176/-0 handwritten LOC, leaving 24 lines of headroom under 200. |
+| Base F1/F2/F4/F5 integrity | **PASS** | Protected production, tests, native, protocol, and renderer blobs/trees are exact against `f827e30`; none is regraded. |
+
+The exact four remediation tests contain 49 parameterized cases and pass
+49/49. Running each mutant against that same gate produces:
+
+- inline-token mutant — 42 failed / 7 passed;
+- scan-through-`--` mutant — 4 failed / 45 passed;
+- all-commands mutant — 3 failed / 46 passed.
+
+### Final integrity and scope
+
+The final candidate remains one clean commit with the required sole parent.
+It is a sibling rewrite of the round-1 candidate: round 2 changes only
+`src/tests/test_cli_log.py` by +70/-0. The reviewed production blob
+`src/gwz/cli_shared.py` is identical at both candidates:
+`1891260597af11330a22e3a2f9595b15f3b5a505`.
+
+The cumulative base-to-final delta is additions-only:
+
+```text
+src/gwz/cli_shared.py     +36/-0
+src/tests/test_cli_log.py +140/-0
+total                    +176/-0
+```
+
+No other Python source, native code, generated protocol, renderer, manifest,
+lock, documentation, mode, or path changes. The protected S3.5 blobs and
+trees listed in round 1 remain exact, including `cli.py`, `cli_log.py`,
+`client.py`, `bridge.py`, native source, generated protocol, and renderer
+parts. F1/F2/F4/F5 remain base evidence, not a new review surface.
+
+Temp-index binary replays from both the charter base and the round-1 candidate
+reproduce the final tree exactly.
+
+```text
+final tree:                     33a0225fb91059a0fcb2b5cf2e810215122ffd13
+cumulative binary diff SHA-256: d07bfab2abe4bf4739cea6f726d91622a51fe809a0987cb90fba156745f20b50
+cumulative stable patch id:     04550e001f85a7441c36d90ea13a80287373df3d
+cumulative format-patch SHA-256: f5254ef73879135aabca7d9df21144ca99bdc1a1ee2149f4448d962855414dd3
+round-2 binary diff SHA-256:     1034d7ec38eef4ffd5c844e7cf581b79046b757b2d9cd59beede1d6b9b2e3aed
+round-2 stable patch id:         9d89d4d3ebe2eca9e12f576da55d206d505287c3
+```
+
+The repository is non-shallow, has no replacement refs, and passes the diff
+check. Candidate, sibling core, and report worktrees are clean after their
+authorized operations. The Python candidate remained read-only.
+
+### Proportional terminal evidence
+
+The fast-test boundary was preserved. No broad Python suite, core suite, or
+compiler matrix was run.
+
+- Exact remediation cases: 49/49 passed.
+- Focused parser regrade: 118 passed / 28 deselected.
+- Focused parser/log/shared/protocol/codec/native-bridge set:
+  175 passed / 3 skipped.
+- All three exact round-1 mutants: red with the counts above.
+- Protocol drift check: exit 0, fingerprint
+  `sha256:46055287954f4035d07bb1bb88cf79f758a764cbadb1223d4944bf1848f7d277`.
+- Protocol regeneration check: exit 0.
+- Cap, production-byte identity, protected-blob comparison, two-source replay,
+  topology, and cleanliness: green.
+
+### Landing identity
+
+Land exactly `dc6915545b8c65d01cebc02ba1c3c7f1df9a5f8b` as the one-commit child
+of `f827e30fd28c7322c9d70883b8a6d9a873bbfd0a`. No substitute tree or
+additional amendment was reviewed.
