@@ -190,7 +190,7 @@ fn workspace_cwd_and_global_selection_policy_are_preserved() {
 }
 
 #[test]
-fn clap_help_contains_exact_s31_surface_and_not_s32_full() {
+fn clap_help_preserves_the_exact_s31_surface_and_strict_contract() {
     let mut command = Cli::command();
     let help = command
         .find_subcommand_mut("log")
@@ -222,7 +222,6 @@ fn clap_help_contains_exact_s31_surface_and_not_s32_full() {
         "{help}"
     );
     assert!(!help.contains("history is unreadable"), "{help}");
-    assert!(!help.contains("--full"), "S3.2 owns --full:\n{help}");
 }
 
 #[test]
@@ -594,10 +593,12 @@ fn actual_runner_consumes_partial_and_failed_core_aggregates() {
         )
         .unwrap();
         assert_eq!(exit.code, 1, "{status}");
-        assert_eq!(
-            String::from_utf8(stdout).unwrap(),
-            format!("status: {status}\n")
+        let rendered = String::from_utf8(stdout).unwrap();
+        assert!(
+            rendered.ends_with(" root history\n"),
+            "{status}: {rendered}"
         );
+        assert!(!rendered.contains("status:"), "{status}: {rendered}");
     }
 }
 
@@ -645,6 +646,7 @@ fn broken_pipe_is_immediate_success_and_releases_unread_log() {
         "op_setup",
     )
     .unwrap();
+    commit_root(temp.path());
     let log = log_invocation(
         vec![
             "--root".into(),
@@ -680,6 +682,7 @@ fn broken_pipe_is_immediate_success_and_releases_unread_log() {
 #[test]
 fn actual_runner_output_io_failure_stays_process_failure_and_releases() {
     let workspace = initialized_workspace("log-output-io");
+    commit_root(workspace.path());
     let log = log_invocation(
         vec![
             "--root".into(),
@@ -749,7 +752,7 @@ fn machine_error_broken_pipe_is_clean_and_never_falls_back_to_raw_println() {
 }
 
 #[test]
-fn successful_log_dispatch_emits_only_the_plumbing_status_and_releases() {
+fn successful_empty_log_emits_no_stdout_and_releases() {
     let temp = TempDir::new("log-dispatch");
     gwz_core::workspace_ops::handle_create_workspace(
         gwz_core::CreateWorkspaceRequest {
@@ -781,7 +784,10 @@ fn successful_log_dispatch_emits_only_the_plumbing_status_and_releases() {
     .unwrap();
 
     assert_eq!(exit.code, 0);
-    assert_eq!(String::from_utf8(stdout).unwrap(), "status: Ok\n");
+    assert!(
+        stdout.is_empty(),
+        "zero-entry human log must have empty stdout"
+    );
     assert!(
         registry
             .read(
@@ -789,6 +795,6 @@ fn successful_log_dispatch_emits_only_the_plumbing_status_and_releases() {
                 &gwz_core::operation::CommitLogReadRequest::default(),
             )
             .is_err(),
-        "successful plumbing output must also release the unread spool"
+        "successful human output must release the drained spool"
     );
 }

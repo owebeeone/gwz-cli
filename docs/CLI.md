@@ -1198,8 +1198,25 @@ Global Options:
 
 ### `gwz log`
 
+Command page: [log](commands/log.md).
+
 ```text
-Show unified commit history across workspace repositories
+Show local commit history from the workspace root and selected members as one
+newest-first stream. Coordinated workspace commits may appear as one entry
+attributed to several repositories.
+
+The default compact form is `<date> <member-set> <short-hash> <subject>`.
+Small member sets show their workspace-relative member paths; larger sets use
+a count such as `[root+5]`. `--full` uses git-style blocks with a complete
+member table. `--body` includes commit bodies in full blocks.
+
+Members that cannot contribute are summarized on stderr while surviving
+history remains on stdout. `--strict` promotes any such degradation to a
+failure. Dates use each commit's recorded offset, and human text is rendered
+lossily with terminal control characters sanitized.
+
+Output does not use a pager. `--color=auto` enables ANSI color only when
+stdout is a terminal; use `always` or `never` to override.
 
 Usage: gwz log [OPTIONS] [operand]... [-- <pathspec>...]
 
@@ -1245,7 +1262,10 @@ Options:
           Disable workspace-level commit coalescing
 
       --body
-          Include commit message bodies in the core result
+          Include commit message bodies in --full and machine output
+
+      --full
+          Render git-style blocks with a complete member table
 
       --tagged
           Select only repositories containing every supplied local tag
@@ -1331,6 +1351,15 @@ Global Options:
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
           timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
           hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz log
+  gwz log --full --body
+  gwz log -n 20 --author 'Ada <ada@example.com>'
+  gwz log --since 2026-08-01T00:00:00Z
+  gwz log main..topic -- src
+  gwz --target mem_api log +release..HEAD
+  gwz log --strict --tagged v0.11.1
 ```
 
 ### `gwz materialize`

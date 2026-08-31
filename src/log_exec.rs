@@ -1,19 +1,26 @@
 //! No-pager lifecycle driver for the finite core commit-log output spool.
 //!
-//! S3.1 deliberately emits only the existing generic response status. The
-//! caller-owned registry and EPIPE-aware writer are the stable seams that the
-//! S3.2/S3.3 record renderers will consume.
+//! Human mode drains and renders the bounded core record spool directly.
+//! Machine modes retain the S3.1 plumbing response until S3.3 replaces it;
+//! every path preserves caller-owned release and clean EPIPE termination.
 
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
 use crate::{
-    CliError, CliResponse, LogInvocation, OutputMode, exit_code_for_response, render_response,
+    CliError, CliResponse, LogInvocation, OutputMode, exit_code_for_response, log_color_enabled,
+    render_log_degradation, render_log_entry, render_response,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct LogExit {
     pub(crate) code: i32,
+}
+
+pub(crate) struct LogIo<'a, W: Write, E: Write> {
+    pub(crate) stdout: &'a mut W,
+    pub(crate) stderr: &'a mut E,
+    pub(crate) stdout_is_tty: bool,
 }
 
 pub(crate) fn run_log(
@@ -23,17 +30,26 @@ pub(crate) fn run_log(
     operation_id: String,
 ) -> Result<LogExit, CliError> {
     let registry = gwz_core::operation::CommitLogOutputRegistry::new();
-    let mut stdout = io::stdout().lock();
-    run_log_with_registry(
+    let stdout = io::stdout();
+    let stdout_is_tty = stdout.is_terminal();
+    let mut stdout = stdout.lock();
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+    run_log_with_registry_io(
         invocation,
         output,
         start,
         operation_id,
         &registry,
-        &mut stdout,
+        LogIo {
+            stdout: &mut stdout,
+            stderr: &mut stderr,
+            stdout_is_tty,
+        },
     )
 }
 
+#[cfg(test)]
 pub(crate) fn run_log_with_registry<W: Write>(
     invocation: &LogInvocation,
     output: OutputMode,
@@ -42,24 +58,126 @@ pub(crate) fn run_log_with_registry<W: Write>(
     registry: &gwz_core::operation::CommitLogOutputRegistry,
     stdout: &mut W,
 ) -> Result<LogExit, CliError> {
+    let mut stderr = io::sink();
+    run_log_with_registry_io(
+        invocation,
+        output,
+        start,
+        operation_id,
+        registry,
+        LogIo {
+            stdout,
+            stderr: &mut stderr,
+            stdout_is_tty: false,
+        },
+    )
+}
+
+pub(crate) fn run_log_with_registry_io<W: Write, E: Write>(
+    invocation: &LogInvocation,
+    output: OutputMode,
+    start: &Path,
+    operation_id: String,
+    registry: &gwz_core::operation::CommitLogOutputRegistry,
+    io: LogIo<'_, W, E>,
+) -> Result<LogExit, CliError> {
     let response =
         gwz_core::operation::handle_log(start, invocation.request.clone(), operation_id, registry)
             .map_err(CliError::from_model)?;
     let log_id = response.output.log_id.clone();
     let code = exit_code_for_response(&response.response);
-    let rendered = render_response(&CliResponse::envelope(response.response), output);
-    let write_result = if rendered.is_empty() {
-        Ok(())
+    let result = if output == OutputMode::Human {
+        render_human_log(
+            invocation,
+            registry,
+            &log_id,
+            io.stdout,
+            io.stderr,
+            io.stdout_is_tty,
+            code,
+        )
     } else {
-        let mut bytes = rendered.into_bytes();
-        bytes.push(b'\n');
-        stdout.write_all(&bytes)
+        let rendered = render_response(&CliResponse::envelope(response.response), output);
+        let write_result = if rendered.is_empty() {
+            Ok(())
+        } else {
+            let mut bytes = rendered.into_bytes();
+            bytes.push(b'\n');
+            io.stdout.write_all(&bytes)
+        };
+        log_exit_after_write(code, write_result)
     };
-
-    // S3.1 has no record renderer, so the finite spool is intentionally unread;
-    // release it on every output disposition, including a closed consumer.
     registry.release(&log_id);
-    log_exit_after_write(code, write_result)
+    result
+}
+
+fn render_human_log<W: Write, E: Write>(
+    invocation: &LogInvocation,
+    registry: &gwz_core::operation::CommitLogOutputRegistry,
+    log_id: &str,
+    stdout: &mut W,
+    stderr: &mut E,
+    stdout_is_tty: bool,
+    code: i32,
+) -> Result<LogExit, CliError> {
+    let color = log_color_enabled(invocation.color, stdout_is_tty);
+    let mut cursor = None;
+    loop {
+        let batch = registry
+            .read(
+                log_id,
+                &gwz_core::operation::CommitLogReadRequest {
+                    cursor,
+                    max_records: Some(128),
+                },
+            )
+            .map_err(CliError::from_model)?;
+        for record in batch.records {
+            match (record.kind, record.entry, record.degradation) {
+                (gwz_core::LogOutputRecordKind::Entry, Some(entry), None) => {
+                    let mut rendered =
+                        render_log_entry(&entry, invocation.full, color).into_bytes();
+                    rendered.push(b'\n');
+                    if invocation.full {
+                        rendered.push(b'\n');
+                    }
+                    match stdout.write_all(&rendered) {
+                        Ok(()) => {}
+                        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => {
+                            return Ok(LogExit { code: 0 });
+                        }
+                        Err(error) => return Err(log_output_error("stdout", error)),
+                    }
+                }
+                (gwz_core::LogOutputRecordKind::Degradation, None, Some(degradation)) => {
+                    let mut rendered = render_log_degradation(&degradation, color).into_bytes();
+                    rendered.push(b'\n');
+                    stderr
+                        .write_all(&rendered)
+                        .map_err(|error| log_output_error("stderr", error))?;
+                }
+                _ => return Err(invalid_log_output_record()),
+            }
+        }
+        if batch.state == gwz_core::operation::CommitLogReadState::Eof {
+            return Ok(LogExit { code });
+        }
+        cursor = Some(batch.next_cursor);
+    }
+}
+
+fn log_output_error(channel: &str, error: io::Error) -> CliError {
+    CliError::from_model(gwz_core::model::ModelError::new(
+        gwz_core::model::ErrorCode::IoError,
+        format!("cannot write log {channel}: {error}"),
+    ))
+}
+
+fn invalid_log_output_record() -> CliError {
+    CliError::from_model(gwz_core::model::ModelError::new(
+        gwz_core::model::ErrorCode::InternalError,
+        "commit-log output record kind does not match its payload",
+    ))
 }
 
 pub(crate) fn log_exit_after_write(

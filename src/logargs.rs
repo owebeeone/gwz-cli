@@ -70,8 +70,14 @@ pub(crate) struct LogArgs {
     #[arg(long, help = "Disable workspace-level commit coalescing")]
     pub(crate) no_coalesce: bool,
 
-    #[arg(long, help = "Include commit message bodies in the core result")]
+    #[arg(
+        long,
+        help = "Include commit message bodies in --full and machine output"
+    )]
     pub(crate) body: bool,
+
+    #[arg(long, help = "Render git-style blocks with a complete member table")]
+    pub(crate) full: bool,
 
     #[arg(
         long,
@@ -133,6 +139,7 @@ impl LogArgs {
                 tagged: self.tagged.then_some(true),
             },
             color: self.color,
+            full: self.full,
         })))
     }
 }
@@ -141,4 +148,5 @@ impl LogArgs {
 pub(crate) struct LogInvocation {
     pub(crate) request: gwz_core::LogRequest,
     pub(crate) color: LogColor,
+    pub(crate) full: bool,
 }
