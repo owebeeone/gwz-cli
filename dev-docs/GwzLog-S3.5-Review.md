@@ -294,3 +294,138 @@ Every named mutant must be RED. Preserve generated protocol bytes, the native
 dispatch/registry implementation unless a minimal test seam is necessary,
 the frozen marker-invalid pair, and the no-renderer boundary. Do not add S3.6
 human or machine record rendering during remediation.
+
+## Terminal round-2 review
+
+- Date: 2026-08-31
+- Reviewer: same independent reviewer as round 1
+- Round-1 report commit:
+  `4a90881ce6401f9ea29d59dda4a92aa7c6320c2b`
+- Exact final `gwz-py` candidate:
+  `f827e30fd28c7322c9d70883b8a6d9a873bbfd0a`
+- Exact base / sole parent:
+  `10aec7fd69c2f94d90d4aead2bf125f76267b01a`
+- Round-1 comparison candidate:
+  `c34f09fdbe8484b547dfb2d12cf7053da10f9d3e`
+- Exact sibling `gwz-cli` authority:
+  `e783b7390c7fe5e7d1f0df9c982fdf59dadd6940`
+- Exact sibling `gwz-core`:
+  `bdb398c3fa8581531eb1a38674ef89f56fc192e2`
+- Scope: the five round-1 findings and final integrity only
+
+### Terminal verdict: NO-GO — S3.5 freezes
+
+F1, F2, F4, and F5 are cured. The final candidate rejects a cap above signed
+i64 before dispatch, handles real and injected log machine-error EPIPE as
+clean exit 0, pins every active and absent handler field plus exact Failed API
+status, and proves rich ordered multi-page record delivery and cancellation
+release. Every prescribed mutant for those four findings is red.
+
+F3 is not fully cured. Abbreviated options and repeated log-specific switches
+are now rejected, but global non-repeatable options on the log-visible surface
+remain repeatable before, after, and split around `log`. This is the exact
+global-one-shot clause of round-1 F3, not wider discovery. The terminal review
+therefore has **0 P0 / 0 P1 / 1 P2 / 0 P3**. Under the two-round cap there is
+no third remediation review; S3.5 freezes at NO-GO.
+
+### Residual finding
+
+#### S3.5-R2-F3 — P2 — Global non-repeatable log options still accept repetition
+
+The amendment adds a one-shot action for log-local booleans and disables
+argparse long-option abbreviation. The global actions in
+`src/gwz/cli_shared.py`, however, remain ordinary `store_true` or scalar
+actions. Their root and command-local values are then ORed or resolved by last
+value during normalization.
+
+The exact final Python parser accepts all 13 global options that should be
+singletons when each is repeated before, after, or split around `log`:
+`--root`, `--all`, `--dry-run`, `--partial`, `--force`, `--sync`, `--remote`,
+`--jobs`, `--max-per-host`, `--progress-interval`, `--json`, `--jsonl`, and
+`--ssh-timeout`. Representative direct results are:
+
+| Invocation | Final `gwz-py` | Exact Rust `gwz` |
+|---|---|---|
+| `--all --all log` | accepted | exit 2, cannot be used multiple times |
+| `log --all --all` | accepted | exit 2, cannot be used multiple times |
+| `--json --json log` | accepted | exit 2, cannot be used multiple times |
+| `log --jobs 2 --jobs 3` | accepted, `jobs=3` | exit 2, cannot be used multiple times |
+| `--jobs 1 log --jobs 2` | accepted, `jobs=2` | exit 2, cannot be used multiple times |
+
+Intentionally repeatable selectors remain correct: `--target a --target b`
+is accepted and preserves both values. The defect is therefore specifically
+failure to distinguish repeatable selectors from global singleton options.
+The checked-in round-2 tests cover global abbreviations but contain no repeated
+global-singleton matrix, so this wrong behavior ships in the final candidate.
+
+### Round-1 finding regrade
+
+| Finding | Terminal result | Evidence |
+|---|---|---|
+| F1 — signed-i64 cap | **CURED** | `0..=i64::MAX` is accepted and `i64::MAX + 1` is a parser rejection with process exit 2 and no traceback. Removing the upper bound makes both parser and real-process regressions red. |
+| F2 — log machine-error EPIPE | **CURED** | JSON and JSONL injected BrokenPipe return 0 immediately; a real closed pipe exits 0 without stderr spray; non-EPIPE output failure stays 1. Restoring the unguarded write makes the injected and real-pipe tests red. |
+| F3 — exact accepted vocabulary | **FAIL / residual P2** | Abbreviations and repeated log-local booleans are cured and mutation-tight. Repeated global singletons remain accepted as recorded above. |
+| F4 — lowering and Failed identity | **CURED** | Active and absent real handler seams pin every field and tri-state. Exact programmatic Failed remains Failed with entry/degradation output consumable and released. Since/until swap, dropped strict/tagged/no-merges/first-parent, and Failed-to-Partial mutants are all red. |
+| F5 — complete delivery and cancellation | **CURED** | Generated-CBOR Data[2], Data[2], EOF preserves exact four-record order and all rich fields, cursors `None -> 19 -> 41`, and one release. Blocked-read cancellation propagates and releases once. Reverse/drop/early-return/body-erasure/cancellation-release mutants are all red. |
+
+The F5 fixture pins complete member vectors, 40-character hashes, parent order,
+author and committer identities, offsets and exact seconds, subject/body,
+lossy, marker-invalid, and full root/member degradation fields. The final
+native dispatch, bridge, and client production blobs are byte-identical to
+round 1; F5 is a test-only acceptance cure.
+
+### Integrity and preservation
+
+The final candidate is a clean one-commit rewrite, not an additive child of
+the round-1 candidate. Both have the required base as sole parent, and the
+round-1 and final candidates are one commit on each side of that base. A
+temp-index replay of the exact base-to-final binary patch reproduces the final
+tree.
+
+```text
+base tree:                    1a8008d556065c34665c422e514c23a2733b9892
+round-1 tree:                 e6b50b0109585196cc77edcca21204ac4a185aea
+final tree:                   69d96c9ddf355246087de4aeba4e55ad08f7319e
+base-to-final binary diff:    6850d18b3180994fe274a47d3443cb8ceea012c649b4a66fe07c577ad4161ba9
+round-1-to-final binary diff: 17011e9ddcd4db0ff24fbbe63d83f1603091b32b9c463e8fd56f4ddcbd73b1b0
+final stable patch id:        5a91fca6c51044901292903d830f242ee269c956
+```
+
+The round-2 amendment changes only four files by +574/-12:
+
+- production: `src/gwz/cli.py` and `src/gwz/cli_log.py`, +83/-11;
+- tests: `src/tests/test_cli_log.py` and `src/tests/test_client_log.py`,
+  +491/-1.
+
+The cumulative base-to-final delta remains the original 12-file S3.5 surface,
+now +1,756/-7: production +573/-7 and tests +1,183. No native dispatch,
+registry, bridge, client production, renderer, generated protocol, schema,
+dependency, Cargo/lock, documentation, core, or Rust CLI byte changed versus
+round 1. The frozen `LogMergeKind.none` plus `gwz_commit_id="marker-invalid"`
+pair and no-renderer boundary are preserved.
+
+The repositories are non-shallow and have no replacement refs. The exact
+candidate, sibling core, and sibling CLI worktrees are clean; the diff check
+is green. No candidate source was modified during review.
+
+### Proportional terminal evidence
+
+The fast-test boundary was preserved. No broad Python suite, core suite, or
+compiler mutation matrix was run.
+
+- Focused CLI/client/native/protocol/codec/native-bridge set: 67/67 passed.
+- Focused client plus real native log set: 14/14 passed.
+- Log protocol shape/additivity set: 3/3 passed.
+- Protocol drift check: exit 0, fingerprint
+  `sha256:46055287954f4035d07bb1bb88cf79f758a764cbadb1223d4944bf1848f7d277`.
+- Protocol regeneration check: exit 0.
+- Python compile-all check with bytecode redirected outside the candidate:
+  exit 0.
+- Direct Python/Rust repeated-global matrix: Python accepted; exact Rust
+  rejected representative all/json/jobs cases with exit 2.
+- All F1, F2, F4, and F5 mutants named above: red.
+- Candidate diff, topology, replay, blob-preservation, and cleanliness checks:
+  green.
+
+This terminal NO-GO is solely the uncured round-1 F3 global-singleton parity
+condition. No third-round gate is authorized.
