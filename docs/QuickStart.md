@@ -114,8 +114,16 @@ gwz diff
 gwz add path/to/file another/member/file
 gwz diff --cached
 gwz commit -m "Update the shared API"
+gwz log -n 10
 gwz status
 ```
+
+`gwz log` shows the root and active member histories as one newest-first
+workspace stream. Commits created together by `gwz commit` normally appear as
+one entry, so the history follows the workspace change rather than repeating
+the same coordinated commit for every repository. Use `gwz log --full` for
+complete commit and member details, or continue with the
+[`log` command page](commands/log.md).
 
 Commands discover the workspace from the current directory, including when
 run inside a member. Use `--root <path>` only when you need to override that
@@ -207,7 +215,7 @@ Continue with [Root Workspaces](RootWorkspace.md) for the contributor workflow.
   remotes.
 - [Workflows](Workflows.md) contains release, maintenance, pull, and scripting
   recipes.
-- [CLI Reference](CLI.md) and the [command pages](commands/status.md) document
+- [CLI Reference](CLI.md) and the [command pages](commands/log.md) document
   every option.
 - [Machine Output](MachineOutput.md) covers JSON, JSONL, porcelain, and exit
   codes.

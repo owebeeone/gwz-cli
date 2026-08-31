@@ -13,6 +13,18 @@ gwz log +release..HEAD -- src
 gwz --target mem_api log --since 2026-08-01T00:00:00Z
 ```
 
+With no explicit depth or filter, the global result is capped at 50 entries
+after filtering and workspace coalescing. `-n <n>` sets an explicit global
+cap; `-n 0` and `--no-limit` disable it. An explicit revision range or a
+`--since`/`--until` bound automatically lifts only the default cap so core can
+search the complete requested history. An explicit `-n` remains authoritative.
+
+Snapshot operands begin with `+`. In range position, `+lock..HEAD` resolves
+each selected repository's accepted workspace-lock revision. For compatibility
+with released snapshot ids, bare `+lock` is still an ordinary snapshot named
+`lock`; it does not mean the lock pseudo-endpoint outside a range. Put Git
+pathspecs after `--` so they cannot be mistaken for revision operands.
+
 The compact default is one line per workspace-level change:
 
 ```text
@@ -24,6 +36,15 @@ paths. Larger sets use a count such as `[root+5]`. Coordinated commits may
 coalesce into one entry, while `--no-coalesce` shows raw per-repository
 commits. Use `--full` for git-style blocks with a complete member table, and
 add `--body` when commit bodies are needed.
+
+Machine modes are selected with `gwz --json log ...` or
+`gwz --jsonl log ...`. They use the dedicated `gwz.log/v0` record schema, not
+the generic operation-response envelope. Entry provenance is one of `none`,
+`heuristic`, `marker:<uuid-v7>`, or `marker-invalid`; the last token means a
+marker-like claim was present but unusable, so that commit is deliberately a
+singleton. Degradation records carry stable reason tokens. See
+[Machine Output](../MachineOutput.md#commit-log-output) for the complete record
+shape.
 
 Filters are evaluated by the shared core engine before histories are merged:
 `--since`, `--until`, `--author`, `--grep`, `--no-merges`, and

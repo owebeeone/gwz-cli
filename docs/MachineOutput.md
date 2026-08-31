@@ -66,6 +66,82 @@ with `meta: null`, no members, and one error entry. Per-member failures retain
 `member_id`, `member_path`, and `target_kind: "Member"` even when preflight
 rejects the whole operation before a normal response exists.
 
+## Commit Log Output
+
+`gwz log` uses a dedicated finite record stream rather than the generic
+operation-response envelope. JSON wraps the records with schema
+`gwz.log/v0`:
+
+```json
+{
+  "records": [
+    {
+      "author": {
+        "email": "ada@example.test",
+        "name": "Ada",
+        "time": { "offset_min": 600, "time": 1788134400 }
+      },
+      "committer": {
+        "email": "ada@example.test",
+        "name": "Ada",
+        "time": { "offset_min": 600, "time": 1788134400 }
+      },
+      "members": [
+        {
+          "hash": "0123456789abcdef0123456789abcdef01234567",
+          "member_id": "mem_api",
+          "member_path": "services/api",
+          "parents": ["89abcdef0123456789abcdef0123456789abcdef"]
+        }
+      ],
+      "provenance": "marker:<uuid-v7>",
+      "record": "entry",
+      "subject": "Update the shared API"
+    },
+    {
+      "member_id": "mem_web",
+      "member_path": "services/web",
+      "message": "revision was not found",
+      "operand": "topic..HEAD",
+      "reason": "revision_unresolved",
+      "record": "degradation"
+    }
+  ],
+  "schema": "gwz.log/v0"
+}
+```
+
+The literal provenance vocabulary is:
+
+- `none` — one uncoalesced commit;
+- `heuristic` — compatible unmarked commits coalesced by the conservative
+  message, author, and time rule;
+- `marker:<uuid-v7>` — commits coalesced by a valid coordinated-commit marker;
+- `marker-invalid` — a marker-like claim was present but invalid or malformed;
+  the entry is a singleton and never joins a heuristic group.
+
+`body` is present only when `--body` is requested. `lossy` is present only as
+`true`, when invalid Git bytes required U+FFFD replacement. Member ordering and
+parent hashes are stable and complete.
+
+Degradation `reason` is one of `repository_unreadable`, `repository_missing`,
+`unborn`, `revision_unresolved`, `snapshot_entry_missing`,
+`lock_entry_missing`, or `unsupported_source_kind`. The optional `operand` and
+`message` fields may be null.
+
+JSONL begins with a schema header and then emits the same entry and degradation
+objects one per line:
+
+```json
+{"record":"header","schema":"gwz.log/v0"}
+{"provenance":"heuristic","record":"entry","subject":"Update API and web"}
+```
+
+The second line above is abbreviated for readability; real entry records retain
+the complete author, committer, member, and timestamp fields shown in the JSON
+example. See [`gwz log`](commands/log.md) for limits, ranges, filters, and exit
+status behavior.
+
 Durable merge-record compatibility failures populate `record_context` instead
 of requiring message parsing:
 

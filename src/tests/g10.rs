@@ -83,6 +83,37 @@ fn full_flag_and_command_help_describe_the_human_modes_and_no_pager() {
 }
 
 #[test]
+fn public_docs_cover_log_discovery_limits_lock_ranges_and_machine_provenance() {
+    let quick_start = include_str!("../../docs/QuickStart.md");
+    let concepts = include_str!("../../docs/Concepts.md");
+    let workflows = include_str!("../../docs/Workflows.md");
+    let command = include_str!("../../docs/commands/log.md");
+    let machine = include_str!("../../docs/MachineOutput.md");
+
+    assert!(quick_start.contains("gwz log"));
+    assert!(concepts.contains("Workspace History"));
+    assert!(workflows.contains("Inspect Workspace History"));
+    for needle in ["50", "+lock..HEAD", "bare `+lock`", "--json", "--jsonl"] {
+        assert!(
+            command.contains(needle),
+            "log command page is missing `{needle}`"
+        );
+    }
+    for needle in [
+        "gwz.log/v0",
+        "marker:<uuid-v7>",
+        "marker-invalid",
+        "heuristic",
+        "revision_unresolved",
+    ] {
+        assert!(
+            machine.contains(needle),
+            "machine-output guide is missing `{needle}`"
+        );
+    }
+}
+
+#[test]
 fn compact_rendering_uses_committer_offset_complete_subject_and_member_sets() {
     let long_subject = format!("subject-{}", "x".repeat(240));
     let singleton = entry(vec![member("mem_api", "members/api", 'a')], &long_subject);

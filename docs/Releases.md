@@ -11,6 +11,11 @@ the released CLI rather than unreleased work on `main`.
 
 ## Unreleased Compatibility Notes
 
+- `gwz log` adds one newest-first history across the workspace root and selected
+  member repositories, with coordinated-marker and conservative heuristic
+  coalescing, revision/snapshot/lock ranges, six filters, compact and full human
+  rendering, and the dedicated `gwz.log/v0` JSON/JSONL record schema. The
+  Python API and `gwz-py log` expose the same records and rendering contract.
 - Structural workspace commands refuse uncommitted hand edits to `gwz.conf/`
   (the machine-managed manifest and lock). The refusal names the sanctioned
   `gwz repo` verbs and the acceptance path (`gwz init --update --force`);
