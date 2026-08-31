@@ -171,3 +171,79 @@ the reviewed candidate unless a testability-only seam is strictly necessary,
 the focused/formal gates remain green, and no protocol, machine schema,
 renderer, public surface, pager, pin, inventory, or sibling-core change rides
 the remediation.
+
+## Terminal round 2 — GO (2026-08-31)
+
+- Round-1 report commit: `9f89a6779ddfe691eb60c3c2912e444fea696650`
+- Exact final `gwz-cli` candidate: `484a13568cb5b5daee90dff1a54aefe0df43c33c`
+- Candidate tree: `2a15a80c4431b5630d50774a7eca298e3dbd3641`
+- Sole parent / authority: `e783b7390c7fe5e7d1f0df9c982fdf59dadd6940`
+- Exact sibling `gwz-core`: `bdb398c3fa8581531eb1a38674ef89f56fc192e2`
+- Re-review scope: S3.2-F1/F2 and package integrity only
+
+### Terminal verdict: GO
+
+Both round-1 P2 acceptance findings are cured, both exact reviewer mutants
+are RED, and no new in-scope finding was found. Production, dependency,
+protocol, renderer, docs, and public-surface bytes are identical to the
+round-1 candidate; the amendment adds only 181 focused lines to
+`src/tests/g10.rs`. No P0, P1, P2, or P3 finding remains. This verdict is
+terminal under the two-round cap.
+
+### F1 — CURED: the EPIPE fixture proves immediate stop and release
+
+`multi_page_broken_pipe_stops_before_later_output_or_registry_read_and_releases`
+creates 129 commits under `--no-limit`. Its sentinel writer releases the
+known caller-owned spool on the first stdout attempt and returns BrokenPipe.
+The accepted implementation exits 0 after exactly that one write, emits no
+stderr, and leaves the id released.
+
+The exact round-1 mutant replaces the immediate BrokenPipe return with
+`continue`. The new fixture is RED: the runner reaches another registry read
+after the sentinel release and receives typed `InvalidRequest` instead of the
+required clean termination. This distinguishes immediate stop independently
+of eventual release and also prevents later output/error spray.
+
+### F2 — CURED: successful Human/JSON/JSONL ownership is exact
+
+`real_runner_preserves_human_vs_machine_ownership_and_releases_every_mode`
+drives the same real one-commit workspace through all three output modes.
+Human emits the exact compact record. JSON and JSONL emit the exact S3.1
+plumbing response, contain neither the subject nor full commit hash, and all
+three modes release their spool ids.
+
+The exact round-1 mutant widens the human branch to
+`Human | Json | Jsonl`. The fixture is RED on JSON: the compact human line is
+observed where the byte-exact plumbing response is required. No S3.3 schema,
+machine-record renderer, or temporary S3.2 machine format was added.
+
+### Preservation and integrity
+
+The final candidate is one clean commit on the mandated sole parent, with no
+rename or mode change and a green `git diff --check`. Its delta from reviewed
+`803d9929397cf5f4aa3f148164f20b73ee9a8e7b` is exactly
+`src/tests/g10.rs` at `+181/-0`. Every production file is byte-identical.
+There is no Cargo manifest/lock, pin, generated CLI reference, protocol,
+schema, core, checked-artifact/source inventory, pager, renderer, handler,
+public seam, or frozen-registry change. The final full S3.2 package is
+`+1089/-30` across the same 14 files; the additional overrun is solely the two
+mandated mutant-killing fixtures and is justified.
+
+### Terminal proportional evidence
+
+The fast-test policy was followed: no 1,700+ suite and no 69-case compiler
+mutation matrix were run.
+
+- Exact final `cargo test --locked tests::g10` — 10/10 passed.
+- Exact final `cargo test --locked tests::g09` — 21/21 passed.
+- Continue-after-BrokenPipe mutant — RED on the released-registry sentinel.
+- Human-branch-widened-to-JSON/JSONL mutant — RED on the exact JSON response.
+- `cargo fmt --all -- --check` — exit 0.
+- `cargo check --locked --all-targets` — exit 0.
+- Strict Clippy over all targets/features — exit 0.
+- Generated CLI reference check — exit 0.
+- Direct checked-artifact source boundary — exit 0, 15 visible entries / 5
+  classified modules.
+- Release-boundary unit suite — 6/6 passed.
+- Final candidate, sibling core, report, and restored mutation probe were
+  clean at their exact identities.
