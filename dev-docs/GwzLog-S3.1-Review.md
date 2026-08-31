@@ -202,3 +202,140 @@ strict help states the broad degradation rule, generated docs/lock are clean,
 and the rest of the reviewed candidate is byte-identical modulo those narrow
 corrections. No rendering, protocol, core filter/coalescing behavior, pager, or
 new public surface belongs in the remediation.
+
+## Terminal round 2 — GO (2026-08-31)
+
+- Round-1 report lineage: `388792a6b99df392d364ea9a56b19c49d0d4ed15`
+- Exact final `gwz-cli` candidate: `f9336e8004114e25df78033040a9a7411e3cbd0e`
+- CLI sole parent: `0c9629f6ed311a70ddbe80e7974a675ec45aeb3c`
+- CLI tree: `2f9c7acca2d632d40fcb04d420971108abdc2225`
+- Exact final `gwz-core` correction: `bdb398c3fa8581531eb1a38674ef89f56fc192e2`
+- Core sole parent: `834275d6633ccba0755859e9c6437b69ba52d05a`
+- Core tree: `20b52eb0b425e8482f4bd853fe4a6a580deb28e3`
+- Re-review scope: S3.1-F1/F2/F3 plus preservation and base integrity only
+
+### Terminal verdict: GO
+
+All three round-1 findings are cured with no new in-scope finding. The final
+classifier makes the durable distinction structural: typed top-level errors
+default to rejected/2, while the closed execution-failure set and untyped
+errors map to 1. Real missing-manifest, missing-snapshot, missing-tag, and
+inactive-member-selector requests now all return 2. Actual output I/O remains
+1, the real runner consumes core `Partial`/`Failed` aggregates, and the broad
+`--strict` contract is exact in help and generated docs.
+
+No P0, P1, P2, or P3 finding remains. This verdict is terminal under the
+two-round cap.
+
+### F1 — CURED: rejection/execute classification is structural and complete
+
+The final CLI no longer attempts to enumerate every rejection. At
+[`log_exec.rs`](/Users/owebeeone/limbo/gwz-log-worktrees/s3.1/gwz-cli/src/log_exec.rs:88),
+only `IoError`, `InternalError`, `GitCommandFailed`, `ExternalToolMissing`,
+`RemoteRejected`, and an untyped `CliError` map to 1; every other typed error
+maps to 2. This closes both the round-1 snapshot/tag omission and the later
+inactive-selector case without another brittle rejection allow-list.
+
+The real final-candidate fixtures at
+[`g09.rs`](/Users/owebeeone/limbo/gwz-log-worktrees/s3.1/gwz-cli/src/tests/g09.rs:403)
+exercise an explicit existing root without a manifest, `+missing`,
+`--tagged absent`, and an explicitly selected inactive member. They assert the
+exact core code, exit 2, and empty stdout. Independently running the final
+public binary produced exit 2 and zero stdout bytes for the first three paths,
+with `ManifestNotFound`, `SnapshotNotFound`, and `TagNotFound` diagnostics.
+
+The narrow core correction at
+[`artifact/mod.rs`](/Users/owebeeone/limbo/gwz-log-worktrees/s3.1/gwz-core/src/artifact/mod.rs:782)
+types every workspace-manifest read failure before it reaches the CLI:
+filesystem `NotFound` becomes `ManifestNotFound`, `PermissionDenied` becomes
+`PermissionDenied`, and every other manifest read failure becomes
+`ManifestInvalid`. General artifact I/O remains `IoError`; the lock-reader
+sentinel proves the correction did not recategorize other artifacts. The
+public handler fixture also proves missing-manifest rejection occurs before a
+spool id is created.
+
+Mutation results are decisive:
+
+- changing the structural `Some(_)` default from 2 to 1 fails the real inactive
+  selector fixture (`left: 1`, `right: 2`);
+- independently removing `IoError`, `InternalError`, `GitCommandFailed`,
+  `ExternalToolMissing`, or `RemoteRejected` from the execution set is red;
+  the actual output-I/O fixture kills the `IoError` removal, and exact enum
+  assertions kill each remaining removal;
+- removing each earlier typed rejection mapping was red before the structural
+  replacement: real manifest/snapshot/tag requests and the member assertion
+  each observed the wrong 1;
+- changing all I/O to rejected/2 fails the actual `WriteZero` output path;
+- reverting the manifest fallback to generic `IoError` fails both injected
+  invalid-data/other cases; removing the permission arm fails the injected
+  `PermissionDenied` assertion; mapping all manifest I/O to
+  `ManifestNotFound` fails the non-NotFound sentinel.
+
+### F2 — CURED: the real runner consumes the core aggregate
+
+[`actual_runner_consumes_partial_and_failed_core_aggregates`](/Users/owebeeone/limbo/gwz-log-worktrees/s3.1/gwz-cli/src/tests/g09.rs:556)
+constructs one contributing root plus an unreadable selected member and drives
+the public core handler through `run_log_with_registry`. The default request
+returns `Partial`/exit 1; the same real workspace under `--strict` returns
+`Failed`/exit 1. Ordinary success remains 0 and rejected requests are covered
+by F1.
+
+Replacing the production aggregate line with literal `0` is now red on the
+`Partial` assertion (`left: 0`, `right: 1`). The direct shared-seam vocabulary
+table remains as a complementary 0/1/2 exhaustiveness check.
+
+### F3 — CURED: `--strict` help states the broad rule
+
+The flag now says “Promote any selected-repository degradation to failure” at
+[`logargs.rs`](/Users/owebeeone/limbo/gwz-log-worktrees/s3.1/gwz-cli/src/logargs.rs:67).
+The generated CLI reference contains the same text. The help test pins the
+positive phrase and explicitly excludes the former “history is unreadable”
+wording. Restoring the narrow wording is red.
+
+### Preservation and integrity
+
+Both approved packages are clean, single commits on their mandated sole
+parents, with no rename or mode change and green `git diff --check`.
+
+Compared with the round-1 CLI candidate, the final correction changes only
+`docs/CLI.md`, `src/log_exec.rs`, `src/logargs.rs`, and `src/tests/g09.rs`.
+Compared with the accepted S2.7 core, the core correction changes only
+`src/artifact/mod.rs` and the commit-log test module. There is no protocol,
+schema, generated-code, Cargo manifest, dependency pin, public seam, pager,
+renderer, filter/coalescing engine, source-loading inventory, checked-artifact,
+or merge-lifecycle change. Existing caller-owned release, EPIPE, thin-client,
+selection, lowering, and no-pager behavior is byte-preserved outside the narrow
+correction.
+
+Final candidate sizes are `+1876/-8` across 12 CLI files (including the
+generated lock/reference and 794-line focused test module) and `+74/-1` across
+two core files. The additional size is acceptance coverage and the narrow
+typed-manifest seam; the plan's LOC budget remains aspirational, and no
+unnecessary production abstraction was added.
+
+### Terminal proportional evidence
+
+The fast-test policy was followed: no 1,700+ full suite and no 69-case compiler
+matrix were run.
+
+- Final CLI `cargo test --locked tests::g09` — 21/21 passed.
+- Final core missing-manifest artifact fixture — passed.
+- Final core pre-dispatch missing-manifest handler fixture — passed.
+- Final public-binary empty-root / missing-snapshot / missing-tag probes —
+  exits 2/2/2, zero stdout bytes for all three.
+- Exact structural default-to-1 mutant — RED on real `MemberInactive`.
+- Five independent removed-execution-code mutants — all RED.
+- Literal aggregate-0 mutant — RED on real `Partial`.
+- Blanket I/O-to-2 mutant — RED on actual output `IoError`.
+- Narrow `--strict` help mutant — RED.
+- Core fallback-to-`IoError`, removed-permission, and blanket
+  `ManifestNotFound` mutants — RED.
+- CLI and core `cargo fmt --all -- --check` — exit 0.
+- CLI and core `cargo check --locked --all-targets` — exit 0.
+- CLI and core strict Clippy over all targets/features — exit 0.
+- Generated CLI reference check — exit 0.
+- Direct checked-artifact source boundary — exit 0, 15 visible entries / 5
+  classified modules.
+- Release-boundary unit suite — 6/6 passed.
+- Final candidate, sibling, and disposable mutation worktrees were clean after
+  restoration.
