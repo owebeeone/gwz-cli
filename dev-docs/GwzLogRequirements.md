@@ -392,7 +392,36 @@ with the rest.
   (`gwz-core` generated.rs; `gwz-py` generated IR), and the protocol
   drift/regen check is green in both. Precedent: `StatusRequest`/
   `DiffRequest` message shapes and the `commit_marker` slot's two-client
-  consumption.
+  consumption. **Operator-approved S2.7 rider (2026-08-31):** every message
+  and slot that predates the log surface remains byte-untouched. Within the
+  still-unshipped `LogEntry` alone, slot 7 (`ordering_timestamp_ms`) becomes
+  optional, and additive slots 8–11 carry exact author seconds, committer
+  seconds, ordering seconds, and the source-byte `lossy` fact. This is the
+  narrow exception forced by L-ENV-1/L-ENV-12; no other protocol shape moves.
+- **L-INT-1 (v0) — public dispatch and output lifecycle.** The public core
+  `operation::handle_log` seam MUST execute the completed commit-log engine
+  using a caller-owned, operation-scoped commit-log output registry. A
+  successful request MUST mint one non-empty opaque `log_id`, project every
+  merged group and degradation exactly once and in engine emission order into
+  valid `LogOutputRecord` messages, seal the output, and return a `LogResponse`
+  whose final aggregate status is the S2.6 aggregate and whose output id
+  resolves in that same registry. The public reader MUST provide an opaque
+  cursor, bounded batch reads, explicit EOF, typed refusal for unknown,
+  released, or invalid cursors, and idempotent release. Projection or spool
+  failure MUST return a typed core error and leave no resolvable id.
+
+  Retention MUST stay bounded in memory for explicit ranges and no-limit: the
+  finite result is held in an anonymous/automatically removed process-temp
+  spool, not a whole-history collection. The spool is operation state, never a
+  workspace/repository write; the command remains read-only, lock-free,
+  network-free, and independent of `gwz.conf` integrity. Coalesced members are
+  projected in `(member_id, commit)` order; the least such sibling is the
+  deterministic representative for the shared text and identities when hooks
+  made siblings differ, while the group's latest admitted committer instant
+  remains the ordering time. The service lives under
+  `src/operation/commit_log/`, is re-exported through `operation` with only the
+  visibility clients require, and MUST NOT use or modify the unrelated diff
+  output-log service. (Operator-approved amendment, 2026-08-31.)
 - **L-PY-1 (v0).** `gwz-py`'s CLI MUST expose `gwz log` with the same
   operands, flags, defaults, degradation reporting, and exit semantics as
   `gwz-cli`'s, lowered through the same protocol request (per-family
@@ -457,6 +486,9 @@ precedent); refusals teach; read sides never break.
   (present what the records say). Total order: epoch seconds, then the
   deterministic tiebreak — for coalesced entries the tiebreak key is the
   lexicographically-least sibling member id, then that sibling's hash.
+  The public log record carries the exact author, committer, and ordering
+  seconds. Its legacy millisecond convenience slot is optional and MUST be
+  absent, never clamped or wrapped, when exact conversion would overflow.
 - **L-ENV-2 (v0).** The L-COA-7 window boundary is INCLUSIVE: a sibling
   joins its group iff its committer instant ≥ (group's newest − W).
   Cursors are NOT assumed monotone (git's default order can invert
@@ -542,6 +574,8 @@ precedent); refusals teach; read sides never break.
   Hashes are full 40-char lowercase hex; parents keep git's recorded
   order; times are `{"time": <epoch_seconds>, "offset_min": <n>}`;
   JSONL records are guaranteed single-line (JSON escaping suffices).
+  Core protocol projection records this source-byte fact in the additive
+  log-entry `lossy` field; clients MUST NOT infer it by searching for U+FFFD.
 - **L-ENV-13 (v0).** Machine output is schema-tagged per house
   precedent: the `--json` envelope object carries
   `"schema": "gwz.log/v0"`; `--jsonl` begins with a header record
@@ -609,6 +643,12 @@ codebase. Before writing anything:
   does not change the core-owns-semantics split. S2.0 dispatches through this
   existing seam; S2.1 implements here and its single-axis review checks both
   placement and minimal visibility.
+- Public integration (operator amendment 2026-08-31): S2.7 replaces S2.0's
+  refusal at that existing operation seam and adds the commit-history output
+  registry under the same module home. The registry is a bounded-memory,
+  automatically removed process-temp spool with cursor/EOF/release semantics;
+  it is not `diff::log_service`, does not extend that subsystem, and never
+  writes the workspace.
 - Split: `gwz-core` owns semantics (selection, operand resolution, per-repo
   cursors, coalescing, merge, tolerance, structured events, aggregate
   status); `gwz-cli` owns the clap surface — ALL log-specific flags — and

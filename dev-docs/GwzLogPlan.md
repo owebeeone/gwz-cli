@@ -280,6 +280,32 @@ clap flags in this phase, review F7.)*
   pre-merge with entry-level semantics; the per-member outcome aggregate
   that S3.1's exit mapping consumes (the EXIT mapping itself is
   L-EXIT-1, owned by S3.1 — review F7's misassignment corrected).
+- **S2.7 — public dispatch + output lifecycle** *(gwz-core + gwz-py
+  protocol regeneration; ~500 LOC; after S2.6; owns **L-INT-1** and the
+  dated L-PRO-1 wire rider)*. Replace S2.0's intentional
+  `UnsupportedOperation` handler with the public, caller-registry-driven
+  integration of the already-reviewed request, cursor, filter, merge,
+  coalescing, and aggregate seams. Project the engine stream into the existing
+  `LogOutputRecord` discriminated messages, return the final aggregate in
+  `LogResponse`, and expose only the minimum operation-scoped
+  cursor/read/EOF/release API clients require. Retained output MUST use a
+  bounded-memory ephemeral process spool — never a whole-history in-memory
+  collection and never a workspace write — so explicit ranges and no-limit
+  remain faithful to L-PRF-1. This service is private to the commit-history
+  home and MUST NOT reuse, extend, or modify the unrelated
+  `diff::log_service`.
+
+  The operator-approved protocol rider (2026-08-31) repairs two wire-shape
+  omissions exposed only when the completed engine reached projection:
+  `LogEntry.ordering_timestamp_ms` becomes optional for values whose exact
+  seconds cannot be represented as milliseconds; additive log-only fields
+  carry exact author, committer, and ordering seconds plus the L-ENV-12
+  `lossy` bit. Every pre-log message/slot remains byte-untouched and both core
+  and Python generated artifacts are regenerated. No renderer, client flag,
+  machine JSON, or new engine semantics ride this step. The review checklist
+  is L-INT-1, the narrow L-PRO-1 rider, exact L-ENV-1/L-ENV-12 projection,
+  bounded retention, minimum visibility, and end-to-end real-workspace
+  dispatch through the public seam.
 
 ### Phase 3 — the CLI surface (milestone: `gwz log` ships end to end)
 
@@ -287,7 +313,7 @@ clap flags in this phase, review F7.)*
 F10's bundling at exactly the budget ceiling.)*
 
 - **S3.1 — subcommand, flags, exit mapping** *(gwz-cli; ~300 LOC; after
-  S2.6; owns **L-SEL-1, L-EXIT-1**; CO-OWNS the flag surface of five
+  S2.7; owns **L-SEL-1, L-EXIT-1**; CO-OWNS the flag surface of five
   core-owned rows, named for its reviewer's checklist: `-n`/`--no-limit`
   (L-DEP-1), the six filters (L-FIL-1), `--strict` (L-TOL-2),
   `--no-coalesce` (L-COA-3), `--body` (L-JSN-1))*. Clap surface with the
@@ -307,7 +333,7 @@ F10's bundling at exactly the budget ceiling.)*
   `members[]` shape, provenance, degraded-member records, `--body`
   semantics in machine records.
 - **S3.5 — gwz-py CLI mirror + API** *(gwz-py; ~450 LOC; after S3.1 +
-  S2.6; owns **L-PY-1, L-PY-2**)*. The `cli_log`-family mirror: same
+  S2.7; owns **L-PY-1, L-PY-2**)*. The `cli_log`-family mirror: same
   operands, flags, defaults, degradation reporting, exit semantics as
   S3.1's surface, lowered through S2.0's protocol messages; the
   `client.py` API (`log`/`log_output`-shaped, per the `diff` precedent);
@@ -349,11 +375,11 @@ S0.1 ──┬── S1.1 ── S1.2                     (Phase 1: marker-trust
        ├── S2.0 ─────────────────┐          (protocol surface; ∥ S2.1)
        └── S2.1 ──┬── S2.2 ── S2.3
                   │           │
-                  └── S2.4 ───┴── S2.5 ── S2.6 ── S3.1 ──┬── S3.2 ──┬── S3.4 ── S4.1
-                                   ▲                     ├── S3.3 ──┤
-                                   └── (S2.0 feeds the   └── S3.5 ── S3.6
-                                        request wiring       (gwz-py mirror;
-                                        from S2.2 on)          feeds S3.4)
+                  └── S2.4 ───┴── S2.5 ── S2.6 ── S2.7 ── S3.1 ──┬── S3.2 ──┬── S3.4 ── S4.1
+                                   ▲                            ├── S3.3 ──┤
+                                   └── (S2.0 feeds the          └── S3.5 ── S3.6
+                                        request wiring; S2.7       (gwz-py mirror;
+                                        closes public dispatch)     feeds S3.4)
 ```
 
 (S2.0 runs parallel with S2.1; request-facing steps from S2.2 onward
@@ -648,3 +674,24 @@ S2.2.
   S2.5-B is dead as chartered and returns to the operator — no further
   rounds. S2.6 and all S3.x unblock on S2.5-B's landing, per the
   unchanged chain.
+
+- **S2.7 charter, 2026-08-31 (operator-approved lane-owner amendment).**
+  After S2.6's terminal GO and landing, a dependency audit proved that every
+  Phase-2 engine seam was complete but S2.0's public handler still returned
+  `UnsupportedOperation`, no commit-log output registry existed, and the
+  adopted S3.1 step was explicitly gwz-cli-only. The operator approved a new
+  core integration step between S2.6 and S3.1: S2.7 owns only public dispatch,
+  deterministic protocol projection, the final aggregate response, and an
+  operation-scoped bounded-memory ephemeral output spool with cursor/EOF/
+  release lifecycle. It creates no rendering or client surface and does not
+  touch or reuse `diff::log_service`.
+
+  A second operator approval the same day records the forced protocol rider.
+  S0.2's later L-ENV-1 and L-ENV-12 rows cannot be represented by S2.0's
+  original `LogEntry`: required millisecond timestamps overflow for valid i64
+  Git seconds, and no field distinguishes invalid-UTF-8 replacement from a
+  genuine U+FFFD. Only the still-unshipped log message changes: slot 7 becomes
+  optional, and additive log-only fields carry exact author/committer/ordering
+  seconds and `lossy`. Every pre-log message and slot remains byte-identical;
+  core and Python generated artifacts move together. S2.7 gets a fresh
+  two-round review cap. S3.1 and S3.5 now depend on S2.7; no other edge changes.
