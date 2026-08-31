@@ -43,6 +43,7 @@ Commands:
                <string>
   init         Create a workspace or initialize one from source URLs
   ls           List workspace targets (id, path; absolute or --local)
+  log          Show unified commit history across workspace repositories
   materialize  Materialize workspace members to a target
   merge        Merge a source ref across selected workspace repositories
   pull         Update workspace members to an explicit target
@@ -1117,6 +1118,143 @@ Options:
 
       --unmaterialized
           Include configured-but-unmaterialized members
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes.
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+```
+
+### `gwz log`
+
+```text
+Show unified commit history across workspace repositories
+
+Usage: gwz log [OPTIONS] [operand]... [-- <pathspec>...]
+
+Arguments:
+  [operand]...
+          Revisions, ranges, or +snapshot ids; classified by core. Put pathspecs after `--`.
+
+  [pathspec]...
+          Literal pathspecs relative to the invocation directory
+
+Options:
+  -n <n>
+          Limit the global result to N entries (0 disables the limit)
+
+      --no-limit
+          Disable the global result limit
+
+      --since <time>
+          Include commits at or after TIME (RFC3339/ISO-8601; date-only is local midnight,
+          offset-less is local, or use @epoch-seconds)
+
+      --until <time>
+          Include commits at or before TIME (RFC3339/ISO-8601; date-only is local midnight,
+          offset-less is local, or use @epoch-seconds)
+
+      --author <regex>
+          Match a case-sensitive Rust regex (not Git regex syntax) against `Name <email>`
+
+      --grep <regex>
+          Match a case-sensitive Rust regex (not Git regex syntax) against the full raw commit
+          message
+
+      --no-merges
+          Exclude merge commits before workspace coalescing
+
+      --first-parent
+          Follow only each commit's first parent
+
+      --strict
+          Promote any selected-repository degradation to failure
+
+      --no-coalesce
+          Disable workspace-level commit coalescing
+
+      --body
+          Include commit message bodies in the core result
+
+      --tagged
+          Select only repositories containing every supplied local tag
+
+      --color <when>
+          Colorize output: always, never, or auto
+
+          [default: auto]
+          [possible values: always, never, auto]
 
   -h, --help
           Print help (see a summary with '-h')

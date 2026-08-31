@@ -242,6 +242,8 @@ pub(crate) enum CommandArgs {
     Init(InitArgs),
     #[command(about = "List workspace targets (id, path; absolute or --local)")]
     Ls(LsArgs),
+    #[command(about = "Show unified commit history across workspace repositories")]
+    Log(LogArgs),
     #[command(
         about = "Materialize workspace members to a target",
         long_about = MATERIALIZE_LONG,

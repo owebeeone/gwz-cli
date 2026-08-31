@@ -59,6 +59,9 @@ pub(super) fn open_merge_gate_request(
         CliRequest::Commit(request) => (&request.meta, Command::Commit),
         CliRequest::Stage(request) => (&request.meta, Command::StageConflictResolution),
         CliRequest::Diff(request) => (&request.request.meta, Command::Diff),
+        // Log is a read-only special runner and the core open-merge vocabulary
+        // has no Log row; it never passes through generic dispatch pre-gating.
+        CliRequest::Log(_) => return None,
     };
     Some((meta.workspace.as_ref(), command))
 }
