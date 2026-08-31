@@ -350,3 +350,164 @@ probes require a minimal private seam. Accept only when:
 
 No renderer redesign, protocol/core/Rust change, new semantics, broad suite,
 or compiler matrix belongs in remediation.
+
+# Round 2 — terminal re-review
+
+- Date: 2026-08-31
+- Review round: 2 of 2, terminal
+- Exact `gwz-py` base / sole parent:
+  `0bc58a887a9548dbe8b2d2608c8d0ba15915b0ee`
+- Round-1 comparison candidate:
+  `8d717e329ae007358c71e0545ba97fb6d4ca7134`
+- Exact final `gwz-py` candidate:
+  `ec1b01f1801c930da930acefbf8d48f7e612ce96`
+- Final candidate tree: `02a4add5fdbcd807a24dd23ca8b3f4ee41dbce0d`
+- Exact Rust CLI authority:
+  `6266ba2bff28bf631d9eb1efa69dcf2c220f8944`
+- Exact sibling `gwz-core`:
+  `bdb398c3fa8581531eb1a38674ef89f56fc192e2`
+- Scope: only the seven round-1 P2 cures, F8/F9 claim tightening, and
+  final integrity
+
+## Terminal verdict: GO
+
+All seven blocking round-1 findings are cured. The amended real-workspace
+oracle now proves distinct Rust and Python invocations, the required depth
+forms and ranges have exact histories beyond 50, unique/order and heuristic
+boundaries are exact, the human C0 body is genuinely rendered, and the
+EPIPE/non-EPIPE tests deterministically distinguish every reviewed
+production boundary. The relevant wrong implementations are red.
+
+Round 2 changes tests only. The three production files are byte-identical to
+the already-correct round-1 implementation, and cumulative replay reproduces
+the exact final tree. No renderer, native bridge, generated protocol,
+dependency, core, or Rust CLI surface moved.
+
+Finding count: **0 P0 / 0 P1 / 0 P2 / 1 P3**. The retained P3 is
+nonblocking: F9 now has exact native-Git sequence checks for long exclusion,
+`:!`, and top magic, but its local S3.4 matrix still omits the second
+L-RNG-1 short alias, `:^`. The final production passes that exact reviewer
+probe, and the accepted S2.2-B native-parity suite remains the primary
+evidence for the pathspec envelope. This does not block S3.4 landing; add the
+single missing row during S4.1's traceability sweep.
+
+## Round-1 finding disposition
+
+| Finding | Terminal result | Exact final evidence |
+|---|---|---|
+| F1 — parity oracle collapse | **CURED** | `_assert_parity_results` asserts exact Rust argv, exact `[sys.executable, "-m", "gwz.cli"]` argv, exit code, stdout, and stderr. Rust-to-Python and Python-to-Rust collapse mutants each fail; deleting either byte comparison fails the dedicated oracle regression. |
+| F2 — depth aliases and lifts | **CURED** | Exact ordered hashes cover default 50, `-n 2`, `-n 0`, `--no-limit`, since-only, and until-only; every unbounded form has more than 50 entries. Ordinary, `+baseline..HEAD`, and `+lock..HEAD` ranges are unmasked, exact against native `rev-list`, exclude their pins, and retain the required root degradation. The `-n 0`, until-to-50, range-to-50, and standalone-pseudo-range mutants are red. |
+| F3 — unique group and absolute order | **CURED** | The real `gwz commit` fixture asserts exactly one entry and the exact root/API/web hash map. The extreme fixture asserts ordered subjects, signed seconds, and offsets. Duplicate-record and reverse-order mutants are red. |
+| F4 — heuristic negative arms | **CURED** | Independent real histories vary full message, author identity, the committer window by 11 seconds, and same-repository membership. Each yields exactly two singleton `none` entries with exact hashes; four axis-collapse mutants are red. The positive, rebase, and marked-versus-heuristic arms remain. |
+| F5 — human C0 body | **CURED** | `--full --body --color never` now precedes the operand and `--`. The human result contains exact `body U+FFFD control`, no raw SOH, and no raw ESC; the U+0001 pass-through sanitizer mutant is red. Machine escaped controls and `lossy=true` remain exact. |
+| F6 — deterministic EPIPE | **CURED** | A preclosed descriptor makes prefix failure deterministic. Synchronized JSONL-record, JSON-suffix, and later-human writes prove exit 0, empty stderr, exactly one release, and no later output attempt. Prefix-silencer removal and human-only late silencing are red with exit 120/spray. |
+| F7 — ordinary write failures | **CURED** | Human-record, JSONL-record, JSON-suffix, and degradation-stderr `OSError` cases assert exit 1 and one release; stderr also pins its typed diagnostic. Broadening the outer catch to `OSError` fails all three stdout positions, and the wrong stderr channel fails. |
+| F8 — filter claims | **CURED** | Grep, author, since, until, no-merges, and first-parent now compare complete ordered hashes; the ancestry filters use native `rev-list` expectations. Six independent flag-removal mutations are red, while the marker-survivor assertion remains exact. |
+| F9 — pathspec native-Git claim | **PARTIAL; retained P3** | Workspace/member routing, long `:(exclude)`, short `:!`, and `:(top)` compare complete ordered hashes with native Git; removing the checked exclusion is red. The sibling short alias `:^` is absent from the checked-in table. Adding `(".", ":^side-only.txt")` in a disposable reviewer copy passes exactly, so this is an acceptance-inventory omission, not a production failure. |
+
+## Mutation evidence
+
+The terminal mutation audit was confined to disposable copies. The reviewed
+candidate was never edited.
+
+- Rust-side parity changed to Python: red, one focused failure.
+- Python-side parity changed to Rust: red, one focused failure.
+- stdout and stderr comparison deletions: independently red.
+- explicit `-n 0` lowered to 50: red in the exact depth test.
+- until-only lift lowered to 50: red in the exact depth test.
+- ordinary/snapshot/lock range lifts lowered to 50: red in all three range
+  forms.
+- `+baseline..HEAD` / `+lock..HEAD` changed to standalone pseudo operands:
+  red in both cases.
+- duplicate decoded records and reversed decoded records: independently red.
+- four heuristic MUST-NOT axis collapses: red in all four rows.
+- U+0001 human sanitizer pass-through: red.
+- each of the six filter flags removed: red in its exact sequence row.
+- checked pathspec exclusion removed: red.
+- prefix silencing removed: red with exit 120.
+- late silencing restricted to human output: JSONL record and JSON suffix red
+  with exit 120.
+- outer `BrokenPipeError` catch widened to `OSError`: human, JSONL, and JSON
+  suffix ordinary failures red.
+- degradation write failure mislabeled as the output channel: red.
+
+The reviewer also independently reproduced the central round-1 mutants:
+oracle collapse, the combined depth/range/until lowering, duplicate output,
+reverse order, and U+0001 pass-through all failed the amended focused tests.
+
+## Focused terminal evidence
+
+The FAST boundary was preserved. No broad Python/Rust/core suite and no
+compiler mutation matrix was run.
+
+- exact 35-case real Rust/Python battery: **35/35 passed**;
+- amended renderer module: **41/41 passed**;
+- combined S3.4 plus adjacent CLI/render/client/native/protocol gate:
+  **240/240 passed in 26.62 seconds**;
+- focused EPIPE/non-EPIPE selection: **16 passed**;
+- deterministic real-pipe positions: **6/6 passed**; and
+- reviewer-added `:^` native-Git sequence probe: **1/1 passed**.
+
+The configured Rust process is the exact rebuilt CLI authority. Its binary
+SHA-256 is
+`e6d986d4e3589cc7d558f091ede0cb658f40a75042c133cfdccadc1dcf35fac6`.
+The candidate's native module SHA-256 is
+`7dd4642ae8d9554e686ebc95b094436e48fee5022975a3a08d3c978038535941`.
+Both clients therefore remain pinned to the reviewed CLI/core identities.
+
+## Final integrity and landing evidence
+
+The final candidate is one clean commit whose sole parent and merge base are
+the required Python base. Round 1 and round 2 are sibling amendments on that
+base; round 2 is not an additive commit on the rejected candidate. The final
+commit has no trailers, the repository is non-shallow, no replacement refs
+exist, and `git diff --check` is clean.
+
+The cumulative base-to-final delta is six files and `+1568/-23`:
+
+```text
+production:  src/gwz/cli.py, cli_log.py, cli_shared.py        +23/-19
+tests:       test_cli_log_render.py,
+             test_log_real_workspace.py, test_native_log.py +1545/-4
+```
+
+The round-1-to-final delta is exactly two test files, `+616/-76`:
+
+```text
+src/tests/test_cli_log_render.py      +61/-2
+src/tests/test_log_real_workspace.py +555/-74
+```
+
+Production blobs are byte-identical between round 1 and the final candidate:
+
+```text
+src/gwz/cli.py         5185925db8b511b325f7595e3c0a676e38f32c81
+src/gwz/cli_log.py     1606bba3d4ffcb741d0d59f5a3896d0d301a84c4
+src/gwz/cli_shared.py  c4704d5c3e85c61ac65231a514bb2c33e836fde2
+```
+
+Native, generated protocol, renderer parts, `cli_render.py`, bridge, client,
+manifests, and lockfiles are unchanged from the required base. Temp-index
+replay from both the base with the cumulative patch and round 1 with the
+round-2 patch produces the exact final tree.
+
+```text
+base tree:                         3653d0f51a1f521f9c46070617515c1ecab40cbc
+round-1 tree:                      73d7ee676157874b6bbbd41594431e92efbc9e1d
+final tree:                        02a4add5fdbcd807a24dd23ca8b3f4ee41dbce0d
+cumulative binary diff SHA-256:    6a57089fe808aedbd81f884d04879886e4b805b2909ece745d3e2d24799d42e4
+cumulative full-index SHA-256:     6b25ce1c93411fae8f3f378f5fdb369ea162852ff487977d133ba01ff9f2b4bd
+cumulative stable patch id:        9cce8240435460343b138153450659e719e851d4
+cumulative format-patch SHA-256:   74a4f1a4bb057361ef7105056ebc55b317a647cf729a1f4c2dbe2c1cbe30f9ff
+round-2 binary diff SHA-256:       5cffce7da43f25cf2ad8c9a6ba893c25ac4cba2aff9ad908c552381ac4fefd51
+round-2 full-index SHA-256:        ef2a0d1cd5e9fca5638a09bf2302609183bf86c3187d822a4ace0bfc9e85b247
+round-2 stable patch id:           8d0cc7deda4b0ec9b633d61b8b3c717b466df029
+```
+
+The exact Python candidate, Rust authority, sibling core, and review
+worktrees are clean at verdict. No push was performed.
+
+**Terminal landing decision:** land exact Python candidate
+`ec1b01f1801c930da930acefbf8d48f7e612ce96`. Do not substitute the round-1
+candidate. Carry the nonblocking one-line `:^` S3.4 inventory addition into
+S4.1; it is not a condition on this landing.
