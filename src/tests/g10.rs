@@ -442,26 +442,36 @@ fn real_runner_preserves_human_vs_machine_ownership_and_releases_every_mode() {
         ],
         workspace.path(),
     );
-    let expected_machine = format!(
+    let expected_record = serde_json::json!({
+        "author": {
+            "email": "log@example.test",
+            "name": "Log Test",
+            "time": { "offset_min": 0, "time": 0 },
+        },
+        "committer": {
+            "email": "log@example.test",
+            "name": "Log Test",
+            "time": { "offset_min": 0, "time": 0 },
+        },
+        "members": [{
+            "hash": hash.clone(),
+            "member_id": "@root",
+            "member_path": ".",
+            "parents": [],
+        }],
+        "provenance": "none",
+        "record": "entry",
+        "subject": "mode sentinel",
+    });
+    let expected_json = format!(
         "{}\n",
         serde_json::json!({
-            "branch_repos": serde_json::Value::Null,
-            "errors": [],
-            "kind": "response",
-            "members": [],
-            "merge": serde_json::Value::Null,
-            "meta": {
-                "action": "Log",
-                "aggregate_status": "Ok",
-                "message": serde_json::Value::Null,
-                "operation_id": "op_log_mode_boundary",
-                "request_id": "req_log_render",
-                "schema_version": "gwz.protocol/v0",
-            },
-            "stash_bundles": serde_json::Value::Null,
-            "workspace_git_status": serde_json::Value::Null,
+            "records": [expected_record.clone()],
+            "schema": "gwz.log/v0",
         })
     );
+    let expected_jsonl =
+        format!("{{\"record\":\"header\",\"schema\":\"gwz.log/v0\"}}\n{expected_record}\n");
 
     for output in [OutputMode::Human, OutputMode::Json, OutputMode::Jsonl] {
         let registry = gwz_core::operation::CommitLogOutputRegistry::new();
@@ -492,11 +502,8 @@ fn real_runner_preserves_human_vs_machine_ownership_and_releases_every_mode() {
                     &hash[..12]
                 )
             ),
-            OutputMode::Json | OutputMode::Jsonl => {
-                assert_eq!(rendered, expected_machine, "{output:?}");
-                assert!(!rendered.contains("mode sentinel"), "{output:?}");
-                assert!(!rendered.contains(&hash), "{output:?}");
-            }
+            OutputMode::Json => assert_eq!(rendered, expected_json),
+            OutputMode::Jsonl => assert_eq!(rendered, expected_jsonl),
             OutputMode::Porcelain => unreachable!(),
         }
         assert!(
