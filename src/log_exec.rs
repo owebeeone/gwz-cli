@@ -1,15 +1,15 @@
 //! No-pager lifecycle driver for the finite core commit-log output spool.
 //!
-//! Human mode drains and renders the bounded core record spool directly.
-//! Machine modes retain the S3.1 plumbing response until S3.3 replaces it;
-//! every path preserves caller-owned release and clean EPIPE termination.
+//! Human and machine modes drain and render the bounded core record spool
+//! directly. Every path preserves caller-owned release and clean EPIPE
+//! termination; porcelain retains the S3.1 plumbing response.
 
 use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
 use crate::{
     CliError, CliResponse, LogInvocation, OutputMode, exit_code_for_response, log_color_enabled,
-    render_log_degradation, render_log_entry, render_response,
+    render_log_degradation, render_log_entry, render_response, write_log_machine_output,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -81,13 +81,45 @@ pub(crate) fn run_log_with_registry_io<W: Write, E: Write>(
     registry: &gwz_core::operation::CommitLogOutputRegistry,
     io: LogIo<'_, W, E>,
 ) -> Result<LogExit, CliError> {
+    run_log_with_registry_io_using_machine(
+        invocation,
+        output,
+        start,
+        operation_id,
+        registry,
+        io,
+        |registry, log_id, output, stdout| {
+            write_log_machine_output(registry, log_id, output, stdout)
+        },
+    )
+}
+
+fn run_log_with_registry_io_using_machine<W, E, M>(
+    invocation: &LogInvocation,
+    output: OutputMode,
+    start: &Path,
+    operation_id: String,
+    registry: &gwz_core::operation::CommitLogOutputRegistry,
+    io: LogIo<'_, W, E>,
+    machine_output: M,
+) -> Result<LogExit, CliError>
+where
+    W: Write,
+    E: Write,
+    M: FnOnce(
+        &gwz_core::operation::CommitLogOutputRegistry,
+        &str,
+        OutputMode,
+        &mut W,
+    ) -> Result<(), crate::LogMachineOutputError>,
+{
     let response =
         gwz_core::operation::handle_log(start, invocation.request.clone(), operation_id, registry)
             .map_err(CliError::from_model)?;
     let log_id = response.output.log_id.clone();
     let code = exit_code_for_response(&response.response);
-    let result = if output == OutputMode::Human {
-        render_human_log(
+    let result = match output {
+        OutputMode::Human => render_human_log(
             invocation,
             registry,
             &log_id,
@@ -95,18 +127,37 @@ pub(crate) fn run_log_with_registry_io<W: Write, E: Write>(
             io.stderr,
             io.stdout_is_tty,
             code,
-        )
-    } else {
-        let rendered = render_response(&CliResponse::envelope(response.response), output);
-        let write_result = if rendered.is_empty() {
-            Ok(())
-        } else {
-            let mut bytes = rendered.into_bytes();
-            bytes.push(b'\n');
-            io.stdout.write_all(&bytes)
-        };
-        log_exit_after_write(code, write_result)
+        ),
+        OutputMode::Json | OutputMode::Jsonl => {
+            match machine_output(registry, &log_id, output, io.stdout) {
+                Ok(()) => Ok(LogExit { code }),
+                Err(crate::LogMachineOutputError::Write(error)) => {
+                    log_exit_after_write(code, Err(error))
+                }
+                Err(crate::LogMachineOutputError::Read(error)) => Err(CliError::from_model(error)),
+                Err(crate::LogMachineOutputError::InvalidRecord(message)) => {
+                    Err(CliError::from_model(gwz_core::model::ModelError::new(
+                        gwz_core::model::ErrorCode::InternalError,
+                        message,
+                    )))
+                }
+            }
+        }
+        OutputMode::Porcelain => {
+            let rendered = render_response(&CliResponse::envelope(response.response), output);
+            let write_result = if rendered.is_empty() {
+                Ok(())
+            } else {
+                let mut bytes = rendered.into_bytes();
+                bytes.push(b'\n');
+                io.stdout.write_all(&bytes)
+            };
+            log_exit_after_write(code, write_result)
+        }
     };
+
+    // The caller owns the finite spool. Release it after every successful or
+    // failed read/render/write disposition, including a closed consumer.
     registry.release(&log_id);
     result
 }
@@ -178,6 +229,41 @@ fn invalid_log_output_record() -> CliError {
         gwz_core::model::ErrorCode::InternalError,
         "commit-log output record kind does not match its payload",
     ))
+}
+
+#[cfg(test)]
+pub(crate) fn run_log_with_registry_and_machine_for_test<W, M>(
+    invocation: &LogInvocation,
+    output: OutputMode,
+    start: &Path,
+    operation_id: String,
+    registry: &gwz_core::operation::CommitLogOutputRegistry,
+    stdout: &mut W,
+    machine_output: M,
+) -> Result<LogExit, CliError>
+where
+    W: Write,
+    M: FnOnce(
+        &gwz_core::operation::CommitLogOutputRegistry,
+        &str,
+        OutputMode,
+        &mut W,
+    ) -> Result<(), crate::LogMachineOutputError>,
+{
+    let mut stderr = io::sink();
+    run_log_with_registry_io_using_machine(
+        invocation,
+        output,
+        start,
+        operation_id,
+        registry,
+        LogIo {
+            stdout,
+            stderr: &mut stderr,
+            stdout_is_tty: false,
+        },
+        machine_output,
+    )
 }
 
 pub(crate) fn log_exit_after_write(
