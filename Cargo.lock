@@ -421,7 +421,7 @@ dependencies = [
 [[package]]
 name = "gwz-core"
 version = "0.12.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v0.12.0#44d7b961c631eb107fba17c5f5899d196b52673d"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v0.12.0#845956c59a8727572553fde78967e872209a429f"
 dependencies = [
  "cap-fs-ext",
  "cap-std",

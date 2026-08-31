@@ -194,16 +194,22 @@ def reconcile_cargo_toml(worktree, tag: str, version: str) -> bool:
     return True
 
 
-def verify_locked_git_pin(worktree, tag: str):
+def verify_locked_git_pin(worktree, tag: str, core_sha: str):
     """After cargo build, the standalone lock must pin gwz-core via the git tag -- not the workspace
     `path` dep (which would happen if the worktree resolved inside the gwz-dev cargo workspace)."""
     lock = (worktree / "Cargo.lock").read_text(encoding="utf-8")
     match = re.search(r'\[\[package\]\]\nname = "gwz-core"\nversion = "[^"]*"\n(?:source = "([^"]+)"\n)?', lock)
     source = match.group(1) if match else None
-    if not source or "git+" not in source or f"tag={tag}" not in source:
+    if (
+        not source
+        or "git+" not in source
+        or f"tag={tag}" not in source
+        or not source.endswith(f"#{core_sha}")
+    ):
         fail(f"after `cargo build`, Cargo.lock does not pin gwz-core via git tag {tag} "
-             f"(source={source!r}) -- the worktree may have resolved inside a cargo workspace; "
-             "the build did not actually exercise the pinned release")
+             f"at resolved commit {core_sha} (source={source!r}) -- the worktree may have "
+             "resolved inside a cargo workspace or retained a stale resolution; the build "
+             "did not actually exercise the pinned release")
     log(f"verified Cargo.lock pins gwz-core via {source}")
 
 
@@ -316,13 +322,19 @@ def main():
         merged = merge_head_exists(worktree)
         changed = reconcile_cargo_toml(worktree, tag, version)
         checkout_gwz_core(core_url, tag, core_checkout)
+        core_sha = git_wt(core_checkout, ["rev-parse", "HEAD"], capture=True).stdout.strip()
+        # Refresh even when the manifest already names this tag. A failed/provisional release may
+        # have been removed and recreated at a corrected commit; Cargo otherwise trusts the stale
+        # locked Git revision because the dependency spelling did not change.
+        run(["cargo", "update", "-p", "gwz-core"], cwd=worktree)
+        changed = changed or bool(git_wt(worktree, ["status", "--porcelain"], capture=True).stdout)
         if merged or changed:
             # The worktree lives outside the gwz-dev workspace, so cargo resolves gwz-core via
             # git+tag: this refreshes Cargo.lock against the pinned release and verifies the build.
             run(["cargo", "build"], cwd=worktree)
             if not args.no_test:
                 run(["cargo", "test"], cwd=worktree)
-            verify_locked_git_pin(worktree, tag)
+            verify_locked_git_pin(worktree, tag, core_sha)
             if not args.no_doc_check:
                 verify_cli_reference_docs(worktree)
             git_wt(worktree, ["add", "-A"])
@@ -336,7 +348,9 @@ def main():
                 f"(gwz-cli {version}, gwz-core {tag})")
         else:
             log(f"{args.release} already reconciled for {tag}; no new commit needed")
-            verify_locked_git_pin(worktree, tag)  # only ever tag a commit whose lock pins the git tag
+            verify_locked_git_pin(
+                worktree, tag, core_sha
+            )  # only ever tag a commit whose lock pins the exact Git tag target
             if not args.no_doc_check:
                 verify_cli_reference_docs(worktree)
 
