@@ -197,6 +197,7 @@ fn clap_help_preserves_the_exact_s31_surface_and_strict_contract() {
         .expect("log subcommand")
         .render_long_help()
         .to_string();
+    let normalized_help = help.split_whitespace().collect::<Vec<_>>().join(" ");
     for flag in [
         "-n <n>",
         "--no-limit",
@@ -216,7 +217,10 @@ fn clap_help_preserves_the_exact_s31_surface_and_strict_contract() {
     }
     assert!(help.contains("Rust regex"), "{help}");
     assert!(help.contains("case-sensitive"), "{help}");
-    assert!(help.contains("date-only is local midnight"), "{help}");
+    assert!(
+        normalized_help.contains("date-only is local midnight"),
+        "{help}"
+    );
     assert!(
         help.contains("Promote any selected-repository degradation to failure"),
         "{help}"
