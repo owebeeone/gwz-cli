@@ -695,3 +695,30 @@ S2.2.
   seconds and `lossy`. Every pre-log message and slot remains byte-identical;
   core and Python generated artifacts move together. S2.7 gets a fresh
   two-round review cap. S3.1 and S3.5 now depend on S2.7; no other edge changes.
+
+- **RE-PLAN — S3.5-B, 2026-08-31 (lane owner; terminal S3.5 NO-GO,
+  report `db9449a722f784f601286a16825494aa3eb13588`).** The terminal cap
+  held and S3.5 freezes as chartered. Its sole blocking root is the residual
+  round-2 F3: the Python log-visible parser still accepts repetition of the
+  13 global singleton options (`--root`, `--all`, `--dry-run`, `--partial`,
+  `--force`, `--sync`, `--remote`, `--jobs`, `--max-per-host`,
+  `--progress-interval`, `--json`, `--jsonl`, and `--ssh-timeout`) before,
+  after, or split around `log`, where exact Rust Clap refuses them.
+
+  **S3.5-B replaces S3.5 IN PLACE in the §4 chain**, so S3.6's dependency on
+  S3.5 now reads S3.5-B. Base, explicit: the final reviewed Python candidate
+  **`f827e30fd28c7322c9d70883b8a6d9a873bbfd0a`**. Its reviewed F1/F2/F4/F5
+  cures MUST remain byte-equivalent and are not re-reviewed. The S3.5-B delta
+  is limited to Rust-parity duplicate rejection for every named global
+  nonrepeatable when repeated before `log`, after `log`, or split around it;
+  truly repeatable selectors (including repeated `--target`) remain
+  repeatable, and the reviewed no-long-abbreviation behavior remains intact.
+  No rendering, protocol, native dispatch, output lifecycle, request lowering,
+  or other command behavior rides this residue.
+
+  The delta is **HARD-capped at 200 changed handwritten LOC versus `f827e30`**,
+  including its exact table-driven regressions and relevant mutants. Review is
+  the delta against this charter plus base integrity: F1/F2/F4/F5 preservation
+  is verified byte-equivalent to `f827e30`, not regraded. S3.5-B receives a
+  fresh two-round cap; if round 2 fails, S3.5-B freezes and returns to the
+  operator with no further remediation round.
