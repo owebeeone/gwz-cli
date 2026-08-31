@@ -267,3 +267,119 @@ protocol bytes, apply only F1's minimum acceptance/test-hook cure, and return
 the exact remediated core plus byte-identical Python candidate to this same
 reviewer for the terminal round 2 under the fresh two-round cap. S3.1 and S3.5
 remain blocked on S2.7 landing.
+
+---
+
+# Terminal round-2 review
+
+**Verdict: GO.**
+
+- **Remediated core candidate:**
+  `834275d6633ccba0755859e9c6437b69ba52d05a`
+- **Core sole parent / base:**
+  `5a4f9cbe033805d8c54d78cc93b84f949ec429b5`
+- **Core tree:** `ec8e1dba9b918f626c346aeccff95492eeef61f2`
+- **Preserved Python candidate:**
+  `10aec7fd69c2f94d90d4aead2bf125f76267b01a`
+- **Round-2 comparison candidate:**
+  `77cb47171256db4c548117e1dbdcf586f6e3071a`
+- **Finding count:** 0 P0 / 0 P1 / 0 P2 / 0 P3
+
+Round-1 F1 is cured. Two successful requests now prove non-empty distinct ids,
+continued resolution of both authorities after the second request, and release
+independence. A public handler fixture proves that one contribution plus one
+read failure remains `AggregateStatus::Partial`. A test-only seal-failure hook
+proves typed `IoError` and zero retained registry authorities. The four exact
+false-pass mutants from round 1 are all RED for the intended new assertion.
+
+## F1 terminal matrix
+
+| Required distinction | Terminal result |
+|---|---|
+| Empty id | **PASS** — replacing the minted id with `String::new()` fails the first non-empty assertion. |
+| Fixed/non-fresh id | **PASS** — replacing every id with `commitlog_fixed` fails the distinct-id assertion. |
+| Independent authority | **PASS** — both ids resolve after the second request, releasing the first does not disturb the second, and both are explicitly released. |
+| Final Partial aggregate | **PASS** — mapping `Partial` to `Ok` fails the new public-handler assertion. The fixture also pins degradation-first then surviving-entry output. |
+| Seal failure cleanup | **PASS** — omitting the seal branch's release leaves registry count one and fails the new zero-authority assertion. The injected error is typed `IoError`. |
+
+The remediated acceptance is direct and mutation-tight. The id fixture uses the
+real public operation seam and one caller-owned registry. The Partial fixture
+uses a committed workspace root plus a selected missing repository, exactly the
+S2.6 contribution-plus-read-failure truth-table branch. The seal hook is
+entirely `cfg(test)`: the flag, injection setter, constructor argument, and
+failure branch compile out of production.
+
+## Delta and preservation
+
+The complete round-2 delta against `77cb471` is:
+
+```text
+src/operation/commit_log/handler.rs  +23/-1
+src/operation/commit_log/tests.rs    +97/-0
+total                               +120/-1
+```
+
+Every handler change is test-only seal-failure instrumentation. The only
+non-test-file signature movement uses `#[cfg(test)]` arguments and therefore
+does not alter the production constructor or output path. The remaining 97
+lines are the three F1 acceptance fixtures. Inspection found no generalized
+test framework or unnecessary production abstraction.
+
+All other core files are byte-identical to reviewed round 1, including the
+protocol schema/generation/corpus, dependency locks, operation re-export,
+public dispatch wrapper, `lib.rs`, source inventories, and
+`diff::log_service`. The non-test portions of public dispatch, projection,
+spool encoding/cursor/release behavior, provenance mapping, aggregate
+projection, and visibility are preserved. The Python candidate is the exact
+round-1 SHA and tree; no Python byte moved.
+
+Identity remains exact and linear from the original S2.6 base:
+
+```text
+base:               5a4f9cbe033805d8c54d78cc93b84f949ec429b5
+candidate:          834275d6633ccba0755859e9c6437b69ba52d05a
+candidate tree:     ec8e1dba9b918f626c346aeccff95492eeef61f2
+base binary diff:   58b3500e4417c83967a35213a2c2127fbdf1f13ba86434de854d06b12c746d54
+round-2 delta diff: d42c998c6031a6710771fed9b4b4bff486eb47dac2ce8b5f7f04963022791412
+```
+
+The core candidate is one commit with the stated sole parent and has the
+dictated tree. Core and Python are non-shallow, have no replacement refs, pass
+`git diff --check`, and remained clean/read-only. All terminal mutations ran
+in a disposable exact-candidate worktree, were restored byte-exact, and that
+worktree was removed.
+
+## Terminal verification
+
+Reviewer-run focused/formal evidence on exact `834275d`:
+
+- focused L-INT-1 suite — 6/6 passed;
+- empty-id mutant — RED at non-empty assertion;
+- fixed-id mutant — RED at distinct-id assertion;
+- Partial-to-Ok mutant — RED at exact `Partial` assertion;
+- missing-seal-release mutant — RED with retained registry count 1;
+- `cargo fmt --check` — exit 0;
+- locked all-target `cargo check` — exit 0;
+- locked all-target/all-feature strict clippy with `-D warnings` — exit 0;
+- pinned protocol regeneration/additive check — exit 0; and
+- exact delta/scope/integrity checks — exit 0.
+
+Per operator policy, the 1,700-plus suite was not repeated. The builder's
+one-off pinned broad evidence on the exact terminal candidate is accepted:
+
+```text
+focused L-INT-1: 6/6
+focused commit-log: 101/101
+full pinned lib: 1,797 passed / 0 failed / 1 ignored (744.34s)
+diff-render 10/10; protocol 33/33; publish 9/9; rename 2/2; docs green
+fmt/check/strict clippy; protocol regen; source boundary; release 6/6;
+exact lane gate: all green
+```
+
+## Terminal landing disposition
+
+S2.7 is approved. Land exact core
+`834275d6633ccba0755859e9c6437b69ba52d05a` with preserved exact Python
+`10aec7fd69c2f94d90d4aead2bf125f76267b01a` as the reviewed package. Do not
+substitute descendants or fold unrelated work. Terminal GO closes the
+two-round review and unblocks S3.1 and S3.5 under the amended dependency chain.
