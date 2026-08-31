@@ -118,7 +118,7 @@ fn compact_rendering_uses_committer_offset_complete_subject_and_member_sets() {
     let long_subject = format!("subject-{}", "x".repeat(240));
     let singleton = entry(vec![member("mem_api", "members/api", 'a')], &long_subject);
     assert_eq!(
-        render_log_entry(&singleton, false, false),
+        render_log_entry(&singleton, false, false).unwrap(),
         format!("1970-01-01 05:30:00 +0530 members/api aaaaaaaaaaaa {long_subject}")
     );
     for (seconds, expected_date) in [
@@ -128,7 +128,9 @@ fn compact_rendering_uses_committer_offset_complete_subject_and_member_sets() {
         let mut extreme = singleton.clone();
         extreme.committer_timestamp_seconds = seconds;
         assert!(
-            render_log_entry(&extreme, false, false).starts_with(expected_date),
+            render_log_entry(&extreme, false, false)
+                .unwrap()
+                .starts_with(expected_date),
             "{seconds}"
         );
     }
@@ -141,7 +143,11 @@ fn compact_rendering_uses_committer_offset_complete_subject_and_member_sets() {
         ],
         "small set",
     );
-    assert!(render_log_entry(&small, false, false).contains("[., members/api, members/web]"));
+    assert!(
+        render_log_entry(&small, false, false)
+            .unwrap()
+            .contains("[., members/api, members/web]")
+    );
 
     let root_large = entry(
         vec![
@@ -152,7 +158,11 @@ fn compact_rendering_uses_committer_offset_complete_subject_and_member_sets() {
         ],
         "large root set",
     );
-    assert!(render_log_entry(&root_large, false, false).contains("[root+3]"));
+    assert!(
+        render_log_entry(&root_large, false, false)
+            .unwrap()
+            .contains("[root+3]")
+    );
 
     let member_large = entry(
         vec![
@@ -163,7 +173,19 @@ fn compact_rendering_uses_committer_offset_complete_subject_and_member_sets() {
         ],
         "large member set",
     );
-    assert!(render_log_entry(&member_large, false, false).contains("[4 members]"));
+    assert!(
+        render_log_entry(&member_large, false, false)
+            .unwrap()
+            .contains("[4 members]")
+    );
+}
+
+#[test]
+fn human_rendering_rejects_an_entry_without_members() {
+    let empty = entry(Vec::new(), "impossible entry");
+    let error = render_log_entry(&empty, false, false)
+        .expect_err("a commit-log entry must contain at least one member");
+    assert_eq!(error, "commit-log entry has no members");
 }
 
 #[test]
@@ -176,7 +198,7 @@ fn full_rendering_has_complete_member_table_git_identity_date_and_body() {
         "full subject",
     );
     record.body = Some("\nbody line\nsecond line".to_owned());
-    let rendered = render_log_entry(&record, true, false);
+    let rendered = render_log_entry(&record, true, false).unwrap();
 
     assert!(rendered.starts_with(&format!("commit {}\n", "a".repeat(40))));
     assert!(rendered.contains("Members:\n    ID"), "{rendered}");
@@ -205,13 +227,13 @@ fn human_fields_are_lossy_and_c0_sanitized_without_width_truncation() {
     record.author.name = "Ad\u{0}a\u{fffd}".to_owned();
     record.body = Some("body\tcell\nnext\u{7}line".to_owned());
 
-    let compact = render_log_entry(&record, false, false);
+    let compact = render_log_entry(&record, false, false).unwrap();
     assert!(compact.contains(&format!("members/��-{}", "p".repeat(200))));
     assert!(compact.contains(&format!("fix thing�[31m-{}", "s".repeat(300))));
     assert!(!compact.contains('\u{1b}'));
     assert!(!compact.contains('\t'));
 
-    let full = render_log_entry(&record, true, false);
+    let full = render_log_entry(&record, true, false).unwrap();
     assert!(full.contains("Author: Ad�a� <ada@example.test>"));
     assert!(full.contains("    body cell\n    next�line"));
     assert!(
@@ -231,8 +253,16 @@ fn color_policy_uses_only_the_flag_and_stdout_tty_state() {
     assert!(log_color_enabled(LogColor::Auto, true));
 
     let record = entry(vec![member("@root", ".", 'a')], "color subject");
-    assert!(!render_log_entry(&record, false, false).contains('\u{1b}'));
-    assert!(render_log_entry(&record, false, true).contains("\u{1b}["));
+    assert!(
+        !render_log_entry(&record, false, false)
+            .unwrap()
+            .contains('\u{1b}')
+    );
+    assert!(
+        render_log_entry(&record, false, true)
+            .unwrap()
+            .contains("\u{1b}[")
+    );
 }
 
 #[test]

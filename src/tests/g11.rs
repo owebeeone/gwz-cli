@@ -393,6 +393,34 @@ fn l_env_13_empty_outputs_and_one_record_bytes_are_canonical() {
 }
 
 #[test]
+fn machine_rendering_rejects_an_entry_without_members() {
+    let record = entry_record(
+        Vec::new(),
+        gwz_core::LogMergeProvenance::default(),
+        "impossible entry",
+        None,
+        None,
+    );
+    let mut response = Some(gwz_core::operation::CommitLogReadResponse {
+        records: vec![record],
+        next_cursor: 1,
+        state: gwz_core::operation::CommitLogReadState::Data,
+    });
+    let error = write_log_machine_output_with(
+        OutputMode::Json,
+        |_| Ok(response.take().expect("one record page")),
+        &mut Vec::new(),
+    )
+    .expect_err("a commit-log entry must contain at least one member");
+    match error {
+        LogMachineOutputError::InvalidRecord(message) => {
+            assert_eq!(message, "commit-log entry has no members")
+        }
+        other => panic!("expected invalid record, got {other:?}"),
+    }
+}
+
+#[test]
 fn l_env_12_times_use_exact_i64_seconds_and_each_commit_offset() {
     let mut record = entry_record(
         vec![member("mem_a", "members/a", HASH_A, &[])],

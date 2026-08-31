@@ -12,12 +12,20 @@ pub(crate) fn log_color_enabled(color: LogColor, stdout_is_tty: bool) -> bool {
     }
 }
 
-pub(crate) fn render_log_entry(entry: &LogEntry, full: bool, color: bool) -> String {
-    if full {
-        render_full_entry(entry, color)
+pub(crate) fn render_log_entry(
+    entry: &LogEntry,
+    full: bool,
+    color: bool,
+) -> Result<String, &'static str> {
+    let representative = entry
+        .members
+        .first()
+        .ok_or("commit-log entry has no members")?;
+    Ok(if full {
+        render_full_entry(entry, representative, color)
     } else {
-        render_compact_entry(entry, color)
-    }
+        render_compact_entry(entry, representative, color)
+    })
 }
 
 pub(crate) fn render_log_degradation(record: &LogDegradation, color: bool) -> String {
@@ -54,17 +62,17 @@ pub(crate) fn render_log_degradation(record: &LogDegradation, color: bool) -> St
     )
 }
 
-fn render_compact_entry(entry: &LogEntry, color: bool) -> String {
+fn render_compact_entry(
+    entry: &LogEntry,
+    representative: &gwz_core::LogEntryMember,
+    color: bool,
+) -> String {
     let date = format_date(
         entry.committer_timestamp_seconds,
         entry.committer.timezone_offset_minutes,
     );
     let members = compact_member_set(entry);
-    let hash = entry
-        .members
-        .first()
-        .map(|member| member.commit.chars().take(12).collect::<String>())
-        .unwrap_or_else(|| "????????????".to_owned());
+    let hash = representative.commit.chars().take(12).collect::<String>();
     let subject = sanitize_inline(&entry.subject);
     format!(
         "{} {} {} {subject}",
@@ -101,12 +109,12 @@ fn compact_member_set(entry: &LogEntry) -> String {
     }
 }
 
-fn render_full_entry(entry: &LogEntry, color: bool) -> String {
-    let representative = entry
-        .members
-        .first()
-        .map(|member| sanitize_inline(&member.commit))
-        .unwrap_or_else(|| "unknown".to_owned());
+fn render_full_entry(
+    entry: &LogEntry,
+    representative: &gwz_core::LogEntryMember,
+    color: bool,
+) -> String {
+    let representative = sanitize_inline(&representative.commit);
     let rows = entry
         .members
         .iter()

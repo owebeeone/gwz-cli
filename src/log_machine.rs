@@ -129,6 +129,11 @@ fn log_record_json(record: gwz_core::LogOutputRecord) -> Result<Value, LogMachin
 }
 
 fn entry_json(entry: gwz_core::LogEntry) -> Result<Value, LogMachineOutputError> {
+    if entry.members.is_empty() {
+        return Err(LogMachineOutputError::InvalidRecord(
+            "commit-log entry has no members".to_owned(),
+        ));
+    }
     let members = entry
         .members
         .into_iter()

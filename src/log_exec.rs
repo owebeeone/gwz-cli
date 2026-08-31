@@ -186,8 +186,9 @@ fn render_human_log<W: Write, E: Write>(
         for record in batch.records {
             match (record.kind, record.entry, record.degradation) {
                 (gwz_core::LogOutputRecordKind::Entry, Some(entry), None) => {
-                    let mut rendered =
-                        render_log_entry(&entry, invocation.full, color).into_bytes();
+                    let mut rendered = render_log_entry(&entry, invocation.full, color)
+                        .map_err(invalid_log_output_record)?
+                        .into_bytes();
                     rendered.push(b'\n');
                     if invocation.full {
                         rendered.push(b'\n');
@@ -207,7 +208,11 @@ fn render_human_log<W: Write, E: Write>(
                         .write_all(&rendered)
                         .map_err(|error| log_output_error("stderr", error))?;
                 }
-                _ => return Err(invalid_log_output_record()),
+                _ => {
+                    return Err(invalid_log_output_record(
+                        "commit-log output record kind does not match its payload",
+                    ));
+                }
             }
         }
         if batch.state == gwz_core::operation::CommitLogReadState::Eof {
@@ -224,10 +229,10 @@ fn log_output_error(channel: &str, error: io::Error) -> CliError {
     ))
 }
 
-fn invalid_log_output_record() -> CliError {
+fn invalid_log_output_record(message: &str) -> CliError {
     CliError::from_model(gwz_core::model::ModelError::new(
         gwz_core::model::ErrorCode::InternalError,
-        "commit-log output record kind does not match its payload",
+        message,
     ))
 }
 
