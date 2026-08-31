@@ -180,3 +180,110 @@ and candidate integrity. Accept only if:
 
 No schema change, machine-error redesign, human rendering, pager, core engine,
 protocol, gwz-py, or broad CLI lifecycle refactor belongs in remediation.
+
+## Terminal round 2 — GO (2026-08-31)
+
+- Round-1 report lineage: `ceb557feafb00af545f57481fa306a9981863150`
+- Exact final `gwz-cli` candidate: `3e8e9ff1b3335c8a2bb420f7ec1497a8c7da3333`
+- CLI sole parent: `e783b7390c7fe5e7d1f0df9c982fdf59dadd6940`
+- CLI tree: `3cc4a0e10222a04ef6af014d99a03d5ba785e3fa`
+- Round-1 candidate: `85090d5ff35dc526d087e0ac6dc6b78305909c07`
+- Exact sibling `gwz-core`: `bdb398c3fa8581531eb1a38674ef89f56fc192e2`
+- Core tree: `20b52eb0b425e8482f4bd853fe4a6a580deb28e3`
+- Re-review scope: S3.3-F1/F2 plus preservation and candidate integrity only
+
+### Terminal verdict: GO
+
+Both round-1 P2 acceptance findings are cured, both exact mutants are now
+red, and no new in-scope finding was found. The final candidate preserves the
+reviewed renderer and schema byte-for-byte; its only production delta is the
+minimum crate-private machine-writer injection seam needed to observe release
+after the two machine-only error variants. This verdict is terminal under the
+two-round cap.
+
+### F1 — CURED: the real runner pins default and explicit body semantics
+
+`f1_actual_machine_runner_preserves_default_and_explicit_body` now drives a
+real initialized workspace through public core dispatch and the actual CLI
+runner in both JSON and JSONL. For each mode it executes the default request
+and `--body`, locates the real root entry in the mixed degradation/entry
+stream, and asserts:
+
+- subject remains exactly `root history` in both cases;
+- the default record has no `body` key; and
+- `--body` carries the exact post-subject message `body line\n`.
+
+The round-1 exact mutant again cloned the request immediately before
+`operation::handle_log` and cleared `options.include_body`. The new test is
+red only on the explicit-body arms (`left: None`, `right: Some("body
+line\n")`). The unmutated final candidate passes all four real-runner cases.
+This closes the former gap between S3.1's Clap-lowering assertion, core's
+projection assertion, and S3.3's constructed-record rendering assertion.
+
+### F2 — CURED: typed read and invalid-record failures both prove release
+
+The final candidate factors the existing runner through one private generic
+helper accepting the machine-output writer. The public crate-private runner
+still supplies `write_log_machine_output` unchanged; a `#[cfg(test)]`
+crate-private wrapper injects only the two terminal failure dispositions.
+There is no protocol, registry, or external public seam change.
+
+The two new tests each capture a real live `log_id`, prove it resolves before
+the injected disposition, and then assert it is unresolvable afterward:
+
+- the read-failure case uses the real machine writer with an injected typed
+  `IoError` read and preserves that exact code/message through the runner;
+- the invalid-record case feeds an Entry kind with neither payload arm and
+  preserves the existing `InternalError` plus exact inconsistent-payload
+  message.
+
+The round-1 conditional-release mutant was reapplied exactly, skipping
+release only for `Read` and `InvalidRecord`. Both tests are red: the captured
+spools remain resolvable and return their real degradation/entry batches.
+The unmutated final candidate passes both paths, while the earlier success,
+EPIPE, and whole-release tests remain green.
+
+### Preservation, scope, and integrity
+
+The final package is one clean commit on the mandated sole parent, with no
+rename/mode change, no trailers, and green `git diff --check`. Relative to
+round 1, only `src/log_exec.rs` and `src/tests/g11.rs` move by `+229/-17`:
+
+- `src/log_exec.rs`: `+62/-3`, solely the private injection factor and
+  `#[cfg(test)]` wrapper; and
+- `src/tests/g11.rs`: `+167/-14`, the F1/F2 acceptance matrix plus helper
+  reuse.
+
+`src/log_machine.rs`, schema constants, exact JSON/JSONL serialization,
+module wiring, `Cargo.toml`, `Cargo.lock`, docs, protocol/generated code,
+pins, and sibling core are byte-identical to round 1. There is no human
+renderer, pager, gwz-py, semantic parser, Git/artifact access, output-registry
+change, source-loading inventory change, or wider public surface. The private
+factor preserves production control flow: dispatch, aggregate code,
+mode branch, render/write result, unconditional release, then error
+classification remain in the same order.
+
+### Terminal proportional evidence
+
+The fast-test policy was followed: no 1,700+ full suite and no 69-case
+compiler matrix were run.
+
+- Final `cargo test --locked --lib tests::g11` — 11/11 passed.
+- Adjacent terminal S3.1 `cargo test --locked --lib tests::g09` — 21/21
+  passed.
+- Exact dispatch-time `include_body = None` mutant — RED on the explicit-body
+  JSON/JSONL cases.
+- Exact conditional `Read`/`InvalidRecord` release mutant — RED on both
+  captured live-spool assertions.
+- `cargo fmt --all -- --check` — exit 0.
+- `cargo check --locked --all-targets` — exit 0.
+- strict Clippy over locked all targets/features — exit 0.
+- generated CLI-reference freshness check — exit 0.
+- exact sibling checked-artifact boundary — exit 0, 15 visible entries / 5
+  classified modules.
+- Final candidate, sibling core, and disposable mutation worktrees were clean
+  after restoration.
+
+As in round 1, filesystem pressure was handled only by cleaning reproducible
+Cargo `target/` directories from completed review/build worktrees. No source,
+workspace artifact, or user data was removed.
