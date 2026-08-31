@@ -194,7 +194,8 @@ agents MAY pick up parallel steps, never must). Phase 1 and Phase 2 are
   schema reconciled to the landed `MarkerArtifact` (including the
   `merge:` field the implementation grew); the "`gwz log --merged`
   locates the root by marker file" sentence marked superseded by the
-  root trailer (§1.1); the S1.1 retry-identity fix recorded.
+  root trailer (§1.1); the S1.1/S1.1-B terminal retry-identity disposition
+  recorded.
 
 ### Phase 2 — the core log engine (milestone: `commit_log` emits the coalesced, tolerant, streamed entry stream)
 
@@ -361,8 +362,9 @@ F10's bundling at exactly the budget ceiling.)*
 ### Phase 4 — settle (milestone: the feature is accepted)
 
 - **S4.1 — traceability sweep + settle review** *(docs + review)*. The
-  requirements-to-tests table over every v0 row the plan implements,
-  MUST or SHOULD (review F17); full gates both repos; a single-axis
+  requirements-to-tests table (`GwzLogTraceability.md`) over every v0 row the
+  plan implements, MUST or SHOULD (review F17); full gates across all three
+  repositories; a single-axis
   settle review over the whole delta (Opus — no Fable dual: no frozen
   surface, no amendment; §2's escalation path covers surprises); verdict
   filed verbatim; adoption record appended here. Release decision handed
@@ -722,3 +724,23 @@ S2.2.
   is verified byte-equivalent to `f827e30`, not regraded. S3.5-B receives a
   fresh two-round cap; if round 2 fails, S3.5-B freezes and returns to the
   operator with no further remediation round.
+
+- **S4.1 settle candidate executed, 2026-08-31.** The traceability sweep is
+  filed as `GwzLogTraceability.md`; every implemented v0 `L-*` and `L-ENV-*`
+  row names checked-in acceptance, while deferred v2 rows L-COA-8 and
+  L-OUT-3 remain explicitly outside the shipped surface. The previously
+  omitted S1.2 documentation duty is executed at exact gwz-core docs-only
+  commit `eb3a37c3d657b28c9fb3c85054056aa9192ee353`: the landed marker schema,
+  shipped root-trailer/commit-log authority, and terminal v0 retry-splitting
+  disposition are reconciled in `dev-docs/GwzCommitMarker.md`. The sole retained
+  S3.4 P3 is closed by the checked-in short `:^` native-Git parity row in
+  gwz-py candidate `4c5ad072d3c191a6e1b6b34c62037f9e715d5b2d`.
+  `GwzLog-S4.1-GateEvidence.md` records the one serialized exhaustive gate at
+  exact landed bases, including the 1,800-case core library suite, the full
+  CLI and Python suites, the 36-case real-workspace battery, protocol drift
+  and regeneration in both protocol consumers, the 69-case compiler matrix,
+  release boundary, and the J-7/registry/merge-doc/G23 gates. No release,
+  version, schema-version, dependency-pin, root-manifest, source-loading
+  inventory, or public-surface change rides the settle. This is execution
+  evidence, not a self-verdict: the independent S4.1 settle review still owns
+  GO/NO-GO and the final adoption verdict appended here.
