@@ -326,7 +326,13 @@ def main():
         # Refresh even when the manifest already names this tag. A failed/provisional release may
         # have been removed and recreated at a corrected commit; Cargo otherwise trusts the stale
         # locked Git revision because the dependency spelling did not change.
-        run(["cargo", "update", "-p", "gwz-core"], cwd=worktree)
+        # The merged lock can carry main's path-shaped gwz-core entry (the
+        # workspace-member era), which `cargo update -p` cannot address in a
+        # standalone worktree ("package ID specification did not match").
+        # Regenerate the lock from the reconciled manifest instead;
+        # verify_locked_git_pin below still proves the exact git+tag pin.
+        (Path(worktree) / "Cargo.lock").unlink(missing_ok=True)
+        run(["cargo", "generate-lockfile"], cwd=worktree)
         changed = changed or bool(git_wt(worktree, ["status", "--porcelain"], capture=True).stdout)
         if merged or changed:
             # The worktree lives outside the gwz-dev workspace, so cargo resolves gwz-core via
@@ -338,10 +344,7 @@ def main():
             if not args.no_doc_check:
                 verify_cli_reference_docs(worktree)
             git_wt(worktree, ["add", "-A"])
-            message = (
-                f"chore(release): gwz-cli {version} (pins gwz-core {tag})\n\n"
-                "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
-            )
+            message = f"chore(release): gwz-cli {version} (pins gwz-core {tag})"
             git_wt(worktree, ["commit", "-m", message])
             sha = git_wt(worktree, ["rev-parse", "HEAD"], capture=True, check=False).stdout.strip()
             log(f"{args.release} reconciled -> {sha[:10] if sha else '(committed)'}  "
