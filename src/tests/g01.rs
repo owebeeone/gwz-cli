@@ -373,6 +373,53 @@ pub(crate) fn commit_marker_flags_parse_to_tristate() {
     );
 }
 
+// `add -A` and `commit -a` share clap's `all` id with the global `--all` target selector.
+// The git-style flag must stay a git-style flag: it may not inject `@all` and silently widen
+// an explicit `--target` back to the whole workspace.
+
+#[test]
+pub(crate) fn stage_all_flag_does_not_widen_an_explicit_target() {
+    let invocation = parse_args_with_request_id(
+        strings(["add", "-A", "--target", "mem_x"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+
+    let CliRequest::Stage(request) = invocation.request else {
+        panic!("expected stage");
+    };
+    assert_eq!(request.all, Some(true));
+    assert_eq!(request.meta.selection.unwrap().targets, vec!["mem_x"]);
+}
+
+#[test]
+pub(crate) fn commit_all_flag_does_not_widen_an_explicit_target() {
+    let invocation = parse_args_with_request_id(
+        strings(["commit", "-a", "--target", "mem_x", "-m", "msg"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+
+    let CliRequest::Commit(request) = invocation.request else {
+        panic!("expected commit");
+    };
+    assert_eq!(request.all, Some(true));
+    assert_eq!(request.meta.selection.unwrap().targets, vec!["mem_x"]);
+}
+
+#[test]
+pub(crate) fn global_all_still_selects_every_target_for_other_verbs() {
+    for args in [strings(["--all", "status"]), strings(["status", "--all"])] {
+        let invocation = parse_args_with_request_id(args, "req_test", Path::new("/cwd")).unwrap();
+        let CliRequest::Status(request) = invocation.request else {
+            panic!("expected status");
+        };
+        assert_eq!(request.meta.selection.unwrap().targets, vec!["@all"]);
+    }
+}
+
 #[test]
 pub(crate) fn parses_all_with_target_exclusion_for_ls() {
     let invocation = parse_args_with_request_id(

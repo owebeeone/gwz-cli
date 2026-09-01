@@ -37,7 +37,8 @@ Commands:
   branch       Manage git branches across workspace members
   capture      Record the live worktree state into the lock (no mutation)
   clone        Clone a workspace and materialize its members
-  commit       Commit staged changes across members and the workspace root
+  commit       Commit staged changes across the selected targets (root included only when selected;
+               default selection includes the root and every member)
   diff         Show workspace changes as one unified diff (multi-repo git diff)
   forall       Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c
                <string>
@@ -157,6 +158,12 @@ Stage file contents across the workspace's member repositories.
 current directory, routed to the member (or workspace root) repository that owns
 it, and staged there. Pair it with `gwz commit`. To register an existing
 repository as a workspace member, use `gwz repo add` instead.
+
+A target selection (`--target`/`--member`/`--path`) scopes the staging. With
+`-A` it stages the selected targets only. With pathspecs it constrains routing:
+a pathspec that names a repository outside the selection is an error, and
+repositories reached only by `.` fan-out are skipped. `--dry-run` validates the
+routing and stages nothing.
 
 Usage: gwz add [OPTIONS] [pathspec]...
 
@@ -572,7 +579,8 @@ If you already ran a plain `git clone` on a workspace root, run
 Command page: [commit](commands/commit.md).
 
 ```text
-Commit staged changes across members and the workspace root
+Commit staged changes across the selected targets (root included only when selected; default
+selection includes the root and every member)
 
 Usage: gwz commit [OPTIONS] --message <message>
 
