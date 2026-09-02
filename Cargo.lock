@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "0.12.1"
+version = "0.13.0"
 dependencies = [
  "clap",
  "console",
@@ -431,8 +431,8 @@ dependencies = [
 
 [[package]]
 name = "gwz-core"
-version = "0.12.1"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v0.12.1#ea3a9246e5230a2b6ef04e269c9454283bd6db0a"
+version = "0.13.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v0.13.0#ffd4f95bd078a1fd0d7110ec916b33e787af23cc"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
@@ -1011,9 +1011,9 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "smallvec"
-version = "1.15.2"
+version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
+checksum = "b9be42f50aa861c555654aa3a37f52f4b1074bacf4e48fe0ef7fa584e80f1f0f"
 
 [[package]]
 name = "stable_deref_trait"

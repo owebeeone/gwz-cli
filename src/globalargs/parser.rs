@@ -222,7 +222,9 @@ pub(crate) enum CommandArgs {
         after_long_help = CLONE_AFTER
     )]
     Clone(CloneArgs),
-    #[command(about = "Commit staged changes across members and the workspace root")]
+    #[command(
+        about = "Commit staged changes across the selected targets (root included only when selected; default selection includes the root and every member)"
+    )]
     Commit(CommitArgs),
     #[command(
         about = "Show workspace changes as one unified diff (multi-repo git diff)",

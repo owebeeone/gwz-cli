@@ -184,7 +184,17 @@ impl Cli {
                 meta,
             })),
             CommandArgs::Capture => Ok(CliRequest::Capture(gwz_core::CaptureRequest { meta })),
-            CommandArgs::Commit(args) => args.request(meta),
+            CommandArgs::Commit(args) => {
+                // DR-5 fold (review P2-1): `--all` is the `@all` selector under every verb,
+                // but a hand used to `git commit --all` expects `-a`; say so once, on stderr,
+                // in human mode, so the changed meaning is never silent.
+                if self.global.all && matches!(self.output_mode(), OutputMode::Human) {
+                    eprintln!(
+                        "gwz: note: --all selects every workspace target; to stage tracked modifications first, use -a"
+                    );
+                }
+                args.request(meta)
+            }
             CommandArgs::Diff(args) => {
                 let workspace_cwd = workspace_relative_cwd(&workspace_root, current_dir);
                 args.request(meta, workspace_cwd)

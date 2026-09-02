@@ -37,7 +37,8 @@ Commands:
   branch       Manage git branches across workspace members
   capture      Record the live worktree state into the lock (no mutation)
   clone        Clone a workspace and materialize its members
-  commit       Commit staged changes across members and the workspace root
+  commit       Commit staged changes across the selected targets (root included only when selected;
+               default selection includes the root and every member)
   diff         Show workspace changes as one unified diff (multi-repo git diff)
   forall       Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c
                <string>
@@ -158,6 +159,12 @@ current directory, routed to the member (or workspace root) repository that owns
 it, and staged there. Pair it with `gwz commit`. To register an existing
 repository as a workspace member, use `gwz repo add` instead.
 
+A target selection (`--target`/`--member`/`--path`) scopes the staging. With
+`-A` it stages the selected targets only. With pathspecs it constrains routing:
+a pathspec that names a repository outside the selection is an error, and
+repositories reached only by `.` fan-out are skipped. `--dry-run` validates the
+routing and stages nothing.
+
 Usage: gwz add [OPTIONS] [pathspec]...
 
 Arguments:
@@ -165,8 +172,9 @@ Arguments:
           Paths to stage; resolved relative to the current directory like `git add`
 
 Options:
-  -A, --all
-          Stage all changes across every workspace repo (git add -A)
+  -A
+          Stage all changes across every workspace repo (git add -A). `--all` is the target
+          selector.
 
   -h, --help
           Print help (see a summary with '-h')
@@ -197,6 +205,9 @@ Global Options:
       --no-member-path <member-path>
           Compatibility path exclusion. Excludes a workspace target by member path and may be
           supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
 
       --dry-run
           Plan the operation without mutating workspace metadata or member repositories.
@@ -572,7 +583,8 @@ If you already ran a plain `git clone` on a workspace root, run
 Command page: [commit](commands/commit.md).
 
 ```text
-Commit staged changes across members and the workspace root
+Commit staged changes across the selected targets (root included only when selected; default
+selection includes the root and every member)
 
 Usage: gwz commit [OPTIONS] --message <message>
 
@@ -580,8 +592,8 @@ Options:
   -m, --message <message>
           Commit message applied to every committed repo
 
-  -a, --all
-          Stage tracked modifications first (git commit -a)
+  -a
+          Stage tracked modifications first (git commit -a). `--all` is the target selector.
 
       --commit-marker
           Create and persist a GWZ commit marker
@@ -618,6 +630,9 @@ Global Options:
       --no-member-path <member-path>
           Compatibility path exclusion. Excludes a workspace target by member path and may be
           supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
 
       --dry-run
           Plan the operation without mutating workspace metadata or member repositories.

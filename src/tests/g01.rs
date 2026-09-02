@@ -373,6 +373,53 @@ pub(crate) fn commit_marker_flags_parse_to_tristate() {
     );
 }
 
+// `add -A` and `commit -a` share clap's `all` id with the global `--all` target selector.
+// The git-style flag must stay a git-style flag: it may not inject `@all` and silently widen
+// an explicit `--target` back to the whole workspace.
+
+#[test]
+pub(crate) fn stage_all_flag_does_not_widen_an_explicit_target() {
+    let invocation = parse_args_with_request_id(
+        strings(["add", "-A", "--target", "mem_x"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+
+    let CliRequest::Stage(request) = invocation.request else {
+        panic!("expected stage");
+    };
+    assert_eq!(request.all, Some(true));
+    assert_eq!(request.meta.selection.unwrap().targets, vec!["mem_x"]);
+}
+
+#[test]
+pub(crate) fn commit_all_flag_does_not_widen_an_explicit_target() {
+    let invocation = parse_args_with_request_id(
+        strings(["commit", "-a", "--target", "mem_x", "-m", "msg"]),
+        "req_test",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+
+    let CliRequest::Commit(request) = invocation.request else {
+        panic!("expected commit");
+    };
+    assert_eq!(request.all, Some(true));
+    assert_eq!(request.meta.selection.unwrap().targets, vec!["mem_x"]);
+}
+
+#[test]
+pub(crate) fn global_all_still_selects_every_target_for_other_verbs() {
+    for args in [strings(["--all", "status"]), strings(["status", "--all"])] {
+        let invocation = parse_args_with_request_id(args, "req_test", Path::new("/cwd")).unwrap();
+        let CliRequest::Status(request) = invocation.request else {
+            panic!("expected status");
+        };
+        assert_eq!(request.meta.selection.unwrap().targets, vec!["@all"]);
+    }
+}
+
 #[test]
 pub(crate) fn parses_all_with_target_exclusion_for_ls() {
     let invocation = parse_args_with_request_id(
@@ -488,4 +535,82 @@ pub(crate) fn parses_no_combined_status_as_summary_mode() {
         request.path_style,
         Some(gwz_core::StatusPathStyle::WorkspaceRelative)
     );
+}
+
+// DR-5, closed by construction: no subcommand may reuse a global argument's clap id.
+// Clap merges same-id arguments across the global/subcommand boundary, so a shared id
+// makes a global flag set a subcommand's local flag — which is how `gwz --all commit -m x`
+// came to mean `git commit -a`. The allow-list is empty and must stay empty.
+#[test]
+pub(crate) fn no_subcommand_argument_reuses_a_global_argument_id() {
+    const ALLOWED: &[(&str, &str)] = &[];
+
+    let command = <Cli as clap::CommandFactory>::command();
+    let global_ids: Vec<String> = command
+        .get_arguments()
+        .filter(|arg| arg.is_global_set())
+        .map(|arg| arg.get_id().as_str().to_owned())
+        .collect();
+    assert!(
+        global_ids.iter().any(|id| id == "all"),
+        "expected the global --all selector in the global id set: {global_ids:?}"
+    );
+
+    let mut collisions: Vec<String> = Vec::new();
+    let mut pending: Vec<(String, clap::Command)> = command
+        .get_subcommands()
+        .map(|sub| (sub.get_name().to_owned(), sub.clone()))
+        .collect();
+    while let Some((path, sub)) = pending.pop() {
+        for arg in sub.get_arguments() {
+            let id = arg.get_id().as_str();
+            // A propagated global keeps its own id inside the subcommand; only an argument
+            // the subcommand declares itself is a collision.
+            if arg.is_global_set() {
+                continue;
+            }
+            if global_ids.iter().any(|global| global == id)
+                && !ALLOWED
+                    .iter()
+                    .any(|(command, allowed)| *command == path && *allowed == id)
+            {
+                collisions.push(format!("{path}.{id}"));
+            }
+        }
+        for nested in sub.get_subcommands() {
+            pending.push((format!("{path} {}", nested.get_name()), nested.clone()));
+        }
+    }
+    collisions.sort();
+    assert!(
+        collisions.is_empty(),
+        "subcommand arguments collide with global argument ids: {collisions:?}"
+    );
+}
+
+// DR-5 mirror: with the ids separated, the global `--all` is the `@all` selector under
+// `add`/`commit` exactly as it is under every other verb, in both flag positions, and it
+// no longer sets the git-style flag.
+#[test]
+pub(crate) fn global_all_selects_targets_for_add_and_commit_without_setting_the_git_flag() {
+    for args in [
+        strings(["--all", "commit", "-m", "msg"]),
+        strings(["commit", "--all", "-m", "msg"]),
+    ] {
+        let invocation = parse_args_with_request_id(args, "req_test", Path::new("/cwd")).unwrap();
+        let CliRequest::Commit(request) = invocation.request else {
+            panic!("expected commit");
+        };
+        assert_eq!(request.all, None, "--all must not mean `git commit -a`");
+        assert_eq!(request.meta.selection.unwrap().targets, vec!["@all"]);
+    }
+
+    for args in [strings(["--all", "add"]), strings(["add", "--all"])] {
+        let invocation = parse_args_with_request_id(args, "req_test", Path::new("/cwd")).unwrap();
+        let CliRequest::Stage(request) = invocation.request else {
+            panic!("expected stage");
+        };
+        assert_eq!(request.all, None, "--all must not mean `git add -A`");
+        assert_eq!(request.meta.selection.unwrap().targets, vec!["@all"]);
+    }
 }
