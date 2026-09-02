@@ -15,7 +15,8 @@ root repository that owns it, and staged there.
 | Item | Meaning |
 | --- | --- |
 | `[pathspec]...` | Paths to stage, resolved like `git add`. |
-| `-A`, `--all` | Stage all changes across every workspace repository. |
+| `-A` | Stage all changes across every workspace repository. |
+| `--all` | The global target selector (`@all`), not the staging flag. |
 
 ## Target Selection
 

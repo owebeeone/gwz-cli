@@ -29,7 +29,8 @@ the root is committed, so a marker is never left pending; pass
 | Option | Meaning |
 | --- | --- |
 | `-m`, `--message <message>` | Commit message applied to every committed repository. Required. |
-| `-a`, `--all` | Stage tracked modifications first, like `git commit -a`. |
+| `-a` | Stage tracked modifications first, like `git commit -a`. |
+| `--all` | The global target selector (`@all`), not the staging flag. |
 | `--commit-marker` | Force GWZ commit marker creation (the default when the root is committed). |
 | `--no-commit-marker` | Disable the marker and the message trailers for this commit. |
 

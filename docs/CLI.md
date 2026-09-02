@@ -172,8 +172,9 @@ Arguments:
           Paths to stage; resolved relative to the current directory like `git add`
 
 Options:
-  -A, --all
-          Stage all changes across every workspace repo (git add -A)
+  -A
+          Stage all changes across every workspace repo (git add -A). `--all` is the target
+          selector.
 
   -h, --help
           Print help (see a summary with '-h')
@@ -204,6 +205,9 @@ Global Options:
       --no-member-path <member-path>
           Compatibility path exclusion. Excludes a workspace target by member path and may be
           supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
 
       --dry-run
           Plan the operation without mutating workspace metadata or member repositories.
@@ -588,8 +592,8 @@ Options:
   -m, --message <message>
           Commit message applied to every committed repo
 
-  -a, --all
-          Stage tracked modifications first (git commit -a)
+  -a
+          Stage tracked modifications first (git commit -a). `--all` is the target selector.
 
       --commit-marker
           Create and persist a GWZ commit marker
@@ -626,6 +630,9 @@ Global Options:
       --no-member-path <member-path>
           Compatibility path exclusion. Excludes a workspace target by member path and may be
           supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
 
       --dry-run
           Plan the operation without mutating workspace metadata or member repositories.

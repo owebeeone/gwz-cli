@@ -67,6 +67,13 @@ pub(crate) fn execute_forall(
     )?;
     let members = listed.members.unwrap_or_default();
 
+    // DR-3: `--dry-run` must not spawn. The plan is everything the run would have
+    // done — the command, and the targets it would have run in, in order — and the
+    // exit status is a clean success.
+    if meta.dry_run.unwrap_or(false) {
+        return planned_forall(meta, mode, command, &members, operation_id);
+    }
+
     let request = ExecRequest {
         meta: meta.clone(),
         mode,
@@ -101,6 +108,45 @@ pub(crate) fn execute_forall(
         gwz_core::operation::ActionKind::Forall,
         operation_id,
         aggregate,
+        Vec::new(),
+    )?;
+    Ok(crate::CliResponse {
+        envelope,
+        workspace_git_status: None,
+        status_mode: None,
+        listing: None,
+        branch_repos: None,
+        merge_response: None,
+        stash_bundles: None,
+        summary: Some(summary),
+    })
+}
+
+/// The `--dry-run` answer for `forall`: the command and the targets it would have run in,
+/// rendered as the response summary, with nothing spawned.
+fn planned_forall(
+    meta: &gwz_core::RequestMeta,
+    mode: ExecMode,
+    command: &[String],
+    members: &[MemberEntry],
+    operation_id: String,
+) -> Result<crate::CliResponse, gwz_core::model::ModelError> {
+    let rendered = match mode {
+        ExecMode::Shell => command.first().cloned().unwrap_or_default(),
+        ExecMode::Argv => command.join(" "),
+    };
+    let mut summary = format!(
+        "dry run: would run `{rendered}` in {} target(s); nothing was executed",
+        members.len()
+    );
+    for member in members {
+        summary.push_str(&format!("\n  {}", member.path));
+    }
+    let envelope = gwz_core::operation::response_envelope_for(
+        meta,
+        gwz_core::operation::ActionKind::Forall,
+        operation_id,
+        gwz_core::AggregateStatus::Accepted,
         Vec::new(),
     )?;
     Ok(crate::CliResponse {

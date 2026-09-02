@@ -1387,3 +1387,224 @@ impl Drop for TempDir {
         let _ = fs::remove_dir_all(&self.path);
     }
 }
+
+// --- dry-run absence-of-mutation coverage (DR-1..DR-5), through the binary, with the
+// --- global flag in BOTH positions: before the subcommand and after it.
+
+fn stash_ref_ids(repo: &Path) -> Vec<String> {
+    let mut repo = git2::Repository::open(repo).unwrap();
+    let mut ids = Vec::new();
+    repo.stash_foreach(|_, _, oid| {
+        ids.push(oid.to_string());
+        true
+    })
+    .unwrap();
+    ids
+}
+
+fn workspace_with_member(temp: &TempDir) -> PathBuf {
+    assert_success(
+        &gwz(temp.path())
+            .args(["--root", temp.path_str(), "init"])
+            .output()
+            .unwrap(),
+    );
+    let member = temp.path().join("repos/app");
+    create_repo_with_commit(&member);
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                temp.path_str(),
+                "repo",
+                "add",
+                member.to_str().unwrap(),
+            ])
+            .output()
+            .unwrap(),
+    );
+    member
+}
+
+#[test]
+fn dry_run_stash_restore_ops_mutate_nothing_in_both_flag_positions() {
+    for (position, args) in [
+        ("global-first", vec!["--dry-run", "stash"]),
+        ("verb-last", vec!["stash"]),
+    ] {
+        let temp = TempDir::new(&format!("dry-run-stash-{position}"));
+        let member = workspace_with_member(&temp);
+        fs::write(member.join("README.md"), "changed\n").unwrap();
+        let push = gwz(temp.path())
+            .args(["--root", temp.path_str(), "--json", "stash", "push", "-m", "probe"])
+            .output()
+            .unwrap();
+        assert_success(&push);
+        let stash_id = json(&push)["stash_bundles"][0]["stash_id"]
+            .as_str()
+            .expect("stash push reports a bundle id")
+            .to_owned();
+
+        let stashes_before = stash_ref_ids(&member);
+        assert_eq!(stashes_before.len(), 1);
+        let readme_before = fs::read_to_string(member.join("README.md")).unwrap();
+        let list_before = gwz(temp.path())
+            .args(["--root", temp.path_str(), "--json", "stash", "list"])
+            .output()
+            .unwrap();
+        assert_success(&list_before);
+
+        for op in ["apply", "pop", "drop"] {
+            let mut command = gwz(temp.path());
+            command.args(["--root", temp.path_str()]);
+            command.args(&args);
+            command.args([op, stash_id.as_str()]);
+            if position == "verb-last" {
+                command.arg("--dry-run");
+            }
+            let output = command.output().unwrap();
+            assert_success(&output);
+
+            assert_eq!(
+                stash_ref_ids(&member),
+                stashes_before,
+                "{position} --dry-run stash {op} changed the native stash list"
+            );
+            assert_eq!(
+                fs::read_to_string(member.join("README.md")).unwrap(),
+                readme_before,
+                "{position} --dry-run stash {op} changed the working tree"
+            );
+            let list_after = gwz(temp.path())
+                .args(["--root", temp.path_str(), "--json", "stash", "list"])
+                .output()
+                .unwrap();
+            assert_success(&list_after);
+            assert_eq!(
+                json(&list_after)["stash_bundles"],
+                json(&list_before)["stash_bundles"],
+                "{position} --dry-run stash {op} changed the coordinated bundle"
+            );
+        }
+
+        // The real drop still works, so the plans left nothing poisoned.
+        assert_success(
+            &gwz(temp.path())
+                .args(["--root", temp.path_str(), "stash", "drop", stash_id.as_str()])
+                .output()
+                .unwrap(),
+        );
+        assert!(stash_ref_ids(&member).is_empty());
+    }
+}
+
+#[test]
+fn dry_run_forall_does_not_run_the_command_in_both_flag_positions() {
+    for (position, marker) in [("global-first", "GLOBAL.txt"), ("verb-last", "VERB.txt")] {
+        let temp = TempDir::new(&format!("dry-run-forall-{position}"));
+        let member = workspace_with_member(&temp);
+
+        let mut command = gwz(temp.path());
+        command.args(["--root", temp.path_str()]);
+        if position == "global-first" {
+            command.arg("--dry-run");
+            command.arg("forall");
+        } else {
+            command.arg("forall");
+            command.arg("--dry-run");
+        }
+        command.args(["--", "sh", "-c", &format!("echo ran > {marker}")]);
+        let output = command.output().unwrap();
+
+        assert_success(&output);
+        assert!(
+            !member.join(marker).exists(),
+            "{position} --dry-run forall spawned the command: {marker} was created"
+        );
+        assert!(
+            !temp.path().join(marker).exists(),
+            "{position} --dry-run forall spawned the command in the root"
+        );
+        assert!(
+            normalized_stdout(&output).contains("dry run:"),
+            "{position} --dry-run forall printed no plan: {}",
+            normalized_stdout(&output)
+        );
+    }
+}
+
+#[test]
+fn dry_run_init_creates_no_workspace_in_both_flag_positions() {
+    for position in ["global-first", "verb-last"] {
+        let temp = TempDir::new(&format!("dry-run-init-{position}"));
+        let root = temp.path().join("fresh");
+        fs::create_dir_all(&root).unwrap();
+
+        let mut command = gwz(&root);
+        command.args(["--root", root.to_str().unwrap()]);
+        if position == "global-first" {
+            command.arg("--dry-run");
+            command.arg("init");
+        } else {
+            command.arg("init");
+            command.arg("--dry-run");
+        }
+        let output = command.output().unwrap();
+
+        assert_success(&output);
+        let entries: Vec<String> = fs::read_dir(&root)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            entries.is_empty(),
+            "{position} --dry-run init created {entries:?}"
+        );
+
+        // The real init still works in the same directory.
+        assert_success(
+            &gwz(&root)
+                .args(["--root", root.to_str().unwrap(), "init"])
+                .output()
+                .unwrap(),
+        );
+        assert!(root.join("gwz.conf").is_dir());
+    }
+}
+
+#[test]
+fn global_all_commit_does_not_stage_tracked_modifications_but_dash_a_does() {
+    // DR-5: `gwz --all commit -m x` used to silently mean `git commit -a`.
+    let temp = TempDir::new("global-all-commit");
+    let member = workspace_with_member(&temp);
+    fs::write(member.join("README.md"), "modified\n").unwrap();
+    let head_before = repo_head(&member);
+
+    for args in [
+        vec!["--all", "commit", "-m", "selector-first"],
+        vec!["commit", "--all", "-m", "selector-last"],
+    ] {
+        let mut command = gwz(temp.path());
+        command.args(["--root", temp.path_str()]);
+        command.args(&args);
+        assert_success(&command.output().unwrap());
+        assert_eq!(
+            repo_head(&member),
+            head_before,
+            "--all committed the unstaged tracked modification ({args:?})"
+        );
+        assert_eq!(
+            fs::read_to_string(member.join("README.md")).unwrap(),
+            "modified\n"
+        );
+    }
+
+    // `-a` still means `git commit -a`.
+    assert_success(
+        &gwz(temp.path())
+            .args(["--root", temp.path_str(), "commit", "-a", "-m", "dash-a"])
+            .output()
+            .unwrap(),
+    );
+    assert_ne!(repo_head(&member), head_before, "`-a` did not commit");
+}

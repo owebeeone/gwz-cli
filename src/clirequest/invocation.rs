@@ -49,7 +49,7 @@ impl Cli {
 
     pub(crate) fn selection(&self) -> Option<gwz_core::Selection> {
         let mut targets = Vec::new();
-        if self.global.all && self.global_all_is_target_selector() {
+        if self.global.all {
             targets.push("@all".to_owned());
         }
         targets.extend(self.global.targets.clone());
@@ -69,15 +69,6 @@ impl Cli {
         } else {
             None
         }
-    }
-
-    /// `--all` is the workspace `@all` target selector everywhere except `add` and `commit`.
-    /// Those two subcommands own clap's `all` id for their git-style flags (`add -A`,
-    /// `commit -a`), and clap merges same-id args — so a set flag there is the git verb, not
-    /// a target selection. Injecting `@all` from it would silently widen an explicit
-    /// `--target <member>` back to the whole workspace.
-    fn global_all_is_target_selector(&self) -> bool {
-        !matches!(&self.command, CommandArgs::Add(_) | CommandArgs::Commit(_))
     }
 
     pub(crate) fn policy(&self) -> Option<gwz_core::OperationPolicy> {

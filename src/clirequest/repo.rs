@@ -138,12 +138,16 @@ pub(crate) struct CommitArgs {
     )]
     pub(crate) message: String,
 
+    // `-a` only. `--all` is the workspace `@all` target selector, a global that means the
+    // same thing under every verb; the two cannot share the spelling (clap refuses two
+    // arguments with one long, and sharing the clap *id* is what made `gwz --all commit`
+    // silently mean `git commit -a` — DR-5).
     #[arg(
+        id = "commit_all",
         short = 'a',
-        long,
-        help = "Stage tracked modifications first (git commit -a)"
+        help = "Stage tracked modifications first (git commit -a). `--all` is the target selector."
     )]
-    pub(crate) all: bool,
+    pub(crate) commit_all: bool,
 
     #[arg(
         long = "commit-marker",
@@ -167,12 +171,13 @@ pub(crate) struct StageArgs {
     )]
     pub(crate) pathspecs: Vec<String>,
 
+    // `-A` only — see the note on `CommitArgs::commit_all` (DR-5).
     #[arg(
+        id = "stage_all",
         short = 'A',
-        long = "all",
-        help = "Stage all changes across every workspace repo (git add -A)"
+        help = "Stage all changes across every workspace repo (git add -A). `--all` is the target selector."
     )]
-    pub(crate) all: bool,
+    pub(crate) stage_all: bool,
 }
 
 impl AddArgs {
@@ -290,7 +295,7 @@ impl CommitArgs {
         Ok(CliRequest::Commit(gwz_core::CommitRequest {
             meta,
             message: self.message.clone(),
-            all: self.all.then_some(true),
+            all: self.commit_all.then_some(true),
             commit_marker: if self.commit_marker {
                 Some(true)
             } else if self.no_commit_marker {
@@ -324,7 +329,7 @@ impl StageArgs {
             meta,
             cwd: cwd.to_string_lossy().into_owned(),
             pathspecs: self.pathspecs.clone(),
-            all: self.all.then_some(true),
+            all: self.stage_all.then_some(true),
         }))
     }
 }

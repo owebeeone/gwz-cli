@@ -18,12 +18,16 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
     // Most mutations are guarded authoritatively by their public core handler.
     // `forall` executes arbitrary commands in this driver, so it retains the
     // core workspace guard itself across the complete dispatch.
+    //
+    // DR-3: the guard is taken with the request's dry-run answer, so a planned
+    // run never takes the mutator lock — and `execute_forall` refuses to spawn.
     let _forall_guard = if let CliRequest::Forall { meta, .. } = &invocation.request {
         Some(
             gwz_core::workspace_ops::acquire_workspace_mutation_guard(
                 start,
                 meta.workspace.as_ref(),
                 gwz_core::operation::OpenMergeCommand::Forall,
+                meta.dry_run.unwrap_or(false),
             )
             .map_err(CliError::from_model)?,
         )
