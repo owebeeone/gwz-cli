@@ -19,8 +19,10 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
     // `forall` executes arbitrary commands in this driver, so it retains the
     // core workspace guard itself across the complete dispatch.
     //
-    // DR-3: the guard is taken with the request's dry-run answer, so a planned
-    // run never takes the mutator lock — and `execute_forall` refuses to spawn.
+    // DR-3: the guard is taken with the request's dry-run answer. A planned run
+    // holds the mutator lock exactly like a real one (both arms lock, so the plan
+    // observes the workspace a real run would have mutated) but receives no write
+    // authority — and `execute_forall` refuses to spawn.
     let _forall_guard = if let CliRequest::Forall { meta, .. } = &invocation.request {
         Some(
             gwz_core::workspace_ops::acquire_workspace_mutation_guard(

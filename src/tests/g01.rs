@@ -578,10 +578,7 @@ pub(crate) fn no_subcommand_argument_reuses_a_global_argument_id() {
             }
         }
         for nested in sub.get_subcommands() {
-            pending.push((
-                format!("{path} {}", nested.get_name()),
-                nested.clone(),
-            ));
+            pending.push((format!("{path} {}", nested.get_name()), nested.clone()));
         }
     }
     collisions.sort();

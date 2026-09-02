@@ -1436,7 +1436,15 @@ fn dry_run_stash_restore_ops_mutate_nothing_in_both_flag_positions() {
         let member = workspace_with_member(&temp);
         fs::write(member.join("README.md"), "changed\n").unwrap();
         let push = gwz(temp.path())
-            .args(["--root", temp.path_str(), "--json", "stash", "push", "-m", "probe"])
+            .args([
+                "--root",
+                temp.path_str(),
+                "--json",
+                "stash",
+                "push",
+                "-m",
+                "probe",
+            ])
             .output()
             .unwrap();
         assert_success(&push);
@@ -1490,7 +1498,13 @@ fn dry_run_stash_restore_ops_mutate_nothing_in_both_flag_positions() {
         // The real drop still works, so the plans left nothing poisoned.
         assert_success(
             &gwz(temp.path())
-                .args(["--root", temp.path_str(), "stash", "drop", stash_id.as_str()])
+                .args([
+                    "--root",
+                    temp.path_str(),
+                    "stash",
+                    "drop",
+                    stash_id.as_str(),
+                ])
                 .output()
                 .unwrap(),
         );
@@ -1587,7 +1601,12 @@ fn global_all_commit_does_not_stage_tracked_modifications_but_dash_a_does() {
         let mut command = gwz(temp.path());
         command.args(["--root", temp.path_str()]);
         command.args(&args);
-        assert_success(&command.output().unwrap());
+        let output = command.output().unwrap();
+        assert_success(&output);
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("use -a"),
+            "`--all` under commit must say on stderr that `-a` is the git-style flag"
+        );
         assert_eq!(
             repo_head(&member),
             head_before,
