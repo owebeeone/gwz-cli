@@ -312,6 +312,68 @@ fn merge_record_json_keeps_every_archive_acceptance_variant_explicit() {
     }
 }
 
+#[test]
+pub(crate) fn merge_json_carries_the_crash_recovery_decision_only_when_one_was_made() {
+    // DR-1 §3.4 channel 2: the response is the machine truth, so Json and
+    // Porcelain consumers never have to read the stderr warning. An op that
+    // decided nothing (abort, status, gc) omits the key rather than rendering
+    // a null one, which keeps every pre-DR-1 payload byte-identical.
+    let undecided = gwz_core::MergeResponse::default();
+    assert!(
+        merge_response_json(&undecided)
+            .get("crash_recovery")
+            .is_none(),
+        "{}",
+        merge_response_json(&undecided)
+    );
+    // The warning arrived live on stderr, so the human rendering gains nothing.
+    let human_before = render_merge_response(&undecided);
+
+    let rows = [
+        (
+            gwz_core::MergeCrashRecoveryGap::NoDurableIdentity,
+            "NoDurableIdentity",
+        ),
+        (
+            gwz_core::MergeCrashRecoveryGap::RemoteFilesystem,
+            "RemoteFilesystem",
+        ),
+        (
+            gwz_core::MergeCrashRecoveryGap::VolatileFilesystem,
+            "VolatileFilesystem",
+        ),
+    ];
+    for (gap, label) in rows {
+        let response = gwz_core::MergeResponse {
+            crash_recovery: Some(gwz_core::MergeCrashRecovery {
+                supported: false,
+                filesystem: Some("btrfs".to_owned()),
+                gap: Some(gap),
+            }),
+            ..gwz_core::MergeResponse::default()
+        };
+        let json = merge_response_json(&response);
+        assert_eq!(json["crash_recovery"]["supported"], false);
+        assert_eq!(json["crash_recovery"]["filesystem"], "btrfs");
+        assert_eq!(json["crash_recovery"]["gap"], label);
+        assert_eq!(render_merge_response(&response), human_before);
+    }
+
+    // Above the bar: supported, with no gap and an optional filesystem name.
+    let supported = gwz_core::MergeResponse {
+        crash_recovery: Some(gwz_core::MergeCrashRecovery {
+            supported: true,
+            filesystem: None,
+            gap: None,
+        }),
+        ..gwz_core::MergeResponse::default()
+    };
+    let json = merge_response_json(&supported);
+    assert_eq!(json["crash_recovery"]["supported"], true);
+    assert!(json["crash_recovery"]["filesystem"].is_null());
+    assert!(json["crash_recovery"]["gap"].is_null());
+}
+
 fn canonical_merge_response_fixture() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../gwz-core/protocol/fixtures/cli_parity/merge_response.json")

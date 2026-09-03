@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -52,6 +53,35 @@ impl ProgressModel {
             }
             _ => false,
         }
+    }
+}
+
+/// The human channel for `EventKind::Diagnostic`: core has no stderr, so a
+/// warning it raises mid-operation (DR-1's crash-recovery sentence, for one)
+/// reaches a person only through this echo. Diagnostics are not progress —
+/// they print whether or not the progress line is live — and each distinct
+/// text prints once per invocation, so a second emitter cannot spam the
+/// terminal (charter §3.5). Pure: the terminal write lives in the sink.
+#[derive(Debug, Default)]
+pub(crate) struct DiagnosticEcho {
+    printed: Mutex<HashSet<String>>,
+}
+
+impl DiagnosticEcho {
+    /// The line to print for this event, or `None` when it is not an echoable
+    /// diagnostic or its exact text has already been printed.
+    pub(crate) fn line_for(&self, event: &gwz_core::OperationEvent) -> Option<String> {
+        if event.kind != gwz_core::EventKind::Diagnostic {
+            return None;
+        }
+        let label = match event.severity {
+            gwz_core::Severity::Warn => "warning",
+            gwz_core::Severity::Error => "error",
+            _ => return None,
+        };
+        let line = format!("{label}: {}", event.message.as_deref()?);
+        let mut printed = self.printed.lock().expect("diagnostic echo poisoned");
+        printed.insert(line.clone()).then_some(line)
     }
 }
 
@@ -168,6 +198,7 @@ pub(crate) struct StderrProgressSink {
     pub(crate) enabled: bool,
     pub(crate) state: Mutex<ProgressModel>,
     pub(crate) tick: AtomicUsize,
+    pub(crate) diagnostics: DiagnosticEcho,
 }
 
 impl StderrProgressSink {
@@ -179,12 +210,30 @@ impl StderrProgressSink {
             enabled,
             state: Mutex::new(ProgressModel::new(label)),
             tick: AtomicUsize::new(0),
+            diagnostics: DiagnosticEcho::default(),
         }
     }
 }
 
 impl gwz_core::operation::EventSink for StderrProgressSink {
     fn deliver(&self, event: gwz_core::OperationEvent) {
+        // A diagnostic is a message, not progress: it is printed even when the
+        // live line is TTY-disabled. The model lock serializes it against the
+        // member threads' writes; the line is cleared first and redrawn after
+        // so the diagnostic never lands inside the rewritten status line.
+        if let Some(line) = self.diagnostics.line_for(&event) {
+            let state = self.state.lock().expect("progress state poisoned");
+            if self.enabled {
+                let _ = self.term.clear_line();
+            }
+            let _ = self.term.write_line(&line);
+            if self.enabled {
+                let tick = self.tick.fetch_add(1, Ordering::Relaxed);
+                let redraw = truncate_to_width(&render_progress_line(&state, tick), &self.term);
+                let _ = self.term.write_str(&redraw);
+            }
+            return;
+        }
         let mut state = self.state.lock().expect("progress state poisoned");
         let changed = state.apply(&event);
         if !self.enabled {

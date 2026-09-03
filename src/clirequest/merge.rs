@@ -18,6 +18,14 @@ impl MergeArgs {
                 "--ff-only and --no-ff are mutually exclusive",
             ));
         }
+        // The crash-recovery decision is made once, at the start that opens the
+        // attempt; a later lifecycle op never consults the flag. Mirrors core's
+        // own rule so the driver fails fast — core stays the authority.
+        if self.filesystem_strict && lifecycle_ops > 0 {
+            return Err(CliError::invalid_request(
+                "--filesystem-strict is accepted only when starting a merge",
+            ));
+        }
         let op = if self.resume {
             gwz_core::MergeOp::Resume
         } else if self.abort {
@@ -47,8 +55,7 @@ impl MergeArgs {
             },
             message: self.message.clone(),
             preserve: self.preserve.then_some(true),
-            // W4 wires --filesystem-strict; W1 only carries the slot.
-            filesystem_strict: None,
+            filesystem_strict: self.filesystem_strict.then_some(true),
         }))
     }
 }

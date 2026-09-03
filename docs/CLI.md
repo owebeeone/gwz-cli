@@ -1531,6 +1531,9 @@ Options:
       --no-ff
           Always create a merge commit, even when a fast-forward is possible
 
+      --filesystem-strict
+          Refuse to merge when crash recovery is unsupported on this filesystem
+
   -m, --message <message>
           Use a custom merge commit-message body
 

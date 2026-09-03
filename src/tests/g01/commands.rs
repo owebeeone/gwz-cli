@@ -320,6 +320,55 @@ pub(crate) fn parses_first_class_merge_and_reserved_forms() {
 }
 
 #[test]
+pub(crate) fn merge_filesystem_strict_is_a_start_only_request_flag() {
+    // DR-1: the crash-recovery decision belongs to the start that opens the
+    // attempt. Absent, the request carries no opinion and core warns-and-
+    // continues below the bar; present, core refuses before any lease.
+    assert!(matches!(
+        parse(strings(["merge", "feature/source"])).request,
+        CliRequest::Merge(ref r) if r.filesystem_strict.is_none()
+    ));
+    assert!(matches!(
+        parse(strings(["merge", "feature/source", "--filesystem-strict"])).request,
+        CliRequest::Merge(ref r)
+            if r.op == gwz_core::MergeOp::Start && r.filesystem_strict == Some(true)
+    ));
+    assert!(matches!(
+        parse(strings([
+            "merge",
+            "feature/source",
+            "--no-ff",
+            "--filesystem-strict"
+        ]))
+        .request,
+        CliRequest::Merge(ref r)
+            if r.mode == Some(gwz_core::MergeMode::NoFf) && r.filesystem_strict == Some(true)
+    ));
+
+    // Every lifecycle op uses what its own start opened and never consults the
+    // flag, so offering it there is a request error, not a silent no-op.
+    for args in [
+        strings(["merge", "--continue", "--filesystem-strict"]),
+        strings(["merge", "--abort", "--filesystem-strict"]),
+        strings(["merge", "--status", "--filesystem-strict"]),
+        strings(["merge", "--gc", "--filesystem-strict"]),
+    ] {
+        let error = parse_result(args).unwrap_err();
+        assert_eq!(
+            error.code,
+            Some(gwz_core::model::ErrorCode::InvalidRequest),
+            "{error:?}"
+        );
+        assert!(
+            error
+                .message
+                .contains("--filesystem-strict is accepted only when starting a merge"),
+            "{error:?}"
+        );
+    }
+}
+
+#[test]
 pub(crate) fn merge_help_exposes_status_and_recovery_flags() {
     use clap::CommandFactory;
 

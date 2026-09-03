@@ -424,6 +424,14 @@ pub(crate) struct MergeArgs {
         help = "Always create a merge commit, even when a fast-forward is possible"
     )]
     pub(crate) no_ff: bool,
+    // DR-1: crash recovery is a capability, not a gate. A start on a volume
+    // that cannot prove durable identity warns and continues; this flag asks
+    // core to refuse instead. Start only — core stays the authority.
+    #[arg(
+        long,
+        help = "Refuse to merge when crash recovery is unsupported on this filesystem"
+    )]
+    pub(crate) filesystem_strict: bool,
     #[arg(
         short = 'm',
         long,
