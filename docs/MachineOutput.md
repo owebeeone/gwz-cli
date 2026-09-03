@@ -304,6 +304,39 @@ read-only merge-status lifecycle when no coordinated merge is open. An idle
 response has no merge id, participants, or drift and does not fabricate a
 completed operation. Its `record` field is null.
 
+### `crash_recovery`
+
+`merge.crash_recovery` reports the start-time crash-recovery decision — whether
+the workspace volume can prove the durable filesystem identity GWZ needs to
+reconstruct an interrupted start. It is the machine truth for that decision;
+consumers never need to parse the human warning off stderr.
+
+```json
+{
+  "merge": {
+    "crash_recovery": {
+      "supported": false,
+      "filesystem": "btrfs",
+      "gap": "NoDurableIdentity"
+    }
+  }
+}
+```
+
+- `supported` — `true` when the volume proved identity and the merge records
+  its artifacts as before; `false` when the merge proceeds without that
+  recording. A `false` decision is not a failure: the response is still a
+  success, and the merge ran.
+- `filesystem` — the name of the filesystem behind the decision, or absent when
+  it cannot be named.
+- `gap` — why identity could not be proved, and absent when `supported` is
+  true. One of `NoDurableIdentity`, `RemoteFilesystem`, `VolatileFilesystem`.
+
+The whole object is **absent** on any response that made no such decision:
+`--abort`, `--status`, `--gc`, dry run, and every start that writes a v0 record
+(ordinary and `--ff-only` merges). Present means a decision was made, not that
+crash recovery is available; read `supported` for that.
+
 The Rust and Python driver tests compare semantic JSON values with the single
 canonical fixture at
 `gwz-core/protocol/fixtures/cli_parity/merge_response.json`. Driver development
@@ -354,7 +387,11 @@ start/finish events. Actionable participants emit member start/finish events;
 `merge_member`. Verified operation-record and evidence writes emit
 `ArtifactWritten` with `artifact_path`. Lifecycle transitions carry
 `merge_state`. Participant outcome and state-change events are emitted only
-after their corresponding durable write succeeds.
+after their corresponding durable write succeeds. A merge start on a volume
+that cannot support crash recovery also emits one `Diagnostic` event with
+`severity: "Warn"`, no member, and the warning text in `message`; the same
+decision is in the response's `crash_recovery` object, which is the field to
+read rather than the event.
 
 After successful finalization verification, the stream reports the composition
 evidence in this order:

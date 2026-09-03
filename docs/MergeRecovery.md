@@ -12,6 +12,17 @@ refuses, or when a rollback reported success and the result still looks wrong.
 Nothing on this page happens automatically. Every step is something you decide
 to do, and several of them cannot be undone.
 
+**Not a case on this page:** `warning: crash recovery is unsupported on <fs>
+…`. That is not a refusal and not a stuck state. The merge started and is
+running; what the volume cannot support is GWZ's ability to reconstruct an
+*interrupted* start from its own recorded artifacts. Nothing on this page
+applies to it, and `--continue` and `--abort` work normally. See
+[Crash recovery and filesystems](commands/merge.md#crash-recovery-and-filesystems).
+A `--no-ff` merge is refused for a filesystem reason in exactly one case: the
+volume cannot supply persistent file handles at all (overlayfs without
+`nfs_export`, sshfs and other FUSE mounts without export support), and the
+record write says so.
+
 ## Four Rules Before You Touch Anything
 
 1. **Stop other activity in the workspace.** GWZ's mutation lock serializes

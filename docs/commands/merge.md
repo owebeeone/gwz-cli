@@ -4,7 +4,7 @@ Merge one source ref into the current branch of each selected workspace
 repository.
 
 ```text
-gwz merge <source> [--dry-run] [--ff-only] [--no-ff] [-m <message>]
+gwz merge <source> [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]
 gwz merge --status [<merge-id>]
 gwz merge --continue
 gwz merge --abort [--preserve]
@@ -381,7 +381,9 @@ mode when applicable.
 possible. It is the counterpart to `--ff-only`; supplying both together
 is rejected. A `--no-ff` start writes a v1 coordinated merge record and
 publishes a two-parent integration commit. Ordinary and
-custom-message starts continue to write v0 records.
+custom-message starts continue to write v0 records. A `--no-ff` start on a
+filesystem that cannot support crash recovery still runs; see
+[Crash recovery and filesystems](#crash-recovery-and-filesystems).
 
 Merge also rejects unrelated operation policies supplied explicitly:
 `--sync`, `--remote`, `--jobs`, `--max-per-host`,
@@ -390,3 +392,52 @@ that must be removed.
 
 `gwz branch --merge <source>` remains a deprecated compatibility spelling. It
 constructs the same first-class merge request.
+
+## Crash recovery and filesystems
+
+A merge runs on every filesystem. Crash recovery — GWZ's ability to prove on
+restart which artifacts an interrupted start had created — is a capability of
+the volume, decided once when the merge starts, not a gate in front of the
+command.
+
+Where the volume can prove a durable filesystem identity, the merge records its
+artifacts as before and nothing is printed. Where it cannot, GWZ prints one
+warning on stderr and the merge continues without that recording:
+
+```text
+warning: crash recovery is unsupported on btrfs (no durable filesystem identity). Merge will continue. Use --filesystem-strict to refuse.
+```
+
+The filesystem is named, or `unknown` when it cannot be named, and the
+parenthetical is exactly one of `no durable filesystem identity`,
+`remote filesystem`, or `volatile filesystem`. The merge itself is unchanged:
+same participants, same order, same verification, same published composition
+evidence. `--continue` and `--abort` of an open merge, and Ctrl-C of a running
+one, never depended on crash recovery and behave identically.
+
+`--filesystem-strict` turns that warning back into a refusal, before any lease,
+record, or Git mutation. Use it where an unrecoverable interrupted merge is
+unacceptable. It is a start-only flag: supplying it with `--continue`,
+`--abort`, `--status` or `--gc` is rejected. There is no environment variable
+and no configuration key.
+
+The bar is identity, not a filesystem name. On Linux a volume is above it when
+`FS_IOC_GETFSUUID` answers with a volume UUID and `name_to_handle_at` returns a
+persistent handle, which admits ext4, xfs and f2fs alike; btrfs is below it
+because it never publishes its UUID to the kernel's VFS, kernels before 6.9
+have no such call at all, tmpfs and ramfs are refused as volatile because their
+contents do not survive power loss, and network mounts (NFS, SMB/CIFS, SSHFS
+and other FUSE mounts) are named as remote. On macOS the bar is a local APFS or
+HFS+ volume; on Windows, NTFS.
+
+One limit remains, and it is narrower than the bar above. A `--no-ff` merge
+record is published through the checked artifact boundary, which needs
+persistent file handles even though it needs no volume UUID. A filesystem that
+cannot answer that — overlayfs without `nfs_export`, sshfs and other FUSE
+mounts without export support — still refuses a `--no-ff` merge when the record
+is written, with a `MergeRecoveryRequired`-style message rather than the
+warning above. Ordinary and `--ff-only` merges are unaffected.
+
+`--json`, porcelain and `--jsonl` consumers read the decision from the
+response's `crash_recovery` object rather than from stderr; see
+[Machine Output](../MachineOutput.md).
