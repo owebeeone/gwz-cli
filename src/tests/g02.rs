@@ -412,6 +412,7 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
         }]),
         publication_step: Some(gwz_core::MergePublicationStep::VerifyingPublication),
         record: Some(parity_record_projection()),
+        crash_recovery: None,
     }
 }
 

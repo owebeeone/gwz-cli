@@ -47,6 +47,8 @@ impl MergeArgs {
             },
             message: self.message.clone(),
             preserve: self.preserve.then_some(true),
+            // W4 wires --filesystem-strict; W1 only carries the slot.
+            filesystem_strict: None,
         }))
     }
 }
