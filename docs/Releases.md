@@ -9,6 +9,36 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
+## Upgrading To 0.14.0
+
+**Close any open coordinated merge before you upgrade.** GWZ 0.14 has one merge
+implementation, and it cannot act on a merge record written by 0.13.x or
+earlier. On 0.13.x, run `gwz merge --status`, then finish the merge with
+`gwz merge --continue` or undo it with `gwz merge --abort`. Only then install
+0.14.
+
+If a pre-0.14 merge is still open after the upgrade, GWZ says so and stops.
+Every merge verb, and every command a merge blocks, refuses with one sentence:
+
+```text
+gwz: OpenOperation: this is a pre-0.14 merge; use gwz 0.13.0 (the last release before 0.14) to continue or abort
+```
+
+`--status`, `--continue` and `--abort` all refuse alike, so the usual
+open-merge advice does not apply and is deliberately not printed. Nothing is
+wrong with the record and nothing needs repairing: reinstall a 0.13.x build,
+close the merge with it, and return to 0.14. There is no conversion step and no
+in-place upgrade for an open record.
+
+Merges that were already closed are unaffected. Archived records still project
+read-only through `gwz merge --status <merge-id>`, and `gwz merge --gc` never
+deletes an archive it cannot read.
+
+Starting a merge is otherwise unchanged. Ordinary, `--ff-only`,
+custom-message and `--no-ff` starts now all write the same coordinated merge
+record, so status, continue, abort and recovery behave identically whichever
+way a merge was started.
+
 ## Unreleased Compatibility Notes
 
 - `gwz log` adds one newest-first history across the workspace root and selected

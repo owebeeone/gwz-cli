@@ -185,6 +185,9 @@ Symptoms:
   success and the affected files still look wrong to plain `git`.
 - A recovery checkout is refused because a path is covered by a configured
   content filter.
+- Every merge verb refuses with `this is a pre-0.14 merge`. Nothing is broken:
+  the merge was started by GWZ 0.13 or earlier and 0.14 cannot act on it. Close
+  it with a 0.13.x build, then return to 0.14.
 
 Recovery:
 

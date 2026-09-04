@@ -1499,7 +1499,7 @@ Command page: [merge](commands/merge.md).
 ```text
 Merge a source ref across selected workspace repositories
 
-Usage: gwz merge [source] [--dry-run] [--ff-only] [-m <message>]
+Usage: gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]
        gwz merge --status [merge-id]
        gwz merge --continue
        gwz merge --abort [--preserve]

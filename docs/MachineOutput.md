@@ -240,11 +240,20 @@ status, pre-record responses, and unqualified GC. A command failure uses the
 top-level error envelope and therefore carries `record_context`, not a partial
 `record` projection.
 
-`source_version` is `V0` or `V1`. `archived` is true only when status was read
-from immutable archive bytes; only an archived projection has
-`terminal_outcome` (`Completed` or `Aborted`). Open v0 records deliberately
-have null `acceptance` and `recovery` when their legacy evidence has not been
-migrated.
+`source_version` is `V0` or `V1`. This build writes `V1` for every merge, so
+`V0` appears only on an archived record written before 0.14; a pre-0.14 record
+that is still **open** is refused rather than projected, and no response carries
+it. `archived` is true only when status was read from immutable archive bytes;
+only an archived projection has `terminal_outcome` (`Completed` or `Aborted`).
+
+An archived projection always carries `acceptance` and always has null
+`recovery` — an archive is history, not a resumable state. An archived `V0`
+record's acceptance uses the legacy shapes below (`LegacyComplete`,
+`LegacyUnavailable` or `NotAccepted`) because its bytes predate the persisted
+acceptance record; nothing converts them into one. An open projection is the
+mirror image: null `terminal_outcome`, null `acceptance` until the merge has
+accepted a workspace, and null `recovery` until a recovery context is
+recorded.
 
 Archive-only status does not inspect repositories. Its `repos` and
 `operation_drift` arrays are empty, and the immutable terminal and acceptance
@@ -317,7 +326,8 @@ consumers never need to parse the human warning off stderr.
     "crash_recovery": {
       "supported": false,
       "filesystem": "btrfs",
-      "gap": "NoDurableIdentity"
+      "gap": "NoDurableIdentity",
+      "handles_ok": true
     }
   }
 }
@@ -327,15 +337,25 @@ consumers never need to parse the human warning off stderr.
   its artifacts as before; `false` when the merge proceeds without that
   recording. A `false` decision is not a failure: the response is still a
   success, and the merge ran.
-- `filesystem` — the name of the filesystem behind the decision, or absent when
-  it cannot be named.
-- `gap` — why identity could not be proved, and absent when `supported` is
+- `filesystem` — the name of the filesystem behind the decision. `null` when
+  `supported` is true, and `null` below the bar when the filesystem cannot be
+  named.
+- `gap` — why identity could not be proved, and `null` when `supported` is
   true. One of `NoDurableIdentity`, `RemoteFilesystem`, `VolatileFilesystem`.
+- `handles_ok` — whether the volume proved persistent file handles. `null` when
+  `supported` is true, because a handle failure above the bar is an anomaly
+  rather than a capability the merge plans around. `true` on a below-bar volume
+  whose handles work. `false` on a below-bar volume whose handles do not —
+  there the merge record is written raw and the merge still runs, but a
+  selected-root or `--preserve` abort may refuse until the workspace is on a
+  handle-capable volume. Plain participant-only abort is unaffected.
 
-The whole object is **absent** on any response that made no such decision:
-`--abort`, `--status`, `--gc`, dry run, and every start that writes a v0 record
-(ordinary and `--ff-only` merges). Present means a decision was made, not that
-crash recovery is available; read `supported` for that.
+`filesystem`, `gap` and `handles_ok` are always **present as keys** and carry
+an explicit `null` when the decision has no value for them. Only the
+`crash_recovery` object as a whole is omitted, on any response that made no
+such decision: `--abort`, `--status`, `--gc` and dry run. Present means a
+decision was made, not that crash recovery is available; read `supported` for
+that.
 
 The Rust and Python driver tests compare semantic JSON values with the single
 canonical fixture at

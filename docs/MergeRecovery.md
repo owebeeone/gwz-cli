@@ -55,6 +55,7 @@ refused command stops the ones after it — keep the `&&` when you paste.
 | A refusal ending `refusing before any ref or worktree mutation` | [A](#a-refused-a-recovery-checkout-under-a-configured-filter) |
 | Abort or rollback reported success, but filtered files hold the wrong content | [B](#b-a-rollback-succeeded-and-left-divergent-files) |
 | `participant is neither at the exact rollback before nor after state` | [C](#c-rollback-is-unavailable-in-a-crlf-worktree) |
+| `this is a pre-0.14 merge; use gwz 0.13.0…` | [D, first check](#first-was-this-merge-started-by-gwz-013-or-earlier) |
 | `merge '<id>' is open; this command is blocked…` and no merge command can close it | [D](#d-an-open-merge-no-command-can-close) |
 | Git LFS files hold pointer text; everything reports clean | [E](#e-lfs-paths-hold-pointer-text) |
 | None of the above | [F](#f-stop-and-collect-evidence) |
@@ -312,9 +313,9 @@ broken.
   usually met, but any host carrying that setting is affected, and the
   attribute-driven forms (`eol=crlf`, `ident`, a foreign `filter=`) apply
   everywhere.
-- **This is the `--no-ff` recovery path.** `--no-ff` starts always use it; an
-  ordinary start can also reach it once its record is migrated during abort.
-  Match on the message, not on how you started the merge.
+- **Every merge start reaches this path.** Ordinary, `--ff-only`,
+  custom-message and `--no-ff` starts all use the same coordinated rollback, so
+  this case never depends on how the merge was started. Match on the message.
 
 ### What was changed
 
@@ -388,6 +389,32 @@ is not exposed.
 > part of 0.11.0.** Use the manual steps above.
 
 ## D. An Open Merge No Command Can Close
+
+### First: was this merge started by GWZ 0.13 or earlier?
+
+If the refusal reads
+
+```text
+gwz: OpenOperation: this is a pre-0.14 merge; use gwz 0.13.0 (the last release before 0.14) to continue or abort
+```
+
+then nothing on this page applies and nothing is wrong with the record. GWZ
+0.14 has one merge implementation and cannot act on a record written by 0.13.x
+or earlier — not to continue it, not to abort it, not even to report its status.
+The record is intact; this build simply is not the one that can close it.
+
+Install a 0.13.x build, close the merge with it — `gwz merge --status`, then
+`gwz merge --continue` or `gwz merge --abort` — and return to 0.14. Do not park
+the record, and do not run the procedure below: parking is for a record no
+build can close, and this one closes normally under 0.13.x.
+
+The usual open-merge advice ("use merge status, merge continue, or merge
+abort") is deliberately not printed for this refusal, because under 0.14 all
+three of those verbs refuse.
+
+Records that were already closed are unaffected: archived merges still project
+read-only through `gwz merge --status <id>`, and `gwz merge --gc` never deletes
+an archive it cannot read.
 
 ### How it presents
 

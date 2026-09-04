@@ -130,6 +130,30 @@ Each participant also has its own state, such as `UpToDate`,
 can be awaiting resolution while another repository has already merged
 successfully.
 
+## A merge left open by GWZ 0.13 or earlier
+
+GWZ 0.14 has one merge implementation. A merge record written by 0.13.x or
+earlier is not a merge this build can act on, and it is not nothing either: it
+occupies the merge slot, so every merge verb and every command that a merge
+blocks refuses with one sentence.
+
+```text
+gwz: OpenOperation: this is a pre-0.14 merge; use gwz 0.13.0 (the last release before 0.14) to continue or abort
+```
+
+`--status`, `--continue` and `--abort` all refuse alike, so the usual
+open-merge advice does not apply here and is deliberately not printed. The
+whole remedy is the release named in the sentence: install a 0.13.x build,
+finish or abort the merge with it, then return to 0.14.
+
+**Before upgrading, close any merge you have open.** Run `gwz merge --status`
+on 0.13.x and either `gwz merge --continue` or `gwz merge --abort` it. There is
+no conversion step and no upgrade path for an open record.
+
+Merges that were already closed are unaffected. Archived records under the
+retention directory still project read-only through `gwz merge --status <id>`,
+and `gwz merge --gc` never deletes an archive it cannot read.
+
 ## What happens when a merge starts
 
 GWZ first preflights every selected repository before mutating any of them. It
@@ -379,10 +403,11 @@ mode when applicable.
 
 `--no-ff` always creates a merge commit, even where a fast-forward is
 possible. It is the counterpart to `--ff-only`; supplying both together
-is rejected. A `--no-ff` start writes a v1 coordinated merge record and
-publishes a two-parent integration commit. Ordinary and
-custom-message starts continue to write v0 records. A `--no-ff` start on a
-filesystem that cannot support crash recovery still runs; see
+is rejected. A `--no-ff` start publishes a two-parent integration commit.
+Every start writes the same coordinated merge record — ordinary, `--ff-only`,
+custom-message and `--no-ff` alike — so status, continue, abort and recovery
+behave identically whichever way the merge was started. A start on a filesystem
+that cannot support crash recovery still runs; see
 [Crash recovery and filesystems](#crash-recovery-and-filesystems).
 
 Merge also rejects unrelated operation policies supplied explicitly:
@@ -430,14 +455,36 @@ contents do not survive power loss, and network mounts (NFS, SMB/CIFS, SSHFS
 and other FUSE mounts) are named as remote. On macOS the bar is a local APFS or
 HFS+ volume; on Windows, NTFS.
 
-One limit remains, and it is narrower than the bar above. A `--no-ff` merge
-record is published through the checked artifact boundary, which needs
-persistent file handles even though it needs no volume UUID. A filesystem that
-cannot answer that — overlayfs without `nfs_export`, sshfs and other FUSE
-mounts without export support — still refuses a `--no-ff` merge when the record
-is written, with a `MergeRecoveryRequired`-style message rather than the
-warning above. Ordinary and `--ff-only` merges are unaffected.
+### Volumes without persistent file handles
+
+Some volumes are below the bar and additionally cannot answer for a file across
+a rename — overlayfs mounted without `nfs_export`, and some FUSE mounts. The
+merge still runs there. Its record is written directly rather than through the
+checked artifact boundary: still staged, renamed, flushed and read back to
+verify its bytes, and still refusing to overwrite an existing record; what it
+cannot carry is the catalog, which such a volume cannot host at all.
+
+There is no second warning. The one above gains a clause instead:
+
+```text
+warning: crash recovery is unsupported on overlay (no durable filesystem identity). Merge will continue. Use --filesystem-strict to refuse. Selected-root and --preserve abort may refuse until the workspace is on a handle-capable volume.
+```
+
+That clause is the remaining limit, and it falls on abort rather than on start.
+A plain abort still clears the record — it touches no checked artifact. An abort
+that must **re-verify** one — a selected root's manifest and lock, a
+preservation bundle under `--preserve`, or the merge's published evidence —
+needs handles this volume does not have, and refuses. One escape works: copy the
+whole workspace onto a volume that proves handles (a local APFS or HFS+ volume
+on macOS; ext4, xfs or f2fs on Linux; NTFS on Windows) and run
+`gwz merge --abort` there, adding `--preserve` if that was the door that
+refused.
+
+A power loss mid-merge on such a volume is operator cleanup rather than
+something GWZ recovers: nothing on that volume can prove after a reboot which
+objects the interrupted attempt created.
 
 `--json`, porcelain and `--jsonl` consumers read the decision from the
-response's `crash_recovery` object rather than from stderr; see
-[Machine Output](../MachineOutput.md).
+response's `crash_recovery` object rather than from stderr. Its `handles_ok`
+field is `false` on such a volume, `true` on a below-bar volume whose handles
+work, and `null` above the bar; see [Machine Output](../MachineOutput.md).
