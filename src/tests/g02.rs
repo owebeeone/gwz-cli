@@ -349,6 +349,7 @@ pub(crate) fn merge_json_carries_the_crash_recovery_decision_only_when_one_was_m
                 supported: false,
                 filesystem: Some("btrfs".to_owned()),
                 gap: Some(gap),
+                handles_ok: Some(true),
             }),
             ..gwz_core::MergeResponse::default()
         };
@@ -356,15 +357,35 @@ pub(crate) fn merge_json_carries_the_crash_recovery_decision_only_when_one_was_m
         assert_eq!(json["crash_recovery"]["supported"], false);
         assert_eq!(json["crash_recovery"]["filesystem"], "btrfs");
         assert_eq!(json["crash_recovery"]["gap"], label);
+        assert_eq!(json["crash_recovery"]["handles_ok"], true);
         assert_eq!(render_merge_response(&response), human_before);
     }
 
-    // Above the bar: supported, with no gap and an optional filesystem name.
+    // M5d §3: below the bar the handle answer is machine truth too. `false`
+    // says the record was written raw and that a selected-root or `--preserve`
+    // abort may refuse until the workspace is on a handle-capable volume --
+    // the same fact the appended stderr clause states, in the payload.
+    let handle_fail = gwz_core::MergeResponse {
+        crash_recovery: Some(gwz_core::MergeCrashRecovery {
+            supported: false,
+            filesystem: Some("overlay".to_owned()),
+            gap: Some(gwz_core::MergeCrashRecoveryGap::NoDurableIdentity),
+            handles_ok: Some(false),
+        }),
+        ..gwz_core::MergeResponse::default()
+    };
+    let json = merge_response_json(&handle_fail);
+    assert_eq!(json["crash_recovery"]["handles_ok"], false);
+    assert_eq!(render_merge_response(&handle_fail), human_before);
+
+    // Above the bar: supported, with no gap, an optional filesystem name, and
+    // `handles_ok` ABSENT -- there is nothing for a consumer to plan around.
     let supported = gwz_core::MergeResponse {
         crash_recovery: Some(gwz_core::MergeCrashRecovery {
             supported: true,
             filesystem: None,
             gap: None,
+            handles_ok: None,
         }),
         ..gwz_core::MergeResponse::default()
     };
@@ -372,6 +393,7 @@ pub(crate) fn merge_json_carries_the_crash_recovery_decision_only_when_one_was_m
     assert_eq!(json["crash_recovery"]["supported"], true);
     assert!(json["crash_recovery"]["filesystem"].is_null());
     assert!(json["crash_recovery"]["gap"].is_null());
+    assert!(json["crash_recovery"]["handles_ok"].is_null());
 }
 
 fn canonical_merge_response_fixture() -> std::path::PathBuf {

@@ -250,10 +250,17 @@ pub(crate) fn merge_response_json(response: &gwz_core::MergeResponse) -> serde_j
 }
 
 fn merge_crash_recovery_json(value: &gwz_core::MergeCrashRecovery) -> serde_json::Value {
+    // M5d (`GwzM5-8M5d-Charter.md` §3): `handles_ok` rides the same object,
+    // rendered exactly as its two optional siblings are -- present as a key,
+    // `null` when core left it absent, which it does above the bar. Below the
+    // bar `false` says the record was written raw and that a selected-root or
+    // `--preserve` abort may refuse here, so a machine consumer never has to
+    // parse the stderr sentence to learn it.
     serde_json::json!({
         "supported": value.supported,
         "filesystem": value.filesystem,
         "gap": value.gap.map(|gap| format!("{gap:?}")),
+        "handles_ok": value.handles_ok,
     })
 }
 

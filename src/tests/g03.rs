@@ -111,6 +111,14 @@ pub(crate) fn diagnostic_echo_labels_by_severity_and_prints_each_text_once() {
     let echo = DiagnosticEcho::default();
     let warning = "crash recovery is unsupported on btrfs (no durable filesystem identity). \
 Merge will continue. Use --filesystem-strict to refuse.";
+    // M5d (`GwzM5-8M5d-Charter.md` §3): on a volume that also fails the handle
+    // probe, core appends the reverse-door limit to that SAME diagnostic
+    // rather than raising a second warning class. Ship (1)'s sentence stays
+    // byte-identical at the head, so the pin above is unchanged and this is an
+    // additional pin, not a weakening of it.
+    let handle_fail_warning = "crash recovery is unsupported on overlay (no durable filesystem \
+identity). Merge will continue. Use --filesystem-strict to refuse. Selected-root and --preserve \
+abort may refuse until the workspace is on a handle-capable volume.";
 
     assert_eq!(
         echo.line_for(&diagnostic_event(gwz_core::Severity::Warn, warning)),
@@ -119,6 +127,22 @@ Merge will continue. Use --filesystem-strict to refuse.";
     // The same text a second time in one invocation prints nothing.
     assert_eq!(
         echo.line_for(&diagnostic_event(gwz_core::Severity::Warn, warning)),
+        None
+    );
+    // The appended form is a different string and must not be swallowed by the
+    // dedup of the sentence it extends.
+    assert_eq!(
+        echo.line_for(&diagnostic_event(
+            gwz_core::Severity::Warn,
+            handle_fail_warning
+        )),
+        Some(format!("warning: {handle_fail_warning}"))
+    );
+    assert_eq!(
+        echo.line_for(&diagnostic_event(
+            gwz_core::Severity::Warn,
+            handle_fail_warning
+        )),
         None
     );
     assert_eq!(
