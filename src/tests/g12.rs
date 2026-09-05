@@ -295,6 +295,10 @@ fn local_dispose_carries_the_name_keep_and_hazards() {
     assert_eq!(one.keep, None);
     assert_eq!(one.force_hazards, vec!["unpreserved-history".to_owned()]);
 
+    // `--force` is the global switch, so its other legal position works too.
+    let global_first = local_family(&["--force", "local", "dispose", "C", "unpreserved-history"]);
+    assert_eq!(global_first.force_hazards, one.force_hazards);
+
     let many = local_family(&[
         "local",
         "dispose",
@@ -468,14 +472,34 @@ fn pull_and_push_remote_are_untouched() {
         Some("A".to_owned())
     );
 
-    let CliRequest::Push(push) = parse(&["push", "--remote", "hub"]).unwrap().request else {
-        panic!("expected a push request");
-    };
-    assert_eq!(push.remote.as_deref(), Some("hub"));
-    assert_eq!(
-        push.meta.policy.as_ref().and_then(|p| p.remote.clone()),
-        Some("hub".to_owned())
-    );
+    // The §7 rows that pair a family name with an ordinary policy, and the
+    // `origin` rows that must keep resolving as Git remotes.
+    for (args, token) in [
+        (vec!["pull", "--head", "--remote", "origin"], "origin"),
+        (
+            vec!["--sync", "ff-only", "pull", "--head", "--remote", "root"],
+            "root",
+        ),
+    ] {
+        let CliRequest::PullHead(request) = parse(&args).unwrap().request else {
+            panic!("expected a pull head request for {args:?}");
+        };
+        assert_eq!(
+            request.meta.policy.as_ref().and_then(|p| p.remote.clone()),
+            Some(token.to_owned())
+        );
+    }
+
+    for token in ["hub", "origin"] {
+        let CliRequest::Push(push) = parse(&["push", "--remote", token]).unwrap().request else {
+            panic!("expected a push request");
+        };
+        assert_eq!(push.remote.as_deref(), Some(token));
+        assert_eq!(
+            push.meta.policy.as_ref().and_then(|p| p.remote.clone()),
+            Some(token.to_owned())
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
