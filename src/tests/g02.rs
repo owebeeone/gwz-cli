@@ -312,6 +312,90 @@ fn merge_record_json_keeps_every_archive_acceptance_variant_explicit() {
     }
 }
 
+#[test]
+pub(crate) fn merge_json_carries_the_crash_recovery_decision_only_when_one_was_made() {
+    // DR-1 §3.4 channel 2: the response is the machine truth, so Json and
+    // Porcelain consumers never have to read the stderr warning. An op that
+    // decided nothing (abort, status, gc) omits the key rather than rendering
+    // a null one, which keeps every pre-DR-1 payload byte-identical.
+    let undecided = gwz_core::MergeResponse::default();
+    assert!(
+        merge_response_json(&undecided)
+            .get("crash_recovery")
+            .is_none(),
+        "{}",
+        merge_response_json(&undecided)
+    );
+    // The warning arrived live on stderr, so the human rendering gains nothing.
+    let human_before = render_merge_response(&undecided);
+
+    let rows = [
+        (
+            gwz_core::MergeCrashRecoveryGap::NoDurableIdentity,
+            "NoDurableIdentity",
+        ),
+        (
+            gwz_core::MergeCrashRecoveryGap::RemoteFilesystem,
+            "RemoteFilesystem",
+        ),
+        (
+            gwz_core::MergeCrashRecoveryGap::VolatileFilesystem,
+            "VolatileFilesystem",
+        ),
+    ];
+    for (gap, label) in rows {
+        let response = gwz_core::MergeResponse {
+            crash_recovery: Some(gwz_core::MergeCrashRecovery {
+                supported: false,
+                filesystem: Some("btrfs".to_owned()),
+                gap: Some(gap),
+                handles_ok: Some(true),
+            }),
+            ..gwz_core::MergeResponse::default()
+        };
+        let json = merge_response_json(&response);
+        assert_eq!(json["crash_recovery"]["supported"], false);
+        assert_eq!(json["crash_recovery"]["filesystem"], "btrfs");
+        assert_eq!(json["crash_recovery"]["gap"], label);
+        assert_eq!(json["crash_recovery"]["handles_ok"], true);
+        assert_eq!(render_merge_response(&response), human_before);
+    }
+
+    // M5d §3: below the bar the handle answer is machine truth too. `false`
+    // says the record was written raw and that a selected-root or `--preserve`
+    // abort may refuse until the workspace is on a handle-capable volume --
+    // the same fact the appended stderr clause states, in the payload.
+    let handle_fail = gwz_core::MergeResponse {
+        crash_recovery: Some(gwz_core::MergeCrashRecovery {
+            supported: false,
+            filesystem: Some("overlay".to_owned()),
+            gap: Some(gwz_core::MergeCrashRecoveryGap::NoDurableIdentity),
+            handles_ok: Some(false),
+        }),
+        ..gwz_core::MergeResponse::default()
+    };
+    let json = merge_response_json(&handle_fail);
+    assert_eq!(json["crash_recovery"]["handles_ok"], false);
+    assert_eq!(render_merge_response(&handle_fail), human_before);
+
+    // Above the bar: supported, with no gap, an optional filesystem name, and
+    // `handles_ok` ABSENT -- there is nothing for a consumer to plan around.
+    let supported = gwz_core::MergeResponse {
+        crash_recovery: Some(gwz_core::MergeCrashRecovery {
+            supported: true,
+            filesystem: None,
+            gap: None,
+            handles_ok: None,
+        }),
+        ..gwz_core::MergeResponse::default()
+    };
+    let json = merge_response_json(&supported);
+    assert_eq!(json["crash_recovery"]["supported"], true);
+    assert!(json["crash_recovery"]["filesystem"].is_null());
+    assert!(json["crash_recovery"]["gap"].is_null());
+    assert!(json["crash_recovery"]["handles_ok"].is_null());
+}
+
 fn canonical_merge_response_fixture() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../gwz-core/protocol/fixtures/cli_parity/merge_response.json")
@@ -412,6 +496,7 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
         }]),
         publication_step: Some(gwz_core::MergePublicationStep::VerifyingPublication),
         record: Some(parity_record_projection()),
+        crash_recovery: None,
     }
 }
 

@@ -1499,7 +1499,7 @@ Command page: [merge](commands/merge.md).
 ```text
 Merge a source ref across selected workspace repositories
 
-Usage: gwz merge [source] [--dry-run] [--ff-only] [-m <message>]
+Usage: gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]
        gwz merge --status [merge-id]
        gwz merge --continue
        gwz merge --abort [--preserve]
@@ -1530,6 +1530,9 @@ Options:
 
       --no-ff
           Always create a merge commit, even when a fast-forward is possible
+
+      --filesystem-strict
+          Refuse to merge when crash recovery is unsupported on this filesystem
 
   -m, --message <message>
           Use a custom merge commit-message body

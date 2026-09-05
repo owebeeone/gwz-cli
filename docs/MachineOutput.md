@@ -240,11 +240,20 @@ status, pre-record responses, and unqualified GC. A command failure uses the
 top-level error envelope and therefore carries `record_context`, not a partial
 `record` projection.
 
-`source_version` is `V0` or `V1`. `archived` is true only when status was read
-from immutable archive bytes; only an archived projection has
-`terminal_outcome` (`Completed` or `Aborted`). Open v0 records deliberately
-have null `acceptance` and `recovery` when their legacy evidence has not been
-migrated.
+`source_version` is `V0` or `V1`. This build writes `V1` for every merge, so
+`V0` appears only on an archived record written before 0.14; a pre-0.14 record
+that is still **open** is refused rather than projected, and no response carries
+it. `archived` is true only when status was read from immutable archive bytes;
+only an archived projection has `terminal_outcome` (`Completed` or `Aborted`).
+
+An archived projection always carries `acceptance` and always has null
+`recovery` — an archive is history, not a resumable state. An archived `V0`
+record's acceptance uses the legacy shapes below (`LegacyComplete`,
+`LegacyUnavailable` or `NotAccepted`) because its bytes predate the persisted
+acceptance record; nothing converts them into one. An open projection is the
+mirror image: null `terminal_outcome`, null `acceptance` until the merge has
+accepted a workspace, and null `recovery` until a recovery context is
+recorded.
 
 Archive-only status does not inspect repositories. Its `repos` and
 `operation_drift` arrays are empty, and the immutable terminal and acceptance
@@ -304,6 +313,50 @@ read-only merge-status lifecycle when no coordinated merge is open. An idle
 response has no merge id, participants, or drift and does not fabricate a
 completed operation. Its `record` field is null.
 
+### `crash_recovery`
+
+`merge.crash_recovery` reports the start-time crash-recovery decision — whether
+the workspace volume can prove the durable filesystem identity GWZ needs to
+reconstruct an interrupted start. It is the machine truth for that decision;
+consumers never need to parse the human warning off stderr.
+
+```json
+{
+  "merge": {
+    "crash_recovery": {
+      "supported": false,
+      "filesystem": "btrfs",
+      "gap": "NoDurableIdentity",
+      "handles_ok": true
+    }
+  }
+}
+```
+
+- `supported` — `true` when the volume proved identity and the merge records
+  its artifacts as before; `false` when the merge proceeds without that
+  recording. A `false` decision is not a failure: the response is still a
+  success, and the merge ran.
+- `filesystem` — the name of the filesystem behind the decision. `null` when
+  `supported` is true, and `null` below the bar when the filesystem cannot be
+  named.
+- `gap` — why identity could not be proved, and `null` when `supported` is
+  true. One of `NoDurableIdentity`, `RemoteFilesystem`, `VolatileFilesystem`.
+- `handles_ok` — whether the volume proved persistent file handles. `null` when
+  `supported` is true, because a handle failure above the bar is an anomaly
+  rather than a capability the merge plans around. `true` on a below-bar volume
+  whose handles work. `false` on a below-bar volume whose handles do not —
+  there the merge record is written raw and the merge still runs, but a
+  selected-root or `--preserve` abort may refuse until the workspace is on a
+  handle-capable volume. Plain participant-only abort is unaffected.
+
+`filesystem`, `gap` and `handles_ok` are always **present as keys** and carry
+an explicit `null` when the decision has no value for them. Only the
+`crash_recovery` object as a whole is omitted, on any response that made no
+such decision: `--abort`, `--status`, `--gc` and dry run. Present means a
+decision was made, not that crash recovery is available; read `supported` for
+that.
+
 The Rust and Python driver tests compare semantic JSON values with the single
 canonical fixture at
 `gwz-core/protocol/fixtures/cli_parity/merge_response.json`. Driver development
@@ -354,7 +407,11 @@ start/finish events. Actionable participants emit member start/finish events;
 `merge_member`. Verified operation-record and evidence writes emit
 `ArtifactWritten` with `artifact_path`. Lifecycle transitions carry
 `merge_state`. Participant outcome and state-change events are emitted only
-after their corresponding durable write succeeds.
+after their corresponding durable write succeeds. A merge start on a volume
+that cannot support crash recovery also emits one `Diagnostic` event with
+`severity: "Warn"`, no member, and the warning text in `message`; the same
+decision is in the response's `crash_recovery` object, which is the field to
+read rather than the event.
 
 After successful finalization verification, the stream reports the composition
 evidence in this order:

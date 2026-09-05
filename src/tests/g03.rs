@@ -93,6 +93,83 @@ pub(crate) fn progress_model_ignores_non_member_events() {
     assert_eq!((model.started, model.finished), (0, 0));
 }
 
+pub(crate) fn diagnostic_event(
+    severity: gwz_core::Severity,
+    message: &str,
+) -> gwz_core::OperationEvent {
+    let mut event = progress_event(gwz_core::EventKind::Diagnostic, None, None);
+    event.severity = severity;
+    event.message = Some(message.to_owned());
+    event
+}
+
+#[test]
+pub(crate) fn diagnostic_echo_labels_by_severity_and_prints_each_text_once() {
+    // DR-1 §3.5: core has no stderr, so the human sink is the only channel a
+    // warning reaches a person by. It must survive a repeated emission without
+    // spamming the terminal, and must not echo progress or debug chatter.
+    let echo = DiagnosticEcho::default();
+    let warning = "crash recovery is unsupported on btrfs (no durable filesystem identity). \
+Merge will continue. Use --filesystem-strict to refuse.";
+    // M5d (`GwzM5-8M5d-Charter.md` §3): on a volume that also fails the handle
+    // probe, core appends the reverse-door limit to that SAME diagnostic
+    // rather than raising a second warning class. Ship (1)'s sentence stays
+    // byte-identical at the head, so the pin above is unchanged and this is an
+    // additional pin, not a weakening of it.
+    let handle_fail_warning = "crash recovery is unsupported on overlay (no durable filesystem \
+identity). Merge will continue. Use --filesystem-strict to refuse. Selected-root and --preserve \
+abort may refuse until the workspace is on a handle-capable volume.";
+
+    assert_eq!(
+        echo.line_for(&diagnostic_event(gwz_core::Severity::Warn, warning)),
+        Some(format!("warning: {warning}"))
+    );
+    // The same text a second time in one invocation prints nothing.
+    assert_eq!(
+        echo.line_for(&diagnostic_event(gwz_core::Severity::Warn, warning)),
+        None
+    );
+    // The appended form is a different string and must not be swallowed by the
+    // dedup of the sentence it extends.
+    assert_eq!(
+        echo.line_for(&diagnostic_event(
+            gwz_core::Severity::Warn,
+            handle_fail_warning
+        )),
+        Some(format!("warning: {handle_fail_warning}"))
+    );
+    assert_eq!(
+        echo.line_for(&diagnostic_event(
+            gwz_core::Severity::Warn,
+            handle_fail_warning
+        )),
+        None
+    );
+    assert_eq!(
+        echo.line_for(&diagnostic_event(gwz_core::Severity::Error, "probe failed")),
+        Some("error: probe failed".to_owned())
+    );
+    // De-duplication is per text, not per severity or per kind.
+    assert_eq!(
+        echo.line_for(&diagnostic_event(gwz_core::Severity::Warn, "probe failed")),
+        Some("warning: probe failed".to_owned())
+    );
+    assert_eq!(
+        echo.line_for(&diagnostic_event(
+            gwz_core::Severity::Info,
+            "just so you know"
+        )),
+        None
+    );
+    let mut member = progress_event(gwz_core::EventKind::MemberStarted, Some("repos/foo"), None);
+    member.severity = gwz_core::Severity::Warn;
+    member.message = Some("started".to_owned());
+    assert_eq!(echo.line_for(&member), None);
+    let mut empty = diagnostic_event(gwz_core::Severity::Warn, "");
+    empty.message = None;
+    assert_eq!(echo.line_for(&empty), None);
+}
+
 #[test]
 pub(crate) fn render_progress_line_shows_counts_and_receiving_detail() {
     let model = ProgressModel {
