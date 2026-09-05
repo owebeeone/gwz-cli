@@ -587,18 +587,68 @@ fn pull_keeps_the_policy_binding_and_push_encodes_the_token_once() {
 // dispatch and refusal presentation
 // ---------------------------------------------------------------------------
 
-/// The mutating family verbs reach their core entry point and come back as
-/// the typed refusal this build owes: `unsupported_operation`, naming the verb.
+/// The mutating family verbs reach their core entry point and come back
+/// with what core answers today for a workspace in no family (LCM1.1):
+/// ordinary `dispose`, with or without a hazard waiver, is still the typed
+/// `unsupported_operation` LCM2.1 owes; `dispose --keep` is wired and refuses
+/// `member_not_found`, naming the verb and the workspace; `disband` is served
+/// as a `Noop` that writes nothing. Until LCM1.1 every one of these answered
+/// `unsupported_operation`; these rows moved with core, as they were written
+/// to.
 #[test]
-fn local_family_verbs_dispatch_and_refuse_typed() {
+fn local_family_verbs_dispatch_and_answer_for_a_workspace_in_no_family() {
     let temp = workspace("cli-local-family");
 
     assert_unsupported(&run_in(&temp, &["local", "dispose", "C"]), "local dispose");
     assert_unsupported(
-        &run_in(&temp, &["local", "dispose", "C", "--keep"]),
-        "local dispose --keep",
+        &run_in(&temp, &["local", "dispose", "C", "--force", "dirty"]),
+        "local dispose",
     );
-    assert_unsupported(&run_in(&temp, &["local", "disband"]), "local disband");
+
+    let keep = run_in(&temp, &["local", "dispose", "C", "--keep"]);
+    assert_eq!(
+        keep.code,
+        Some(gwz_core::model::ErrorCode::MemberNotFound),
+        "{}",
+        keep.message
+    );
+    assert!(
+        keep.message.contains("local dispose --keep"),
+        "{}",
+        keep.message
+    );
+    assert!(
+        keep.message.contains("is in no local family"),
+        "{}",
+        keep.message
+    );
+    assert_eq!(
+        keep.human_message(),
+        format!("MemberNotFound: {}", keep.message)
+    );
+    let json: serde_json::Value = serde_json::from_str(&render_error_json(&keep)).unwrap();
+    assert_eq!(json["errors"][0]["code"], "MemberNotFound");
+
+    let disband = dispatch_in(&temp, &["local", "disband"]).expect("disband outside a family");
+    assert_eq!(
+        disband.envelope.meta.aggregate_status,
+        gwz_core::AggregateStatus::Noop
+    );
+    assert!(
+        disband
+            .envelope
+            .meta
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("nothing to disband")),
+        "{:?}",
+        disband.envelope.meta.message
+    );
+    assert_eq!(exit_code_for_response(&disband.envelope), 0);
+    assert!(
+        !temp.path().join(".gwz/local-family.yml").exists(),
+        "a no-op disband founds nothing"
+    );
 }
 
 /// `local list` is served: a workspace holding no family index lists nothing,
@@ -639,15 +689,40 @@ fn local_family_dry_run_is_refused_by_core() {
     );
 }
 
-/// `gwz clone --local` reaches `handle_clone_local_workspace`, which names the
-/// mode in its refusal.
+/// `gwz clone --local` reaches `handle_clone_local_workspace`. Verbatim is
+/// served (LCM1.1): the response names the destination, the recorded path
+/// and the dest-complete walk, the tree stands with its pointer and manifest,
+/// and the root founds a family. Clean and bare still come back as the typed
+/// `unsupported_operation` naming the mode, and `--from` naming the flag.
 #[test]
-fn clone_local_dispatches_and_refuses_typed() {
+fn clone_local_dispatches_verbatim_and_refuses_the_unbuilt_modes_typed() {
     let temp = workspace("cli-local-clone");
-    assert_unsupported(
-        &run_in(&temp, &["clone", "--local", "--name", "A", "../dest-a"]),
-        "local clone (verbatim mode)",
+    // A destination this test owns, so a served create never lands beside
+    // the temporary directory in the system temp root.
+    let lanes = TempDir::new("cli-local-clone-lanes");
+    let dest = lanes.path().join("dest-a");
+    let dest_arg = dest.to_string_lossy().into_owned();
+    let created = dispatch_in(&temp, &["clone", "--local", "--name", "A", &dest_arg])
+        .expect("a verbatim local clone is served");
+    assert_eq!(
+        created.envelope.meta.aggregate_status,
+        gwz_core::AggregateStatus::Ok
     );
+    let message = created
+        .envelope
+        .meta
+        .message
+        .clone()
+        .expect("the create reports what it did");
+    assert!(message.contains("created local clone `A`"), "{message}");
+    assert!(message.contains("dest-complete:"), "{message}");
+    assert!(dest.join("gwz.conf/gwz.yml").is_file(), "{message}");
+    assert!(dest.join(".gwz/family-root").is_file(), "{message}");
+    assert!(
+        temp.path().join(".gwz/local-family.yml").is_file(),
+        "the root founded a family"
+    );
+
     assert_unsupported(
         &run_in(
             &temp,
@@ -1205,6 +1280,185 @@ fn unknown_local_is_presented_as_a_typed_refusal_with_the_state_detail() {
         gwz_core::GwzErrorCode::from(gwz_core::model::ErrorCode::UnknownLocal),
         gwz_core::GwzErrorCode::from(gwz_core::model::ErrorCode::MissingRemote)
     );
+}
+
+// ---------------------------------------------------------------------------
+// the four local-create codes (LCM1.1 fix 1: 63-66)
+// ---------------------------------------------------------------------------
+
+/// LCM1.1 fix 1 (lane C, 2026-09-06): a design §4.0 source-layout hazard, a
+/// stopped copy, a moved source and an incomplete destination are their own
+/// codes -- no longer folded into `unsupported_operation` and `io_error` --
+/// and the driver presents each like every other typed refusal: the code
+/// prefixes the human line, `--json`/`--jsonl` carry it structured, and
+/// core's message travels unedited. Nothing here is code the driver chose:
+/// the labels are the model enum's own names, as for `UnknownLocal`.
+#[test]
+fn the_four_local_create_codes_are_presented_as_typed_refusals() {
+    use gwz_core::model::ErrorCode;
+    for (code, wire, label, message) in [
+        (
+            ErrorCode::UnsupportedSourceLayout,
+            63,
+            "UnsupportedSourceLayout",
+            "local clone `A` -> /ws-A: inventory source failed: /ws/app: unsupported layout: \
+             Alternates; nothing was reserved",
+        ),
+        (
+            ErrorCode::CopyFailed,
+            64,
+            "CopyFailed",
+            "local clone `A` -> /ws-A: copy tree failed: copy failed at app/locked.txt: \
+             SourceUnreadable: Permission denied; effects: [RowAllocated, \
+             DestinationAllocated, ErrorRecorded]; the `creating` row `A` and /ws-A are \
+             retained for inspection",
+        ),
+        (
+            ErrorCode::SourceDrift,
+            65,
+            "SourceDrift",
+            "local clone `A` -> /ws-A: recheck source failed: source drift: repository @root \
+             changed; effects: [RowAllocated, DestinationAllocated, TreeCopied, \
+             DestinationGitInstalled, PointerInstalled, ErrorRecorded]",
+        ),
+        (
+            ErrorCode::DestinationIncomplete,
+            66,
+            "DestinationIncomplete",
+            "local clone `A` -> /ws-A: check destination failed: destination is incomplete: \
+             mem_app: objects missing from the destination store (7 objects in the store, \
+             3 roots): 3f6b4a59 (below 8ec04f1d)",
+        ),
+    ] {
+        let error =
+            CliError::from_model(gwz_core::model::ModelError::new(code, message.to_owned()));
+        assert_eq!(error.code, Some(code), "{label}");
+        assert_eq!(
+            error.human_message(),
+            format!("{label}: {message}"),
+            "the human line names the code, like every other typed refusal"
+        );
+        let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
+        assert_eq!(json["errors"][0]["code"], label);
+        assert_eq!(json["errors"][0]["message"], message);
+        // The wire value, and the two codes it is no longer folded into.
+        let wired = gwz_core::GwzErrorCode::from(code);
+        assert_eq!(wired.wire(), wire, "{label}");
+        for folded in [ErrorCode::UnsupportedOperation, ErrorCode::IoError] {
+            assert_ne!(wired, gwz_core::GwzErrorCode::from(folded), "{label}");
+        }
+    }
+}
+
+/// The first of the four, end to end through the driver on a real workspace:
+/// a source repository borrowing another object store (design §4.0
+/// "objects/info/alternates") refuses `gwz clone --local` as
+/// `unsupported_source_layout` before anything is reserved -- not as
+/// `unsupported_operation`, which now means only "not built yet".
+#[test]
+fn a_source_layout_hazard_reaches_the_driver_as_unsupported_source_layout() {
+    let temp = TempDir::new("cli-local-hazard");
+    git2::Repository::init(temp.path()).expect("a root repository");
+    gwz_core::workspace_ops::handle_create_workspace(
+        gwz_core::CreateWorkspaceRequest {
+            meta: super::g01::request_meta("req_setup"),
+            workspace_root: temp.path().to_string_lossy().into_owned(),
+            workspace_id: Some("ws_hazard".to_owned()),
+        },
+        "op_setup",
+    )
+    .unwrap();
+    let info = temp.path().join(".git/objects/info");
+    std::fs::create_dir_all(&info).unwrap();
+    std::fs::write(
+        info.join("alternates"),
+        format!("{}\n", temp.path().join("borrowed").display()),
+    )
+    .unwrap();
+
+    let error = run_in(&temp, &["clone", "--local", "--name", "A"]);
+    assert_eq!(
+        error.code,
+        Some(gwz_core::model::ErrorCode::UnsupportedSourceLayout),
+        "{}",
+        error.message
+    );
+    assert!(error.message.contains("Alternates"), "{}", error.message);
+    assert!(
+        error.message.contains("nothing was reserved"),
+        "{}",
+        error.message
+    );
+    assert_eq!(
+        error.human_message(),
+        format!("UnsupportedSourceLayout: {}", error.message)
+    );
+    let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
+    assert_eq!(json["errors"][0]["code"], "UnsupportedSourceLayout");
+    assert!(
+        !temp.path().join(".gwz/local-family.yml").exists(),
+        "refused before reservation: no family index was founded"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// the shared listing-path rendering fixture (LCM1.1 fix 3)
+// ---------------------------------------------------------------------------
+
+/// The cross-driver rendering fixture for the `gwz local list` path column,
+/// beside the argv fixture in gwz-core (LCM1.1 fix 3, lane C, 2026-09-06):
+/// every case is a `root_path`, a member `path` and the display path BOTH
+/// drivers must render. This driver's join is `local_list_render::member_path`;
+/// gwz-py asserts the same file against its own. A disagreement is a finding,
+/// never a reason to bend the expected value.
+const LISTING_FIXTURE: &str =
+    include_str!("../../../gwz-core/protocol/fixtures/cli_parity/local_family_listing_cases.json");
+
+/// The shapes the fixture must cover (the fix 3 brief), by case id.
+const REQUIRED_LISTING_CASES: [&str; 7] = [
+    "plain-child",
+    "sibling-through-parent",
+    "nested-member",
+    "two-level-escape",
+    "absent-root",
+    "empty-root",
+    "already-absolute-member-path",
+];
+
+#[test]
+fn the_listing_fixture_cases_render_the_expected_display_path() {
+    let document: serde_json::Value = serde_json::from_str(LISTING_FIXTURE).unwrap();
+    let cases = document["cases"].as_array().expect("`cases` is a list");
+    let mut ids: Vec<&str> = Vec::new();
+    for case in cases {
+        let id = case["id"].as_str().expect("a case has an id");
+        assert!(!ids.contains(&id), "case ids are unique: {id}");
+        ids.push(id);
+        // `root_path` is a string or null, exactly as the wire carries it.
+        let root_path = match &case["root_path"] {
+            serde_json::Value::Null => None,
+            serde_json::Value::String(root) => Some(root.as_str()),
+            other => panic!("{id}: root_path is a string or null, got {other}"),
+        };
+        let path = case["path"].as_str().expect("a case has a path");
+        let expected = case["expected"]
+            .as_str()
+            .expect("a case has an expected path");
+        // The join is lexical and never touches a filesystem, so the
+        // fixture's paths need not exist. `expected` is spelled with `/`; a
+        // host whose separator differs is compared after mapping it
+        // (fixture `_schema.separators`).
+        let rendered = crate::local_list_render::member_path(root_path, path).replace('\\', "/");
+        assert_eq!(
+            rendered,
+            expected,
+            "{id}: {}",
+            case["note"].as_str().unwrap_or("")
+        );
+    }
+    for required in REQUIRED_LISTING_CASES {
+        assert!(ids.contains(&required), "the fixture covers {required}");
+    }
 }
 
 // ---------------------------------------------------------------------------
