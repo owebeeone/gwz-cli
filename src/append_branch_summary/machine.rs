@@ -61,6 +61,16 @@ pub(crate) fn response_json(response: &CliResponse) -> serde_json::Value {
                 .collect::<Vec<_>>()
                 .into(),
         );
+        // The response's own `root_path` (design §7 tag 3, operator ruling 3
+        // of 2026-09-06) travels once, beside the rows, exactly as the wire
+        // carries it -- the rows' `path` stays root-relative, and a consumer
+        // that wants absolute paths joins the two the way the human table
+        // does. Folding it into every row would say it six times and say it
+        // differently from the protocol.
+        object.insert(
+            "local_family_root_path".to_owned(),
+            serde_json::json!(family.root_path),
+        );
     }
     value
 }

@@ -19,6 +19,10 @@ pub(crate) enum ArtifactListing {
 pub(crate) struct LocalFamilyResponseView {
     pub(crate) op: gwz_core::LocalFamilyOp,
     pub(crate) members: Vec<gwz_core::LocalFamilyMemberEntry>,
+    /// The observed root the rows' `path`s are relative to (design §7 tag 3,
+    /// operator ruling 3 of 2026-09-06), present exactly when `members` is.
+    /// Carried verbatim: only the human table joins it with a row's `path`.
+    pub(crate) root_path: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -112,6 +116,7 @@ impl CliResponse {
             local_family: Some(LocalFamilyResponseView {
                 op,
                 members: response.members,
+                root_path: response.root_path,
             }),
             summary: None,
         }
@@ -244,7 +249,7 @@ pub(crate) fn render_human_response(response: &CliResponse) -> String {
     if let Some(family) = &response.local_family
         && family.op == gwz_core::LocalFamilyOp::List
     {
-        return render_local_family_members(&family.members);
+        return render_local_family_members(&family.members, family.root_path.as_deref());
     }
 
     let mut lines = vec![format!(

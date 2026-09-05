@@ -216,6 +216,12 @@ fn clone_local_refuses_malformed_flag_combinations() {
         "--local requires a name"
     );
 
+    // Operator ruling 4 (2026-09-06, design §7 and §11 item 20): an empty
+    // `--name` is refused here, typed, rather than encoded for core to reject
+    // after a workspace discovery and a family read.
+    let empty_name = refusal(&["clone", "--local", "--name", ""]);
+    assert!(empty_name.contains("--name"), "{empty_name}");
+
     // `--local` is mutually exclusive with a URL: only a destination is taken.
     let with_url = refusal(&["clone", "--local", "--name", "A", "url", "dest"]);
     assert!(
@@ -510,10 +516,13 @@ fn merge_remote_is_refused_for_lifecycle_operations() {
     }
 }
 
-/// `--remote` on pull and push keeps its existing meaning: the token stays in
-/// `OperationPolicy.remote` / `PushRequest.remote` and core resolves it.
+/// `--remote` keeps its existing meaning on pull -- the token stays in
+/// `OperationPolicy.remote` and core resolves it -- and on push it is
+/// encoded exactly once, in `PushRequest.remote` (operator ruling 4 of
+/// 2026-09-06, design §7 and §11 item 20). Push used to set both fields;
+/// core reads the request field first, so only the bytes changed.
 #[test]
-fn pull_and_push_remote_are_untouched() {
+fn pull_keeps_the_policy_binding_and_push_encodes_the_token_once() {
     let CliRequest::PullHead(pull) = parse(&["pull", "--head", "--remote", "A"]).unwrap().request
     else {
         panic!("expected a pull head request");
@@ -541,6 +550,8 @@ fn pull_and_push_remote_are_untouched() {
         );
     }
 
+    // Both §7 push rows: the family name and the Git remote encode
+    // identically, and neither leaves a second copy in the policy.
     for token in ["hub", "origin"] {
         let CliRequest::Push(push) = parse(&["push", "--remote", token]).unwrap().request else {
             panic!("expected a push request");
@@ -548,9 +559,28 @@ fn pull_and_push_remote_are_untouched() {
         assert_eq!(push.remote.as_deref(), Some(token));
         assert_eq!(
             push.meta.policy.as_ref().and_then(|p| p.remote.clone()),
-            Some(token.to_owned())
+            None,
+            "the push token travels only in PushRequest.remote"
+        );
+        // Nothing else moved out of the policy with it.
+        assert_eq!(
+            push.meta
+                .policy
+                .as_ref()
+                .and_then(|policy| policy.progress_min_interval_ms),
+            Some(DEFAULT_PROGRESS_MIN_INTERVAL_MS)
         );
     }
+
+    // A push without `--remote` is unchanged: no token in either place.
+    let CliRequest::Push(push) = parse(&["push"]).unwrap().request else {
+        panic!("expected a push request");
+    };
+    assert_eq!(push.remote, None);
+    assert_eq!(
+        push.meta.policy.as_ref().and_then(|p| p.remote.clone()),
+        None
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -771,11 +801,21 @@ fn ready(
 /// once lane S's store lands. Constructed here because core refuses the read
 /// today (design §11: the store is still being built).
 fn list_response(members: Vec<gwz_core::LocalFamilyMemberEntry>) -> CliResponse {
-    family_response(gwz_core::LocalFamilyOp::List, members)
+    family_response(gwz_core::LocalFamilyOp::List, None, members)
+}
+
+/// The same listing, with the observed root the response carries beside the
+/// rows (`LocalFamilyResponse.root_path`, design §7 tag 3).
+fn rooted_list_response(
+    root_path: &str,
+    members: Vec<gwz_core::LocalFamilyMemberEntry>,
+) -> CliResponse {
+    family_response(gwz_core::LocalFamilyOp::List, Some(root_path), members)
 }
 
 fn family_response(
     op: gwz_core::LocalFamilyOp,
+    root_path: Option<&str>,
     members: Vec<gwz_core::LocalFamilyMemberEntry>,
 ) -> CliResponse {
     CliResponse::local_family(
@@ -795,11 +835,11 @@ fn family_response(
                 errors: Vec::new(),
             },
             members,
-            // LCM1.0c follow-up 3 (operator ruling 2026-09-06): the family
-            // root's path, joined with each member's root-relative `path` by
-            // the renderer (lane CR). Absent here; the listing tests above
-            // pin the root-relative column, not the join.
-            root_path: None,
+            // LCM1.0c follow-up 3 (operator ruling 3 of 2026-09-06): the
+            // family root's path, joined with each member's root-relative
+            // `path` by the renderer. `None` is the listing that has no root
+            // to join against, and its column stays root-relative.
+            root_path: root_path.map(ToOwned::to_owned),
         },
     )
 }
@@ -825,6 +865,67 @@ B     checkout  ready  ../gwz-dev-B
 C     checkout  ready  ../gwz-dev-C
 D     checkout  ready  ../gwz-dev-D
 hub   bare      ready  ../gwz-dev-hub"
+    );
+}
+
+/// Design §8.1's absolute paths are literal, not the driver's guess: the
+/// response carries the observed root (`root_path`, tag 3, operator ruling 3
+/// of 2026-09-06) and each member's root-relative `path`, and the human table
+/// joins the two. A listing run in a clone still names root's own directory,
+/// because `root_path` is the index's directory reached through that clone's
+/// pointer.
+#[test]
+fn local_list_joins_the_observed_root_with_each_relative_path() {
+    let members = || {
+        vec![
+            ready("root", gwz_core::LocalMemberKind::Checkout, "."),
+            ready("A", gwz_core::LocalMemberKind::Checkout, "../gwz-dev-A"),
+            ready("hub", gwz_core::LocalMemberKind::Bare, "../gwz-dev-hub"),
+        ]
+    };
+    let response = rooted_list_response("/Users/gianni/limbo/gwz-dev", members());
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "\
+root  checkout  ready  /Users/gianni/limbo/gwz-dev
+A     checkout  ready  /Users/gianni/limbo/gwz-dev-A
+hub   bare      ready  /Users/gianni/limbo/gwz-dev-hub"
+    );
+
+    // No root to join against is not a licence to guess one: the column is
+    // the wire's own root-relative path, unchanged.
+    assert!(
+        render_response(&list_response(members()), OutputMode::Human)
+            .contains("A     checkout  ready  ../gwz-dev-A")
+    );
+
+    // The join is lexical, never a disk lookup -- a listing is
+    // observation-only, and it must name a member whose directory is missing
+    // exactly as the index recorded it. A path that is already absolute is
+    // left alone, and the alignment is computed on what is printed.
+    let response = rooted_list_response(
+        "/ws/root",
+        vec![
+            entry(
+                "gone",
+                gwz_core::LocalMemberKind::Checkout,
+                gwz_core::LocalMemberState::Ready,
+                gwz_core::LocalObservedState::Missing,
+                "../ws-gone",
+                None,
+            ),
+            ready(
+                "elsewhere",
+                gwz_core::LocalMemberKind::Checkout,
+                "/mnt/ws-e",
+            ),
+        ],
+    );
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "\
+gone       checkout  ready/missing  /ws/ws-gone
+elsewhere  checkout  ready          /mnt/ws-e"
     );
 }
 
@@ -911,13 +1012,17 @@ fn local_list_json_carries_every_field_of_every_entry() {
         serde_json::from_str(&render_response(&response, OutputMode::Json)).unwrap();
     let members = json["local_family_members"].as_array().unwrap();
     assert_eq!(members.len(), 2);
+    // Operator ruling 2 (2026-09-06, design §7 and §11 item 18): machine
+    // output spells every enum value in the protocol's own snake_case, the
+    // same words the human table uses and the same convention the error codes
+    // follow — never the generated Rust variant name.
     assert_eq!(
         members[0],
         serde_json::json!({
             "name": "root",
-            "kind": "Checkout",
-            "recorded_state": "Ready",
-            "observed_state": "Ready",
+            "kind": "checkout",
+            "recorded_state": "ready",
+            "observed_state": "ready",
             "path": ".",
             "last_error": null,
         })
@@ -926,13 +1031,41 @@ fn local_list_json_carries_every_field_of_every_entry() {
         members[1],
         serde_json::json!({
             "name": "B",
-            "kind": "Checkout",
-            "recorded_state": "Creating",
-            "observed_state": "Incomplete",
+            "kind": "checkout",
+            "recorded_state": "creating",
+            "observed_state": "incomplete",
             "path": "../ws-B",
             "last_error": "copy interrupted at src/",
         })
     );
+    // The machine spelling is the human column's word, not a second mapping:
+    // a variant that gained a `{:?}` rendering again would show up here.
+    for member in members {
+        for key in ["kind", "recorded_state", "observed_state"] {
+            let value = member[key].as_str().unwrap();
+            assert!(
+                !value.contains(|letter: char| letter.is_ascii_uppercase()),
+                "`{key}` must be the protocol's snake_case word, got `{value}`"
+            );
+        }
+    }
+
+    // Both wire fields travel faithfully (operator ruling 3 of 2026-09-06):
+    // `path` stays root-relative, exactly as the response carries it, and the
+    // root travels once beside the rows rather than being folded into every
+    // row. Only the human table joins them.
+    assert!(
+        json["local_family_root_path"].is_null(),
+        "a listing with no observed root must not invent one: {json}"
+    );
+    let rooted = rooted_list_response(
+        "/ws/root",
+        vec![ready("A", gwz_core::LocalMemberKind::Checkout, "../ws-A")],
+    );
+    let rooted_json: serde_json::Value =
+        serde_json::from_str(&render_response(&rooted, OutputMode::Json)).unwrap();
+    assert_eq!(rooted_json["local_family_root_path"], "/ws/root");
+    assert_eq!(rooted_json["local_family_members"][0]["path"], "../ws-A");
 
     // `--jsonl` streams the same response record.
     let first = render_response(&response, OutputMode::Jsonl);
@@ -962,7 +1095,7 @@ fn local_list_json_carries_every_field_of_every_entry() {
         gwz_core::LocalFamilyOp::Dispose,
         gwz_core::LocalFamilyOp::Disband,
     ] {
-        let mutation = family_response(op, Vec::new());
+        let mutation = family_response(op, None, Vec::new());
         assert_eq!(render_response(&mutation, OutputMode::Human), "status: Ok");
         let json: serde_json::Value =
             serde_json::from_str(&render_response(&mutation, OutputMode::Json)).unwrap();
@@ -1078,25 +1211,39 @@ fn unknown_local_is_presented_as_a_typed_refusal_with_the_state_detail() {
 // the shared argv -> request parity fixture
 // ---------------------------------------------------------------------------
 
-/// The same fixture `gwz-py` can read (see the file's own note): one row per
-/// design §7 CLI -> message row, argv on one side and the encoded request on
-/// the other, so a driver that quietly changes an encoding fails here rather
-/// than diverging silently from its sibling.
+/// The one cross-driver parity fixture, and it lives in `gwz-core` beside the
+/// merge fixtures (operator ruling 1 of 2026-09-06; design §7 and §11 item 17):
+/// both drivers read *this* file, neither restates its cases inline and
+/// neither keeps a copy, so a case is added there rather than here. The
+/// sibling path is the one `gwz-core` already occupies as this crate's path
+/// dependency, and `src/tests/g02.rs` already reads two fixtures across it.
 const PARITY_FIXTURE: &str =
-    include_str!("../../tests/fixtures/cli_parity/local_family_cases.json");
+    include_str!("../../../gwz-core/protocol/fixtures/cli_parity/local_family_cases.json");
 
-/// The fixture's projection of a built request: the design's wire spellings,
-/// with every optional field spelled `null` rather than omitted.
-fn request_json(request: &CliRequest) -> serde_json::Value {
+/// This driver's name in the fixture's `drivers` scoping and in the
+/// per-driver `driver_message_contains` needles.
+const DRIVER: &str = "rust";
+
+/// The fixture's projection of a built request: `message` names the type and
+/// every field a case can address by a dotted path is rendered, with optionals
+/// spelled `null` rather than omitted.
+fn request_document(request: &CliRequest) -> serde_json::Value {
     use serde_json::json;
-    let policy_remote = |meta: &gwz_core::RequestMeta| {
-        meta.policy
-            .as_ref()
-            .and_then(|policy| policy.remote.clone())
+    // A request that carries no policy object at all renders `policy: null`,
+    // so `meta.policy.remote` resolves to null through the absent
+    // intermediate — exactly what the fixture's dotted paths mean.
+    let meta_json = |meta: &gwz_core::RequestMeta| {
+        json!({
+            "dry_run": meta.dry_run,
+            "policy": meta
+                .policy
+                .as_ref()
+                .map(|policy| json!({ "remote": policy.remote })),
+        })
     };
     match request {
         CliRequest::CloneLocalWorkspace(request) => json!({
-            "kind": "CloneLocalWorkspaceRequest",
+            "message": "CloneLocalWorkspaceRequest",
             "name": request.name,
             "dest": request.dest,
             "mode": match request.mode {
@@ -1106,9 +1253,10 @@ fn request_json(request: &CliRequest) -> serde_json::Value {
             },
             "branch": request.branch,
             "copy_source": request.copy_source,
+            "meta": meta_json(&request.meta),
         }),
         CliRequest::LocalFamily(request) => json!({
-            "kind": "LocalFamilyRequest",
+            "message": "LocalFamilyRequest",
             "op": match request.op {
                 gwz_core::LocalFamilyOp::List => "list",
                 gwz_core::LocalFamilyOp::Dispose => "dispose",
@@ -1117,69 +1265,160 @@ fn request_json(request: &CliRequest) -> serde_json::Value {
             "name": request.name,
             "keep": request.keep,
             "force_hazards": request.force_hazards,
+            "meta": meta_json(&request.meta),
         }),
         CliRequest::Merge(request) => json!({
-            "kind": "MergeRequest",
+            "message": "MergeRequest",
             "op": format!("{:?}", request.op).to_lowercase(),
             "source_ref": request.source_ref,
             "local_source_name": request.local_source_name,
-            "policy_remote": policy_remote(&request.meta),
+            "meta": meta_json(&request.meta),
         }),
         CliRequest::PullHead(request) => json!({
-            "kind": "PullHeadRequest",
-            "policy_remote": policy_remote(&request.meta),
+            "message": "PullHeadRequest",
+            "meta": meta_json(&request.meta),
         }),
         CliRequest::Push(request) => json!({
-            "kind": "PushRequest",
+            "message": "PushRequest",
             "remote": request.remote,
-            "policy_remote": policy_remote(&request.meta),
+            "meta": meta_json(&request.meta),
         }),
         other => panic!("the parity fixture covers no request of this kind: {other:?}"),
     }
+}
+
+/// The fixture's dotted field paths. A path resolves through an absent
+/// (`null`) intermediate to `null`, but its *first* segment must exist in the
+/// projection above, so a case naming a field this driver never renders fails
+/// loudly instead of quietly matching a `null`.
+fn field(document: &serde_json::Value, path: &str) -> serde_json::Value {
+    let mut segments = path.split('.');
+    let first = segments.next().expect("a field path is never empty");
+    let mut current = document.get(first).unwrap_or_else(|| {
+        panic!("the parity projection renders no `{first}` field: {document}");
+    });
+    for segment in segments {
+        match current.get(segment) {
+            Some(value) => current = value,
+            None => return serde_json::Value::Null,
+        }
+    }
+    current.clone()
+}
+
+/// `drivers` scopes a case to the drivers that can express it; the default is
+/// both. One refusal is `rust`-only (`local dispose C dirty`, which argparse
+/// rejects as an unrecognized operand before gwz-py's handler runs).
+fn applies_here(case: &serde_json::Value) -> bool {
+    match case.get("drivers") {
+        None => true,
+        Some(drivers) => drivers
+            .as_array()
+            .expect("`drivers` is a list")
+            .iter()
+            .any(|driver| driver == DRIVER),
+    }
+}
+
+fn argv_of(case: &serde_json::Value) -> Vec<&str> {
+    case["argv"]
+        .as_array()
+        .expect("`argv` is a list")
+        .iter()
+        .map(|item| item.as_str().expect("argv holds strings"))
+        .collect()
 }
 
 #[test]
 fn the_shared_parity_fixture_pins_every_design_row_argv_to_request() {
     let fixture: serde_json::Value = serde_json::from_str(PARITY_FIXTURE).unwrap();
 
-    let accept = fixture["accept"].as_array().unwrap();
-    for case in accept {
-        let argv: Vec<&str> = case["argv"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|item| item.as_str().unwrap())
-            .collect();
-        let row = case["design_row"].as_str().unwrap();
+    let mut cases = 0;
+    for case in fixture["message_cases"].as_array().unwrap() {
+        if !applies_here(case) {
+            continue;
+        }
+        cases += 1;
+        let id = case["id"].as_str().unwrap();
+        let argv = argv_of(case);
         let invocation = parse(&argv).unwrap_or_else(|error| {
-            panic!("{row}: {argv:?} must parse, got {}", error.message);
+            panic!("{id}: {argv:?} must parse, got {}", error.message);
         });
+        let document = request_document(&invocation.request);
         assert_eq!(
-            request_json(&invocation.request),
-            case["request"],
-            "{row}: {argv:?}"
+            document["message"], case["message"],
+            "{id}: {argv:?} built the wrong message"
         );
+        for (path, expected) in case["fields"].as_object().expect("`fields` is an object") {
+            assert_eq!(&field(&document, path), expected, "{id}: {argv:?} `{path}`");
+        }
     }
 
-    for case in fixture["reject"].as_array().unwrap() {
-        let argv: Vec<&str> = case["argv"]
+    let mut refusals = 0;
+    for case in fixture["message_refusals"].as_array().unwrap() {
+        if !applies_here(case) {
+            continue;
+        }
+        refusals += 1;
+        let id = case["id"].as_str().unwrap();
+        assert_eq!(case["refused_by"], "cli", "{id}: not this driver's refusal");
+        let argv = argv_of(case);
+        // The fixture pins that the driver refuses before encoding, and the
+        // wording; the typed `InvalidRequest` code the family surface answers
+        // with is pinned by this module's own refusal cases through
+        // `refusal()`. `url-clone-dry-run` is the pre-existing plain usage
+        // error `Cli::validate` has always raised, and this lane does not
+        // re-type it.
+        let message = match parse(&argv) {
+            Ok(invocation) => panic!(
+                "{id}: {argv:?} must refuse before encoding, it built {:?}",
+                invocation.request
+            ),
+            Err(error) => error.message,
+        };
+        // The shared needles both drivers' wordings carry, plus this driver's
+        // own, where the two messages say the same thing differently.
+        let mut needles: Vec<&str> = case["message_contains"]
             .as_array()
-            .unwrap()
+            .expect("`message_contains` is a list")
             .iter()
-            .map(|item| item.as_str().unwrap())
+            .map(|needle| needle.as_str().expect("needles are strings"))
             .collect();
-        let why = case["why"].as_str().unwrap();
-        let needle = case["rust_needle"].as_str().unwrap();
-        let message = refusal(&argv);
+        if let Some(mine) = case
+            .get("driver_message_contains")
+            .and_then(|per_driver| per_driver.get(DRIVER))
+        {
+            needles.extend(
+                mine.as_array()
+                    .expect("`driver_message_contains` holds lists")
+                    .iter()
+                    .map(|needle| needle.as_str().expect("needles are strings")),
+            );
+        }
         assert!(
-            message.contains(needle),
-            "{why}: {argv:?} must name `{needle}`, got: {message}"
+            !needles.is_empty(),
+            "{id}: a refusal with no needle pins nothing"
         );
+        for needle in needles {
+            assert!(
+                message.contains(needle),
+                "{id}: {argv:?} must name `{needle}`, got: {message}"
+            );
+        }
     }
 
-    // The fixture is the §7 table, not a sample of it: every row of the design
-    // table has a case, and the two `copy_source` rows the message block adds.
-    assert_eq!(accept.len(), 24, "a §7 row lost its parity case");
+    // The fixture is the §7 table, not a sample of it. `gwz-core` owns the
+    // file and may append to it (a python-only case would not raise these
+    // counts), so the pin is the floor this driver ran at follow-up 3: every
+    // one of the 30 message cases and all 23 refusals are this driver's.
+    assert!(
+        cases >= 30,
+        "a §7 message case stopped running here: {cases}"
+    );
+    assert!(
+        refusals >= 23,
+        "a refusal case stopped running here: {refusals}"
+    );
 }
 
 // ---------------------------------------------------------------------------

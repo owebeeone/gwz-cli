@@ -27,13 +27,17 @@ gwz local list
 ```
 
 ```text
-root  checkout  ready  .
-A     checkout  ready  ../gwz-dev-A
-C     checkout  ready  ../gwz-dev-C
-hub   bare      ready  ../gwz-dev-hub
+root  checkout  ready  /Users/you/limbo/gwz-dev
+A     checkout  ready  /Users/you/limbo/gwz-dev-A
+C     checkout  ready  /Users/you/limbo/gwz-dev-C
+hub   bare      ready  /Users/you/limbo/gwz-dev-hub
 ```
 
-Paths are recorded relative to the workspace root that holds the index.
+Paths are *recorded* relative to the workspace root that holds the index. The
+response carries that root as well, so the listing prints each member's actual
+directory rather than a path you have to resolve yourself. Run from a clone,
+the listing still names root's own directory, because the root is reached
+through that clone's pointer.
 
 ### The state column
 
@@ -46,10 +50,10 @@ interrupted disposal is visible here rather than only after the next failure.
 Any diagnostic the index recorded for a member is shown beside its row:
 
 ```text
-root  checkout  ready                           .
-B     checkout  creating/incomplete             ../gwz-dev-B   copy interrupted at src/
-C     checkout  disposing/interrupted_disposal  ../gwz-dev-C
-hub   bare      ready/pointer_removed           ../gwz-dev-hub
+root  checkout  ready                           /Users/you/limbo/gwz-dev
+B     checkout  creating/incomplete             /Users/you/limbo/gwz-dev-B   copy interrupted at src/
+C     checkout  disposing/interrupted_disposal  /Users/you/limbo/gwz-dev-C
+hub   bare      ready/pointer_removed           /Users/you/limbo/gwz-dev-hub
 ```
 
 Reporting is all this does. A row that says `incomplete` or
@@ -59,26 +63,29 @@ Reporting is all this does. A row that says `incomplete` or
 ### Machine output
 
 `--json` and `--jsonl` carry every field of every row under
-`local_family_members`, with the enum values spelled as the protocol names
-them:
+`local_family_members`, with the enum values spelled in the protocol's own
+snake_case, and the family root once beside the rows under
+`local_family_root_path`. Each row's `path` stays relative to that root, as the
+protocol records it; join the two for the absolute path the human table prints.
 
 ```json
 {
   "kind": "response",
+  "local_family_root_path": "/Users/you/limbo/gwz-dev",
   "local_family_members": [
     {
       "name": "root",
-      "kind": "Checkout",
-      "recorded_state": "Ready",
-      "observed_state": "Ready",
+      "kind": "checkout",
+      "recorded_state": "ready",
+      "observed_state": "ready",
       "path": ".",
       "last_error": null
     },
     {
       "name": "B",
-      "kind": "Checkout",
-      "recorded_state": "Creating",
-      "observed_state": "Incomplete",
+      "kind": "checkout",
+      "recorded_state": "creating",
+      "observed_state": "incomplete",
       "path": "../gwz-dev-B",
       "last_error": "copy interrupted at src/"
     }
@@ -87,7 +94,7 @@ them:
 ```
 
 `dispose` and `disband` carry no rows, so their `local_family_members` is an
-empty list.
+empty list and their `local_family_root_path` is `null`.
 
 ## `gwz local dispose`
 

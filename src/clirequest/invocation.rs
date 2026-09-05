@@ -199,11 +199,23 @@ impl Cli {
             CommandArgs::Stash(args) => args.request(meta),
             CommandArgs::Materialize(args) => args.request(meta),
             CommandArgs::Pull(args) => args.request(meta),
-            CommandArgs::Push => Ok(CliRequest::Push(gwz_core::PushRequest {
-                remote: self.global.remote.clone(),
-                refspec: None,
-                meta,
-            })),
+            // Design §7 (operator ruling 2026-09-06, §11 item 20): the push
+            // token is encoded ONCE, in `PushRequest.remote`, so it MOVES out
+            // of the policy rather than being copied and both drivers send
+            // the same bytes. Core reads the request field first and still
+            // honours a policy-only token from an older caller, so this
+            // decides what is sent, not what core binds.
+            CommandArgs::Push => {
+                let mut meta = meta;
+                if let Some(policy) = &mut meta.policy {
+                    policy.remote = None;
+                }
+                Ok(CliRequest::Push(gwz_core::PushRequest {
+                    remote: self.global.remote.clone(),
+                    refspec: None,
+                    meta,
+                }))
+            }
             CommandArgs::Capture => Ok(CliRequest::Capture(gwz_core::CaptureRequest { meta })),
             CommandArgs::Commit(args) => {
                 // DR-5 fold (review P2-1): `--all` is the `@all` selector under every verb,

@@ -177,6 +177,17 @@ impl CloneArgs {
                 "clone --local requires --name <name>",
             ));
         };
+        // Operator ruling 4 (2026-09-06, design §7 and §11 item 20): an empty
+        // `--name` refuses here, before anything is encoded. Core's own shape
+        // check (`validate_clone_local`) refuses the empty and the reserved
+        // names as well, so this is the earlier answer rather than the only
+        // one — it costs no workspace discovery and no family read to say the
+        // same thing about a name that was never typed.
+        if name.is_empty() {
+            return Err(CliError::invalid_request(
+                "clone --local requires a non-empty --name <name>",
+            ));
+        }
         if self.dir.is_some() {
             return Err(CliError::invalid_request(
                 "clone --local accepts a single destination directory, not a workspace URL",
