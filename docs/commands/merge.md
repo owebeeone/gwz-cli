@@ -5,6 +5,7 @@ repository.
 
 ```text
 gwz merge <source> [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]
+gwz merge --remote <name> [<ref>]
 gwz merge --status [<merge-id>]
 gwz merge --continue
 gwz merge --abort [--preserve]
@@ -411,12 +412,42 @@ that cannot support crash recovery still runs; see
 [Crash recovery and filesystems](#crash-recovery-and-filesystems).
 
 Merge also rejects unrelated operation policies supplied explicitly:
-`--sync`, `--remote`, `--jobs`, `--max-per-host`,
-`--progress-interval`, `--partial`, and `--force`. Diagnostics name the option
-that must be removed.
+`--sync`, `--jobs`, `--max-per-host`, `--progress-interval`, `--partial`, and
+`--force`. Diagnostics name the option that must be removed. `--remote` is the
+exception: on `merge` it is not an operation policy at all, but the local clone
+family selector described below.
 
 `gwz branch --merge <source>` remains a deprecated compatibility spelling. It
 constructs the same first-class merge request.
+
+## Merging from a local clone (`--remote <name>`)
+
+`gwz merge --remote <name>` integrates work from another working copy of this
+workspace on the same machine — a member of the [local clone
+family](local.md) — instead of resolving a Git ref:
+
+```sh
+gwz merge --remote A
+gwz merge --remote C lane/agent-17
+```
+
+With no ref, the source is the named member's HEAD commit, resolved
+independently for every paired participant. With a ref, that ref is resolved
+*inside* the named member, again per participant. Either way the receiving
+participant's current branch is the merge target, and everything after that —
+preflight, the coordinated record, conflicts, continue, abort, retention — is
+the ordinary merge lifecycle described above.
+
+On `merge` the name is family-only. A name that is not a ready family member is
+refused; it never falls back to a Git remote, so `gwz merge --remote origin` is
+a family miss rather than a fetch. The mirror image also holds: a bare
+`gwz merge A` resolves the Git ref `A` in each receiving repository and never
+means the family member `A`.
+
+The selector is accepted only when starting a merge — not with `--continue`,
+`--abort`, `--status` or `--gc` — and family bindings are resolved from the
+index at operation time. They are never written into `gwz.conf/gwz.yml` and
+never become Git remotes.
 
 ## Crash recovery and filesystems
 

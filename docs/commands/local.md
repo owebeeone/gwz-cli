@@ -84,6 +84,10 @@ repeated after an error.
 
 ## Notes
 
+- **Status:** this build parses and dispatches the whole surface described
+  here, and every local clone family operation answers `UnsupportedOperation`
+  — the engine behind it is still landing. Nothing is created, moved or
+  deleted in the meantime.
 - These verbs need a family: with no local clone family recorded, they answer
   that the family is missing rather than inventing one.
 - `--dry-run` is not supported for the local family verbs.

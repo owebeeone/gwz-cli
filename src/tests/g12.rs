@@ -640,4 +640,25 @@ fn generated_reference_and_command_page_cover_local() {
 
     let clone_page = include_str!("../../docs/commands/clone.md");
     assert!(clone_page.contains("gwz clone --local"));
+
+    // The merge page used to list `--remote` among the operation policies
+    // merge rejects. It is the family selector now, and the page must not
+    // still say the opposite.
+    let merge_page = include_str!("../../docs/commands/merge.md");
+    assert!(merge_page.contains("gwz merge --remote <name> [<ref>]"));
+    assert!(merge_page.contains("gwz merge --remote C lane/agent-17"));
+    assert!(
+        !merge_page.contains("`--sync`, `--remote`,"),
+        "the rejected-policy list must no longer name --remote"
+    );
+
+    // Family names on pull and push keep their existing flag and gain the
+    // family meaning; both pages say so and both keep the `origin` fallback.
+    for page in [
+        include_str!("../../docs/commands/pull.md"),
+        include_str!("../../docs/commands/push.md"),
+    ] {
+        assert!(page.contains("local clone family](local.md)"));
+        assert!(page.contains("`--remote origin` keeps its usual meaning"));
+    }
 }

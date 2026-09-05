@@ -56,6 +56,17 @@ Select a remote:
 gwz --remote origin pull --head
 ```
 
+Pull from another working copy of this workspace on the same machine — a
+member of the [local clone family](local.md) — by naming it instead:
+
+```sh
+gwz --sync ff-only pull --head --remote C
+```
+
+A ready family name binds to that workspace and pairs each selected repository
+by its recorded member identity. A name that is not in the family resolves as
+an ordinary Git remote, so `--remote origin` keeps its usual meaning.
+
 ## Notes
 
 - With `--sync merge`, GWZ fetches and then predicts true-merge conflicts

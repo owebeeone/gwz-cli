@@ -75,6 +75,9 @@ gwz materialize --lock
 - `--dry-run` is rejected for `gwz clone`.
 - Network behavior is controlled by global options such as `--jobs`,
   `--max-per-host`, `--remote`, `--progress-interval`, and `--ssh-timeout`.
+- `gwz clone --local` is parsed and dispatched by this build, and answers
+  `UnsupportedOperation` until the local clone engine lands. It creates
+  nothing in the meantime. The URL clone is unaffected.
 - `gwz clone --local` contacts no network. It requires a quiet source for the
   whole invocation, refuses a verbatim copy while the source has an open
   coordinated merge, and defaults the destination to `../<root-dirname>-<name>`.

@@ -29,6 +29,18 @@ Push to an explicit remote:
 gwz --remote origin push
 ```
 
+Publish into another working copy of this workspace on the same machine — a
+member of the [local clone family](local.md), typically a bare share point —
+by naming it instead:
+
+```sh
+gwz push --remote hub
+```
+
+Each selected repository's current branch is published to the same branch in
+the named member. A name that is not in the family resolves as an ordinary Git
+remote, so `--remote origin` keeps its usual meaning.
+
 Push one member by id:
 
 ```sh
