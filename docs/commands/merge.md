@@ -439,10 +439,12 @@ preflight, the coordinated record, conflicts, continue, abort, retention — is
 the ordinary merge lifecycle described above.
 
 On `merge` the name is family-only. A name that is not a ready family member is
-refused; it never falls back to a Git remote, so `gwz merge --remote origin` is
-a family miss rather than a fetch. The mirror image also holds: a bare
-`gwz merge A` resolves the Git ref `A` in each receiving repository and never
-means the family member `A`.
+refused with `unknown_local`, whose message says which case it is — a name the
+index does not hold (or a reserved one), or a row that is `creating` or
+`disposing` rather than ready. It never falls back to a Git remote, so
+`gwz merge --remote origin` is a family miss rather than a fetch. The mirror
+image also holds: a bare `gwz merge A` resolves the Git ref `A` in each
+receiving repository and never means the family member `A`.
 
 The selector is accepted only when starting a merge — not with `--continue`,
 `--abort`, `--status` or `--gc` — and family bindings are resolved from the

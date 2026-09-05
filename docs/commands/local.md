@@ -19,18 +19,75 @@ written into `gwz.conf/gwz.yml` and never become Git remotes.
 ## `gwz local list`
 
 Reports every member of the family: name, kind (checkout or bare), state, and
-path. The listing is read-only — it takes no lock, and repairs nothing.
+path — the root first, then every member in name order. The listing is
+read-only: it takes no lock and repairs nothing.
 
 ```sh
 gwz local list
 ```
 
 ```text
-root  checkout  ready  /work/gwz-dev
-A     checkout  ready  /work/gwz-dev-A
-C     checkout  ready  /work/gwz-dev-C
-hub   bare      ready  /work/gwz-dev-hub
+root  checkout  ready  .
+A     checkout  ready  ../gwz-dev-A
+C     checkout  ready  ../gwz-dev-C
+hub   bare      ready  ../gwz-dev-hub
 ```
+
+Paths are recorded relative to the workspace root that holds the index.
+
+### The state column
+
+Each row carries two states: the one the index *recorded* (`creating`, `ready`,
+`disposing`) and the one that was *observed* on disk (`ready`, `incomplete`,
+`interrupted_disposal`, `missing`, `pointer_removed`, `mismatched`,
+`malformed`, `unobserved`). They are printed as one word while they agree, and
+as `recorded/observed` when they do not, so an interrupted create or an
+interrupted disposal is visible here rather than only after the next failure.
+Any diagnostic the index recorded for a member is shown beside its row:
+
+```text
+root  checkout  ready                           .
+B     checkout  creating/incomplete             ../gwz-dev-B   copy interrupted at src/
+C     checkout  disposing/interrupted_disposal  ../gwz-dev-C
+hub   bare      ready/pointer_removed           ../gwz-dev-hub
+```
+
+Reporting is all this does. A row that says `incomplete` or
+`interrupted_disposal` stays exactly as it is until you act on it with
+`gwz local dispose`.
+
+### Machine output
+
+`--json` and `--jsonl` carry every field of every row under
+`local_family_members`, with the enum values spelled as the protocol names
+them:
+
+```json
+{
+  "kind": "response",
+  "local_family_members": [
+    {
+      "name": "root",
+      "kind": "Checkout",
+      "recorded_state": "Ready",
+      "observed_state": "Ready",
+      "path": ".",
+      "last_error": null
+    },
+    {
+      "name": "B",
+      "kind": "Checkout",
+      "recorded_state": "Creating",
+      "observed_state": "Incomplete",
+      "path": "../gwz-dev-B",
+      "last_error": "copy interrupted at src/"
+    }
+  ]
+}
+```
+
+`dispose` and `disband` carry no rows, so their `local_family_members` is an
+empty list.
 
 ## `gwz local dispose`
 
@@ -85,11 +142,19 @@ repeated after an error.
 ## Notes
 
 - **Status:** this build parses and dispatches the whole surface described
-  here, and every local clone family operation answers `UnsupportedOperation`
-  — the engine behind it is still landing. Nothing is created, moved or
-  deleted in the meantime.
-- These verbs need a family: with no local clone family recorded, they answer
-  that the family is missing rather than inventing one.
-- `--dry-run` is not supported for the local family verbs.
+  here. `gwz local list` is served and reports what the index holds;
+  `dispose`, `disband` and `gwz clone --local` still answer
+  `UnsupportedOperation` while the engine behind them lands, and nothing is
+  created, moved or deleted in the meantime.
+- A workspace that holds no family index lists nothing, and that is an answer
+  rather than an error — no family is invented, and nothing is repaired.
+- `--dry-run` travels to core for every local family verb rather than being
+  answered by the CLI; core refuses it today, before any write.
+- Hazard names are split on `,` and on nothing else — no trimming, no case
+  folding. The vocabulary belongs to core, so an unknown name travels and core
+  names it; only a bare `--force`, an empty element and `--keep` together with
+  `--force` are refused before the request is encoded.
 - Refusals carry a typed error code and are rendered structured under `--json`
-  and `--jsonl`.
+  and `--jsonl`. `gwz merge --remote <name>` that names no ready member is
+  `unknown_local`, and its message says which — an absent or reserved name, or
+  a row that is `creating`/`disposing`.
