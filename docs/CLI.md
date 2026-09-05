@@ -498,7 +498,9 @@ family, so the two can exchange work by name. There is no URL: the single
 positional is the destination, which defaults to `../<root-dirname>-<name>`.
 The default mode copies the source tree as it sits; `--clean` takes the frozen
 state without worktree dirt, and `--bare` makes a share point of bare member
-repositories. Keep the source quiet for the whole invocation.
+repositories. `--from <name|path>` copies another family member, or a path,
+instead of the workspace this command runs in. Keep the source quiet for the
+whole invocation.
 
 Usage: gwz clone <url> [directory]
        gwz clone --local --name <name> [dest] [--clean | --bare] [-b <branch>]
@@ -543,9 +545,9 @@ Options:
           member, the whole create is refused.
 
       --from <name|path>
-          Copy from this family member or path instead of the current workspace. Not yet supported:
-          the protocol field is unallocated pending an operator decision, so this flag is refused
-          rather than silently ignored.
+          Copy from this family member or path instead of the current workspace. Accepts a family
+          name recorded in the index or a filesystem path. Accepted only with --local; core resolves
+          the token, and refuses one that names no readable source.
 
   -h, --help
           Print help (see a summary with '-h')
@@ -630,6 +632,7 @@ Examples:
   gwz clone git@github.com:org/workspace.git work/demo
   gwz clone --local --name A ../gwz-dev-A
   gwz clone --local --clean -b lane/agent-17 --name C ../gwz-dev-C
+  gwz clone --local --clean --from A --name B ../gwz-dev-B
   gwz clone --local --bare --name hub ../gwz-dev-hub
 
 If you already ran a plain `git clone` on a workspace root, run
@@ -1306,8 +1309,19 @@ Command page: [local](commands/local.md).
 List the local clone family recorded on the workspace root.
 
 Reads the index through this workspace's family pointer and reports every
-member: its name, kind (checkout or bare), recorded state, and path. The
-listing performs no repair and takes no lock.
+member: its name, kind (checkout or bare), state, and path — the root first,
+then every member in name order.
+
+The state column carries both what the index recorded (creating, ready,
+disposing) and what was observed on disk (ready, incomplete,
+interrupted_disposal, missing, pointer_removed, mismatched, malformed,
+unobserved). They are shown as one word while they agree and as
+`recorded/observed` when they do not, so an interrupted create or an
+interrupted disposal is visible without a second command. Any diagnostic the
+index recorded for a member is shown beside its row.
+
+The listing performs no repair and takes no lock; --json and --jsonl carry
+every field of every row.
 
 Usage: gwz local list [OPTIONS]
 
@@ -1392,8 +1406,12 @@ Global Options:
 
 Example:
   gwz local list
+  gwz local list --json
 
-Output columns: name, kind, state, path.
+Output columns: name, kind, state, path. The state column is one word while
+the recorded row and the directory agree, and `recorded/observed` when they do
+not — `creating/incomplete` for an interrupted create, for instance. A member
+that recorded a diagnostic gets a fifth column carrying it.
 ```
 
 ### `gwz local dispose`

@@ -112,12 +112,18 @@ impl LocalDisposeArgs {
     /// that would be *misread* on the wire are refused here — an empty list
     /// means "no force", so encoding one for a `--force` invocation would turn
     /// an authorization into its silent opposite (design §8.4).
+    ///
+    /// The split is on `,` and nothing else: no trimming, no case folding, no
+    /// normalization. A deletion waiver is the operator's authorization token,
+    /// and rewriting it before encoding would make the CLI answer for a
+    /// vocabulary it does not own. `gwz-py` splits identically (lane CP), so
+    /// the same argv encodes the same `force_hazards` in both drivers.
     fn force_hazards(&self, force: bool) -> Result<Vec<String>, CliError> {
         let hazards = self
             .hazards
             .iter()
             .flat_map(|value| value.split(','))
-            .map(|hazard| hazard.trim().to_owned())
+            .map(ToOwned::to_owned)
             .collect::<Vec<_>>();
         if !force {
             if hazards.is_empty() {
@@ -127,15 +133,15 @@ impl LocalDisposeArgs {
                 "hazard names are accepted only with --force",
             ));
         }
-        if hazards.is_empty() || hazards.iter().all(String::is_empty) {
+        if hazards.is_empty() {
             return Err(CliError::invalid_request(format!(
                 "--force requires one or more hazard names, comma-separated ({HAZARD_NAMES})"
             )));
         }
         if hazards.iter().any(String::is_empty) {
-            return Err(CliError::invalid_request(
-                "--force <hazard,...> must not contain an empty hazard name",
-            ));
+            return Err(CliError::invalid_request(format!(
+                "--force <hazard,...> must not contain an empty hazard name ({HAZARD_NAMES})"
+            )));
         }
         Ok(hazards)
     }

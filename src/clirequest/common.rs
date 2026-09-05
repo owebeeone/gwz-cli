@@ -126,20 +126,6 @@ impl CliError {
         }
     }
 
-    /// A surface this build parses but cannot serve, carrying the same code core
-    /// would answer with (`gwz clone --local --from`, whose wire field is held
-    /// unallocated by design §7).
-    pub(crate) fn unsupported(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            code: Some(gwz_core::model::ErrorCode::UnsupportedOperation),
-            member_id: None,
-            member_path: None,
-            target_kind: None,
-            record_context: None,
-        }
-    }
-
     /// Preserve a gwz-core error's code (so `--json`/`--jsonl` can emit it
     /// structured) alongside its message.
     pub(crate) fn from_model(error: gwz_core::model::ModelError) -> Self {

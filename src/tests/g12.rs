@@ -74,13 +74,19 @@ fn workspace(prefix: &str) -> TempDir {
     temp
 }
 
-fn run_in(temp: &TempDir, args: &[&str]) -> CliError {
+fn dispatch_in(temp: &TempDir, args: &[&str]) -> Result<CliResponse, CliError> {
     let mut owned = strings(["--root"]);
     owned.push(temp.path().to_string_lossy().into_owned());
     owned.extend(args.iter().map(|item| (*item).to_owned()));
     let invocation = parse_args_with_request_id(owned, "req_dispatch", temp.path())
         .unwrap_or_else(|error| panic!("{}: {}", args.join(" "), error.message));
-    execute_invocation(&invocation).expect_err("every local family verb refuses today")
+    execute_invocation(&invocation)
+}
+
+fn run_in(temp: &TempDir, args: &[&str]) -> CliError {
+    dispatch_in(temp, args)
+        .err()
+        .unwrap_or_else(|| panic!("{} must be refused by core", args.join(" ")))
 }
 
 /// The refusal presentation: human prefixes the code, `--json` carries it as a
@@ -236,24 +242,50 @@ fn clone_local_refuses_malformed_flag_combinations() {
     );
 }
 
-/// Design §7 holds `CloneLocalWorkspaceRequest` tag 6 (`from`) unallocated
-/// pending an operator decision, so `--from` parses and refuses rather than
-/// being silently dropped or encoded into an invented field.
+/// Design §7 tag 6 is `copy_source` (§11 item 11, operator 2026-09-05):
+/// `--from <name|path>` travels in that field, and the token itself is core's
+/// to resolve — a family name, a path, or neither.
 #[test]
-fn clone_local_from_parses_and_refuses_as_unsupported() {
-    let error = parse(&["clone", "--local", "--from", "A", "--name", "B", "dest"])
-        .expect_err("--from is not wired");
+fn clone_local_from_travels_as_copy_source() {
+    let by_name = clone_local(&[
+        "clone",
+        "--local",
+        "--clean",
+        "--from",
+        "A",
+        "--name",
+        "B",
+        "../gwz-dev-B",
+    ]);
+    assert_eq!(by_name.copy_source.as_deref(), Some("A"));
+    assert_eq!(by_name.name, "B");
+    assert_eq!(by_name.mode, gwz_core::LocalCloneMode::Clean);
+
+    let by_path = clone_local(&[
+        "clone",
+        "--local",
+        "--from",
+        "../gwz-dev-C",
+        "--name",
+        "D",
+        "../gwz-dev-D",
+    ]);
+    assert_eq!(by_path.copy_source.as_deref(), Some("../gwz-dev-C"));
+    assert_eq!(by_path.mode, gwz_core::LocalCloneMode::Verbatim);
+
+    // Absent means "copy the workspace this command ran in" (design §4), so
+    // nothing is invented for the ordinary create.
     assert_eq!(
-        error.code,
-        Some(gwz_core::model::ErrorCode::UnsupportedOperation),
-        "{}",
-        error.message
+        clone_local(&["clone", "--local", "--name", "A"]).copy_source,
+        None
     );
-    assert!(error.message.contains("--from"), "{}", error.message);
+
+    // An empty value is indistinguishable from absent once encoded, so it is
+    // refused here rather than silently becoming "copy this workspace".
+    let empty = refusal(&["clone", "--local", "--from", "", "--name", "A"]);
     assert!(
-        error.message.contains("not yet supported"),
-        "{}",
-        error.message
+        empty.contains("--from") && empty.contains("must not be empty"),
+        "{empty}"
     );
 }
 
@@ -329,7 +361,6 @@ fn local_dispose_refuses_force_without_hazard_names() {
     for args in [
         vec!["local", "dispose", "C", "--force"],
         vec!["local", "dispose", "C", "--force", ""],
-        vec!["local", "dispose", "C", "--force", "   "],
     ] {
         let message = refusal(&args);
         assert!(
@@ -351,6 +382,26 @@ fn local_dispose_refuses_force_without_hazard_names() {
         unauthorized.contains("--force"),
         "hazard names need the switch: {unauthorized}"
     );
+}
+
+/// Parity with `gwz-py` (lane CP): the hazard list is split on `,` and on
+/// nothing else. A waiver is the operator's authorization token, so the
+/// driver neither trims nor folds it — a name with surrounding whitespace is
+/// not in core's vocabulary and core says so, one layer down, in both drivers.
+#[test]
+fn local_dispose_splits_hazards_on_commas_only_and_never_rewrites_them() {
+    let spaced = local_family(&["local", "dispose", "C", "--force", "dirty, open-merge"]);
+    assert_eq!(
+        spaced.force_hazards,
+        vec!["dirty".to_owned(), " open-merge".to_owned()],
+        "the token travels exactly as typed"
+    );
+
+    // Whitespace is a name core does not know, not an empty list: it travels
+    // and core refuses it, rather than the driver answering for a vocabulary
+    // it does not own.
+    let blank = local_family(&["local", "dispose", "C", "--force", "   "]);
+    assert_eq!(blank.force_hazards, vec!["   ".to_owned()]);
 }
 
 /// §5.2: keep and force are mutually exclusive; the CLI says so before the
@@ -506,13 +557,12 @@ fn pull_and_push_remote_are_untouched() {
 // dispatch and refusal presentation
 // ---------------------------------------------------------------------------
 
-/// Every family verb reaches its core entry point and comes back as the typed
-/// refusal this build owes: `unsupported_operation`, naming the verb.
+/// The mutating family verbs reach their core entry point and come back as
+/// the typed refusal this build owes: `unsupported_operation`, naming the verb.
 #[test]
 fn local_family_verbs_dispatch_and_refuse_typed() {
     let temp = workspace("cli-local-family");
 
-    assert_unsupported(&run_in(&temp, &["local", "list"]), "local family list");
     assert_unsupported(&run_in(&temp, &["local", "dispose", "C"]), "local dispose");
     assert_unsupported(
         &run_in(&temp, &["local", "dispose", "C", "--keep"]),
@@ -521,12 +571,42 @@ fn local_family_verbs_dispatch_and_refuse_typed() {
     assert_unsupported(&run_in(&temp, &["local", "disband"]), "local disband");
 }
 
+/// `local list` is served: a workspace holding no family index lists nothing,
+/// and that is an ordinary `Ok` answer the driver renders as a listing — not
+/// a refusal, and not an invented row.
+#[test]
+fn local_list_dispatches_and_renders_an_empty_family() {
+    let temp = workspace("cli-local-list");
+
+    let response = dispatch_in(&temp, &["local", "list"]).expect("list is served");
+    assert_eq!(
+        response.envelope.meta.aggregate_status,
+        gwz_core::AggregateStatus::Ok
+    );
+    assert_eq!(exit_code_for_response(&response.envelope), 0);
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "no local clone family members"
+    );
+    let json: serde_json::Value =
+        serde_json::from_str(&render_response(&response, OutputMode::Json)).unwrap();
+    assert_eq!(json["local_family_members"], serde_json::json!([]));
+}
+
 /// Core refuses a family `dry_run` before workspace discovery; the driver
-/// passes the flag through and presents that refusal unchanged.
+/// passes the flag through and presents that refusal unchanged — for a local
+/// create as well, which no longer meets a driver-side gate of its own.
 #[test]
 fn local_family_dry_run_is_refused_by_core() {
     let temp = workspace("cli-local-dry-run");
     assert_unsupported(&run_in(&temp, &["local", "list", "--dry-run"]), "dry_run");
+    assert_unsupported(
+        &run_in(
+            &temp,
+            &["clone", "--local", "--name", "A", "../dest-a", "--dry-run"],
+        ),
+        "dry_run",
+    );
 }
 
 /// `gwz clone --local` reaches `handle_clone_local_workspace`, which names the
@@ -552,35 +632,93 @@ fn clone_local_dispatches_and_refuses_typed() {
         ),
         "local clone (bare mode)",
     );
+
+    // `--from` reaches core in `copy_source`: core names the flag in its own
+    // refusal, which is the proof the token travelled rather than being
+    // answered for by the driver.
+    assert_unsupported(
+        &run_in(
+            &temp,
+            &[
+                "clone",
+                "--local",
+                "--from",
+                "A",
+                "--name",
+                "B",
+                "../dest-b",
+            ],
+        ),
+        "--from <name|path>",
+    );
 }
 
-/// The one pre-existing clone gate still stands for the local family: the
-/// driver refuses `--dry-run` for every clone before dispatch.
+/// The URL clone keeps its pre-existing `--dry-run` refusal untouched. A
+/// *local* clone is a family operation, so — as with every `gwz local` verb,
+/// and as `gwz-py` already does (lane CP) — the flag travels and core answers
+/// for it, before any destination is allocated.
 #[test]
-fn clone_local_keeps_the_existing_dry_run_gate() {
-    let error = parse(&["clone", "--local", "--name", "A", "--dry-run"]).expect_err("gated");
+fn the_dry_run_gate_is_the_url_clones_and_the_family_passes_it_through() {
+    let error = parse(&["clone", "https://example.invalid/ws.git", "--dry-run"])
+        .expect_err("the url clone is gated");
     assert_eq!(error.message, "--dry-run is not supported for clone");
+
+    let local = clone_local(&["clone", "--local", "--name", "A", "--dry-run"]);
+    assert_eq!(local.meta.dry_run, Some(true));
+    assert_eq!(
+        clone_local(&["clone", "--local", "--name", "A"])
+            .meta
+            .dry_run,
+        None
+    );
 }
 
 /// The merge entry switch: with a selector the request takes the family
-/// wrapper (which names the source), and without one it reaches the unchanged
-/// engine — the same refusal an unmodified driver produced.
+/// wrapper, and a token that names no ready member comes back as
+/// `unknown_local` (design §7, §11 item 13) carrying the state detail — the
+/// driver presents it like any other typed refusal, with no Git-remote
+/// fallback of its own.
 #[test]
 fn merge_entry_switch_routes_only_the_family_selector() {
     let temp = workspace("cli-local-merge");
 
-    assert_unsupported(&run_in(&temp, &["merge", "--remote", "A"]), "from `A`");
-    assert_unsupported(
-        &run_in(&temp, &["merge", "--remote", "C", "lane/agent-17"]),
-        "from `C`",
-    );
+    for (args, token) in [
+        (vec!["merge", "--remote", "A"], "A"),
+        (vec!["merge", "--remote", "C", "lane/agent-17"], "C"),
+        // §7: `origin` is a family miss on merge, never a fetch.
+        (vec!["merge", "--remote", "origin"], "origin"),
+    ] {
+        let error = run_in(&temp, &args);
+        assert_eq!(
+            error.code,
+            Some(gwz_core::model::ErrorCode::UnknownLocal),
+            "{args:?}: {}",
+            error.message
+        );
+        assert!(
+            error.message.contains(&format!("`{token}`")),
+            "{args:?}: the refusal names the token: {}",
+            error.message
+        );
+        assert!(
+            error.message.contains("never falls back to a Git remote"),
+            "{args:?}: {}",
+            error.message
+        );
+        assert_eq!(
+            error.human_message(),
+            format!("UnknownLocal: {}", error.message)
+        );
+        let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
+        assert_eq!(json["errors"][0]["code"], "UnknownLocal", "{args:?}");
+    }
 
     // No selector: the engine answers for the missing ref, and nothing in the
     // message comes from the family wrapper.
     let plain = run_in(&temp, &["merge", "feature/x"]);
     assert_ne!(
         plain.code,
-        Some(gwz_core::model::ErrorCode::UnsupportedOperation),
+        Some(gwz_core::model::ErrorCode::UnknownLocal),
         "{}",
         plain.message
     );
@@ -589,6 +727,454 @@ fn merge_entry_switch_routes_only_the_family_selector() {
         "a plain merge never reaches the family wrapper: {}",
         plain.message
     );
+}
+
+// ---------------------------------------------------------------------------
+// `gwz local list` rendering (design §8.1, §7, §11 item 12)
+// ---------------------------------------------------------------------------
+
+fn entry(
+    name: &str,
+    kind: gwz_core::LocalMemberKind,
+    recorded: gwz_core::LocalMemberState,
+    observed: gwz_core::LocalObservedState,
+    path: &str,
+    last_error: Option<&str>,
+) -> gwz_core::LocalFamilyMemberEntry {
+    gwz_core::LocalFamilyMemberEntry {
+        name: name.to_owned(),
+        kind,
+        recorded_state: recorded,
+        observed_state: observed,
+        path: path.to_owned(),
+        last_error: last_error.map(ToOwned::to_owned),
+    }
+}
+
+/// A ready member, the shape every row in design §8.1's sample listing has.
+fn ready(
+    name: &str,
+    kind: gwz_core::LocalMemberKind,
+    path: &str,
+) -> gwz_core::LocalFamilyMemberEntry {
+    entry(
+        name,
+        kind,
+        gwz_core::LocalMemberState::Ready,
+        gwz_core::LocalObservedState::Ready,
+        path,
+        None,
+    )
+}
+
+/// A `LocalFamilyResponse` carrying `members`, as core will answer op=list
+/// once lane S's store lands. Constructed here because core refuses the read
+/// today (design §11: the store is still being built).
+fn list_response(members: Vec<gwz_core::LocalFamilyMemberEntry>) -> CliResponse {
+    family_response(gwz_core::LocalFamilyOp::List, members)
+}
+
+fn family_response(
+    op: gwz_core::LocalFamilyOp,
+    members: Vec<gwz_core::LocalFamilyMemberEntry>,
+) -> CliResponse {
+    CliResponse::local_family(
+        op,
+        gwz_core::LocalFamilyResponse {
+            response: gwz_core::ResponseEnvelope {
+                meta: gwz_core::ResponseMeta {
+                    request_id: "req_test".to_owned(),
+                    schema_version: "gwz.protocol/v0".to_owned(),
+                    action: gwz_core::ActionKind::LocalFamily,
+                    aggregate_status: gwz_core::AggregateStatus::Ok,
+                    operation_id: Some("op_test".to_owned()),
+                    message: None,
+                    attribution: None,
+                },
+                members: Vec::new(),
+                errors: Vec::new(),
+            },
+            members,
+        },
+    )
+}
+
+/// Design §8.1: the family of the worked example, byte for byte — four
+/// columns (name, kind, state, path), aligned, and no header.
+#[test]
+fn local_list_renders_the_design_sample_listing() {
+    let response = list_response(vec![
+        ready("root", gwz_core::LocalMemberKind::Checkout, "."),
+        ready("A", gwz_core::LocalMemberKind::Checkout, "../gwz-dev-A"),
+        ready("B", gwz_core::LocalMemberKind::Checkout, "../gwz-dev-B"),
+        ready("C", gwz_core::LocalMemberKind::Checkout, "../gwz-dev-C"),
+        ready("D", gwz_core::LocalMemberKind::Checkout, "../gwz-dev-D"),
+        ready("hub", gwz_core::LocalMemberKind::Bare, "../gwz-dev-hub"),
+    ]);
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "\
+root  checkout  ready  .
+A     checkout  ready  ../gwz-dev-A
+B     checkout  ready  ../gwz-dev-B
+C     checkout  ready  ../gwz-dev-C
+D     checkout  ready  ../gwz-dev-D
+hub   bare      ready  ../gwz-dev-hub"
+    );
+}
+
+/// The whole point of carrying both states: a lane whose recorded row and
+/// whose disk disagree says so in the `state` column, and a recorded
+/// diagnostic is shown rather than dropped.
+#[test]
+fn local_list_shows_the_observed_state_when_it_differs_and_any_recorded_error() {
+    let response = list_response(vec![
+        ready("root", gwz_core::LocalMemberKind::Checkout, "."),
+        entry(
+            "B",
+            gwz_core::LocalMemberKind::Checkout,
+            gwz_core::LocalMemberState::Creating,
+            gwz_core::LocalObservedState::Incomplete,
+            "../ws-B",
+            Some("copy interrupted at src/"),
+        ),
+        entry(
+            "C",
+            gwz_core::LocalMemberKind::Checkout,
+            gwz_core::LocalMemberState::Disposing,
+            gwz_core::LocalObservedState::InterruptedDisposal,
+            "../ws-C",
+            None,
+        ),
+        entry(
+            "hub",
+            gwz_core::LocalMemberKind::Bare,
+            gwz_core::LocalMemberState::Ready,
+            gwz_core::LocalObservedState::PointerRemoved,
+            "../ws-hub",
+            None,
+        ),
+    ]);
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "\
+root  checkout  ready                           .
+B     checkout  creating/incomplete             ../ws-B    copy interrupted at src/
+C     checkout  disposing/interrupted_disposal  ../ws-C
+hub   bare      ready/pointer_removed           ../ws-hub"
+    );
+}
+
+/// A recorded diagnostic is one row: a newline inside it must not forge a
+/// member of its own in a listing consumers read line by line.
+#[test]
+fn local_list_keeps_a_multi_line_diagnostic_on_its_own_row() {
+    let response = list_response(vec![entry(
+        "B",
+        gwz_core::LocalMemberKind::Checkout,
+        gwz_core::LocalMemberState::Creating,
+        gwz_core::LocalObservedState::Malformed,
+        "../ws-B",
+        Some("index unreadable\nA  checkout  ready  ../forged"),
+    )]);
+    let rendered = render_response(&response, OutputMode::Human);
+    assert_eq!(rendered.lines().count(), 1, "{rendered}");
+    assert!(
+        rendered.contains("index unreadable A  checkout"),
+        "{rendered}"
+    );
+}
+
+/// Every field of every entry survives `--json` and the `--jsonl` response
+/// record, and a response that is not a family listing carries `null` rather
+/// than an invented empty list.
+#[test]
+fn local_list_json_carries_every_field_of_every_entry() {
+    let response = list_response(vec![
+        ready("root", gwz_core::LocalMemberKind::Checkout, "."),
+        entry(
+            "B",
+            gwz_core::LocalMemberKind::Checkout,
+            gwz_core::LocalMemberState::Creating,
+            gwz_core::LocalObservedState::Incomplete,
+            "../ws-B",
+            Some("copy interrupted at src/"),
+        ),
+    ]);
+
+    let json: serde_json::Value =
+        serde_json::from_str(&render_response(&response, OutputMode::Json)).unwrap();
+    let members = json["local_family_members"].as_array().unwrap();
+    assert_eq!(members.len(), 2);
+    assert_eq!(
+        members[0],
+        serde_json::json!({
+            "name": "root",
+            "kind": "Checkout",
+            "recorded_state": "Ready",
+            "observed_state": "Ready",
+            "path": ".",
+            "last_error": null,
+        })
+    );
+    assert_eq!(
+        members[1],
+        serde_json::json!({
+            "name": "B",
+            "kind": "Checkout",
+            "recorded_state": "Creating",
+            "observed_state": "Incomplete",
+            "path": "../ws-B",
+            "last_error": "copy interrupted at src/",
+        })
+    );
+
+    // `--jsonl` streams the same response record.
+    let first = render_response(&response, OutputMode::Jsonl);
+    let streamed: serde_json::Value = serde_json::from_str(first.lines().next().unwrap()).unwrap();
+    assert_eq!(streamed["kind"], "response");
+    assert_eq!(
+        streamed["local_family_members"],
+        json["local_family_members"]
+    );
+
+    // A workspace that holds no family index lists nothing, and that is an
+    // answer rather than an error: the human line says so instead of printing
+    // a bare status.
+    let no_family = list_response(Vec::new());
+    let json: serde_json::Value =
+        serde_json::from_str(&render_response(&no_family, OutputMode::Json)).unwrap();
+    assert_eq!(json["local_family_members"], serde_json::json!([]));
+    assert_eq!(
+        render_response(&no_family, OutputMode::Human),
+        "no local clone family members"
+    );
+
+    // dispose/disband carry no rows (design §7), so they are not a listing at
+    // all: the human rendering is the ordinary envelope, and the machine
+    // envelope still reports the empty list faithfully.
+    for op in [
+        gwz_core::LocalFamilyOp::Dispose,
+        gwz_core::LocalFamilyOp::Disband,
+    ] {
+        let mutation = family_response(op, Vec::new());
+        assert_eq!(render_response(&mutation, OutputMode::Human), "status: Ok");
+        let json: serde_json::Value =
+            serde_json::from_str(&render_response(&mutation, OutputMode::Json)).unwrap();
+        assert_eq!(json["local_family_members"], serde_json::json!([]));
+    }
+
+    // Every other verb is not a family response at all. Its envelope key set
+    // is pinned by the canonical cross-driver fixture in gwz-core, so the
+    // field is absent there rather than rendered as `null`.
+    let other = CliResponse::envelope(no_family.envelope.clone());
+    let json: serde_json::Value =
+        serde_json::from_str(&render_response(&other, OutputMode::Json)).unwrap();
+    assert!(
+        json.get("local_family_members").is_none(),
+        "a non-family response must not gain a family key: {json}"
+    );
+}
+
+/// Every wire enum has exactly one word, and the words are the design's.
+#[test]
+fn every_listed_enum_variant_renders_its_design_spelling() {
+    assert_eq!(
+        [
+            gwz_core::LocalMemberKind::Checkout,
+            gwz_core::LocalMemberKind::Bare
+        ]
+        .map(member_kind_word),
+        ["checkout", "bare"]
+    );
+    assert_eq!(
+        [
+            gwz_core::LocalMemberState::Creating,
+            gwz_core::LocalMemberState::Ready,
+            gwz_core::LocalMemberState::Disposing,
+        ]
+        .map(recorded_state_word),
+        ["creating", "ready", "disposing"]
+    );
+    assert_eq!(
+        [
+            gwz_core::LocalObservedState::Ready,
+            gwz_core::LocalObservedState::Incomplete,
+            gwz_core::LocalObservedState::InterruptedDisposal,
+            gwz_core::LocalObservedState::Missing,
+            gwz_core::LocalObservedState::PointerRemoved,
+            gwz_core::LocalObservedState::Mismatched,
+            gwz_core::LocalObservedState::Malformed,
+            gwz_core::LocalObservedState::Unobserved,
+        ]
+        .map(observed_state_word),
+        [
+            "ready",
+            "incomplete",
+            "interrupted_disposal",
+            "missing",
+            "pointer_removed",
+            "mismatched",
+            "malformed",
+            "unobserved",
+        ]
+    );
+}
+
+// ---------------------------------------------------------------------------
+// unknown_local = 62 (design §7, §11 item 13)
+// ---------------------------------------------------------------------------
+
+/// The family-only merge miss is presented like any other typed refusal: the
+/// code prefixes the human line, `--json`/`--jsonl` carry it structured, and
+/// core's state detail travels unedited in both.
+#[test]
+fn unknown_local_is_presented_as_a_typed_refusal_with_the_state_detail() {
+    for detail in [
+        "no ready family member is named `origin`; `merge --remote` resolves family \
+         names only and never falls back to a Git remote",
+        "`B` is a family member whose row is creating, not ready; only a ready member \
+         is a merge source",
+    ] {
+        let message = format!("local family merge: {detail}");
+        let error = CliError::from_model(gwz_core::model::ModelError::new(
+            gwz_core::model::ErrorCode::UnknownLocal,
+            message.clone(),
+        ));
+        assert_eq!(
+            error.code,
+            Some(gwz_core::model::ErrorCode::UnknownLocal),
+            "{message}"
+        );
+        assert_eq!(
+            error.human_message(),
+            format!("UnknownLocal: {message}"),
+            "the human line names the code, like every other typed refusal"
+        );
+
+        let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
+        assert_eq!(json["errors"][0]["code"], "UnknownLocal");
+        assert_eq!(json["errors"][0]["message"], message);
+    }
+
+    // Design §7 pins the number: it is not folded into `missing_remote`, which
+    // pull and push keep for their own "neither" case.
+    assert_eq!(
+        gwz_core::GwzErrorCode::from(gwz_core::model::ErrorCode::UnknownLocal).wire(),
+        62
+    );
+    assert_ne!(
+        gwz_core::GwzErrorCode::from(gwz_core::model::ErrorCode::UnknownLocal),
+        gwz_core::GwzErrorCode::from(gwz_core::model::ErrorCode::MissingRemote)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// the shared argv -> request parity fixture
+// ---------------------------------------------------------------------------
+
+/// The same fixture `gwz-py` can read (see the file's own note): one row per
+/// design §7 CLI -> message row, argv on one side and the encoded request on
+/// the other, so a driver that quietly changes an encoding fails here rather
+/// than diverging silently from its sibling.
+const PARITY_FIXTURE: &str =
+    include_str!("../../tests/fixtures/cli_parity/local_family_cases.json");
+
+/// The fixture's projection of a built request: the design's wire spellings,
+/// with every optional field spelled `null` rather than omitted.
+fn request_json(request: &CliRequest) -> serde_json::Value {
+    use serde_json::json;
+    let policy_remote = |meta: &gwz_core::RequestMeta| {
+        meta.policy
+            .as_ref()
+            .and_then(|policy| policy.remote.clone())
+    };
+    match request {
+        CliRequest::CloneLocalWorkspace(request) => json!({
+            "kind": "CloneLocalWorkspaceRequest",
+            "name": request.name,
+            "dest": request.dest,
+            "mode": match request.mode {
+                gwz_core::LocalCloneMode::Verbatim => "verbatim",
+                gwz_core::LocalCloneMode::Clean => "clean",
+                gwz_core::LocalCloneMode::Bare => "bare",
+            },
+            "branch": request.branch,
+            "copy_source": request.copy_source,
+        }),
+        CliRequest::LocalFamily(request) => json!({
+            "kind": "LocalFamilyRequest",
+            "op": match request.op {
+                gwz_core::LocalFamilyOp::List => "list",
+                gwz_core::LocalFamilyOp::Dispose => "dispose",
+                gwz_core::LocalFamilyOp::Disband => "disband",
+            },
+            "name": request.name,
+            "keep": request.keep,
+            "force_hazards": request.force_hazards,
+        }),
+        CliRequest::Merge(request) => json!({
+            "kind": "MergeRequest",
+            "op": format!("{:?}", request.op).to_lowercase(),
+            "source_ref": request.source_ref,
+            "local_source_name": request.local_source_name,
+            "policy_remote": policy_remote(&request.meta),
+        }),
+        CliRequest::PullHead(request) => json!({
+            "kind": "PullHeadRequest",
+            "policy_remote": policy_remote(&request.meta),
+        }),
+        CliRequest::Push(request) => json!({
+            "kind": "PushRequest",
+            "remote": request.remote,
+            "policy_remote": policy_remote(&request.meta),
+        }),
+        other => panic!("the parity fixture covers no request of this kind: {other:?}"),
+    }
+}
+
+#[test]
+fn the_shared_parity_fixture_pins_every_design_row_argv_to_request() {
+    let fixture: serde_json::Value = serde_json::from_str(PARITY_FIXTURE).unwrap();
+
+    let accept = fixture["accept"].as_array().unwrap();
+    for case in accept {
+        let argv: Vec<&str> = case["argv"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item.as_str().unwrap())
+            .collect();
+        let row = case["design_row"].as_str().unwrap();
+        let invocation = parse(&argv).unwrap_or_else(|error| {
+            panic!("{row}: {argv:?} must parse, got {}", error.message);
+        });
+        assert_eq!(
+            request_json(&invocation.request),
+            case["request"],
+            "{row}: {argv:?}"
+        );
+    }
+
+    for case in fixture["reject"].as_array().unwrap() {
+        let argv: Vec<&str> = case["argv"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item.as_str().unwrap())
+            .collect();
+        let why = case["why"].as_str().unwrap();
+        let needle = case["rust_needle"].as_str().unwrap();
+        let message = refusal(&argv);
+        assert!(
+            message.contains(needle),
+            "{why}: {argv:?} must name `{needle}`, got: {message}"
+        );
+    }
+
+    // The fixture is the §7 table, not a sample of it: every row of the design
+    // table has a case, and the two `copy_source` rows the message block adds.
+    assert_eq!(accept.len(), 24, "a §7 row lost its parity case");
 }
 
 // ---------------------------------------------------------------------------

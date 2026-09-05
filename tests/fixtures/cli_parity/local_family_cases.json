@@ -1,0 +1,376 @@
+{
+  "schema": "gwz.cli-parity/local-family/v1",
+  "authority": "dev-docs/GwzLocalCloneDesign.md revision 9 §7 (CLI -> live message) and §11 items 11-15",
+  "_note": [
+    "Shared argv -> request fixture for the local clone family surface. Every",
+    "`accept` row is one row of the design §7 CLI -> message table (plus the",
+    "`--from`/`copy_source` rows the message block adds), so both drivers can",
+    "assert that the same command line encodes the same request.",
+    "",
+    "gwz-cli reads it from `tests/fixtures/cli_parity/local_family_cases.json`",
+    "(see `src/tests/g12.rs`). A gwz-py test in the gwz-dev workspace reaches",
+    "it at `../gwz-cli/tests/fixtures/cli_parity/local_family_cases.json`;",
+    "gwz-py's own `src/tests/fixtures/cli_parity/parser_cases.json` stays the",
+    "argv accept/reject fixture it already is and gains nothing here.",
+    "",
+    "`request.kind` names the protocol message. Absent optional fields are",
+    "spelled `null`, never omitted. Enum fields carry the design's wire",
+    "spelling (`verbatim`/`clean`/`bare`, `list`/`dispose`/`disband`,",
+    "`start`), not either driver's generated variant name.",
+    "",
+    "`policy_remote` is `RequestMeta.policy.remote` (OperationPolicy.remote,",
+    "F(5)) -- the field pull and push route `--remote` through, and the field",
+    "a family merge must leave empty because the token moved into",
+    "`MergeRequest.local_source_name`.",
+    "",
+    "`reject` rows are the shapes both drivers refuse BEFORE encoding a",
+    "request. The wording is each driver's own; `rust_needle` is the substring",
+    "gwz-cli's message carries."
+  ],
+  "accept": [
+    {
+      "design_row": "gwz clone --local --name A ../gwz-dev-A",
+      "argv": ["clone", "--local", "--name", "A", "../gwz-dev-A"],
+      "request": {
+        "kind": "CloneLocalWorkspaceRequest",
+        "name": "A",
+        "dest": "../gwz-dev-A",
+        "mode": "verbatim",
+        "branch": null,
+        "copy_source": null
+      }
+    },
+    {
+      "design_row": "gwz clone --local --name A (dest defaults in core)",
+      "argv": ["clone", "--local", "--name", "A"],
+      "request": {
+        "kind": "CloneLocalWorkspaceRequest",
+        "name": "A",
+        "dest": null,
+        "mode": "verbatim",
+        "branch": null,
+        "copy_source": null
+      }
+    },
+    {
+      "design_row": "gwz clone --local --clean -b lane/x --name C dest",
+      "argv": ["clone", "--local", "--clean", "-b", "lane/x", "--name", "C", "dest"],
+      "request": {
+        "kind": "CloneLocalWorkspaceRequest",
+        "name": "C",
+        "dest": "dest",
+        "mode": "clean",
+        "branch": "lane/x",
+        "copy_source": null
+      }
+    },
+    {
+      "design_row": "gwz clone --local --bare --name hub dest",
+      "argv": ["clone", "--local", "--bare", "--name", "hub", "dest"],
+      "request": {
+        "kind": "CloneLocalWorkspaceRequest",
+        "name": "hub",
+        "dest": "dest",
+        "mode": "bare",
+        "branch": null,
+        "copy_source": null
+      }
+    },
+    {
+      "design_row": "§7 copy_source (tag 6, §11 item 11): --from a family name",
+      "argv": ["clone", "--local", "--clean", "--from", "A", "--name", "B", "../gwz-dev-B"],
+      "request": {
+        "kind": "CloneLocalWorkspaceRequest",
+        "name": "B",
+        "dest": "../gwz-dev-B",
+        "mode": "clean",
+        "branch": null,
+        "copy_source": "A"
+      }
+    },
+    {
+      "design_row": "§7 copy_source (tag 6, §11 item 11): --from a path",
+      "argv": ["clone", "--local", "--from", "../gwz-dev-C", "--name", "D", "../gwz-dev-D"],
+      "request": {
+        "kind": "CloneLocalWorkspaceRequest",
+        "name": "D",
+        "dest": "../gwz-dev-D",
+        "mode": "verbatim",
+        "branch": null,
+        "copy_source": "../gwz-dev-C"
+      }
+    },
+    {
+      "design_row": "gwz local list",
+      "argv": ["local", "list"],
+      "request": {
+        "kind": "LocalFamilyRequest",
+        "op": "list",
+        "name": null,
+        "keep": null,
+        "force_hazards": []
+      }
+    },
+    {
+      "design_row": "gwz local dispose C",
+      "argv": ["local", "dispose", "C"],
+      "request": {
+        "kind": "LocalFamilyRequest",
+        "op": "dispose",
+        "name": "C",
+        "keep": null,
+        "force_hazards": []
+      }
+    },
+    {
+      "design_row": "gwz local dispose C --keep",
+      "argv": ["local", "dispose", "C", "--keep"],
+      "request": {
+        "kind": "LocalFamilyRequest",
+        "op": "dispose",
+        "name": "C",
+        "keep": true,
+        "force_hazards": []
+      }
+    },
+    {
+      "design_row": "gwz local dispose C --force unpreserved-history",
+      "argv": ["local", "dispose", "C", "--force", "unpreserved-history"],
+      "request": {
+        "kind": "LocalFamilyRequest",
+        "op": "dispose",
+        "name": "C",
+        "keep": null,
+        "force_hazards": ["unpreserved-history"]
+      }
+    },
+    {
+      "design_row": "gwz local dispose C --force open-merge,dirty,unpreserved-history",
+      "argv": ["local", "dispose", "C", "--force", "open-merge,dirty,unpreserved-history"],
+      "request": {
+        "kind": "LocalFamilyRequest",
+        "op": "dispose",
+        "name": "C",
+        "keep": null,
+        "force_hazards": ["open-merge", "dirty", "unpreserved-history"]
+      }
+    },
+    {
+      "design_row": "§11 item 15: the hazard list is split on ',' and nothing else",
+      "argv": ["local", "dispose", "C", "--force", "dirty, open-merge"],
+      "request": {
+        "kind": "LocalFamilyRequest",
+        "op": "dispose",
+        "name": "C",
+        "keep": null,
+        "force_hazards": ["dirty", " open-merge"]
+      }
+    },
+    {
+      "design_row": "§7: the hazard vocabulary is core's, so an unknown name travels",
+      "argv": ["local", "dispose", "C", "--force", "wat"],
+      "request": {
+        "kind": "LocalFamilyRequest",
+        "op": "dispose",
+        "name": "C",
+        "keep": null,
+        "force_hazards": ["wat"]
+      }
+    },
+    {
+      "design_row": "gwz local disband",
+      "argv": ["local", "disband"],
+      "request": {
+        "kind": "LocalFamilyRequest",
+        "op": "disband",
+        "name": null,
+        "keep": null,
+        "force_hazards": []
+      }
+    },
+    {
+      "design_row": "gwz pull --head --remote A",
+      "argv": ["pull", "--head", "--remote", "A"],
+      "request": {
+        "kind": "PullHeadRequest",
+        "policy_remote": "A"
+      }
+    },
+    {
+      "design_row": "gwz pull --head --remote origin",
+      "argv": ["pull", "--head", "--remote", "origin"],
+      "request": {
+        "kind": "PullHeadRequest",
+        "policy_remote": "origin"
+      }
+    },
+    {
+      "design_row": "gwz --sync ff-only pull --head --remote root",
+      "argv": ["--sync", "ff-only", "pull", "--head", "--remote", "root"],
+      "request": {
+        "kind": "PullHeadRequest",
+        "policy_remote": "root"
+      }
+    },
+    {
+      "design_row": "gwz merge feature/x",
+      "argv": ["merge", "feature/x"],
+      "request": {
+        "kind": "MergeRequest",
+        "op": "start",
+        "source_ref": "feature/x",
+        "local_source_name": null,
+        "policy_remote": null
+      }
+    },
+    {
+      "design_row": "gwz merge --remote A",
+      "argv": ["merge", "--remote", "A"],
+      "request": {
+        "kind": "MergeRequest",
+        "op": "start",
+        "source_ref": null,
+        "local_source_name": "A",
+        "policy_remote": null
+      }
+    },
+    {
+      "design_row": "gwz merge --remote C lane/agent-17",
+      "argv": ["merge", "--remote", "C", "lane/agent-17"],
+      "request": {
+        "kind": "MergeRequest",
+        "op": "start",
+        "source_ref": "lane/agent-17",
+        "local_source_name": "C",
+        "policy_remote": null
+      }
+    },
+    {
+      "design_row": "gwz merge --remote origin -> UnknownLocal (family-only)",
+      "argv": ["merge", "--remote", "origin"],
+      "request": {
+        "kind": "MergeRequest",
+        "op": "start",
+        "source_ref": null,
+        "local_source_name": "origin",
+        "policy_remote": null
+      }
+    },
+    {
+      "design_row": "gwz merge A -> git ref A, not a family name",
+      "argv": ["merge", "A"],
+      "request": {
+        "kind": "MergeRequest",
+        "op": "start",
+        "source_ref": "A",
+        "local_source_name": null,
+        "policy_remote": null
+      }
+    },
+    {
+      "design_row": "gwz push --remote hub",
+      "argv": ["push", "--remote", "hub"],
+      "request": {
+        "kind": "PushRequest",
+        "remote": "hub",
+        "policy_remote": "hub"
+      }
+    },
+    {
+      "design_row": "gwz push --remote origin",
+      "argv": ["push", "--remote", "origin"],
+      "request": {
+        "kind": "PushRequest",
+        "remote": "origin",
+        "policy_remote": "origin"
+      }
+    }
+  ],
+  "reject": [
+    {
+      "why": "--local requires --name",
+      "argv": ["clone", "--local", "dest"],
+      "rust_needle": "--name"
+    },
+    {
+      "why": "--local takes a destination, never a URL plus a directory",
+      "argv": ["clone", "--local", "--name", "A", "url", "dest"],
+      "rust_needle": "not a workspace URL"
+    },
+    {
+      "why": "--verbatim and --clean are mutually exclusive",
+      "argv": ["clone", "--local", "--verbatim", "--clean", "--name", "A"],
+      "rust_needle": "mutually exclusive"
+    },
+    {
+      "why": "--verbatim and --bare are mutually exclusive",
+      "argv": ["clone", "--local", "--verbatim", "--bare", "--name", "A"],
+      "rust_needle": "mutually exclusive"
+    },
+    {
+      "why": "-b <branch> needs --clean or --bare",
+      "argv": ["clone", "--local", "-b", "lane/x", "--name", "A"],
+      "rust_needle": "--clean or --bare"
+    },
+    {
+      "why": "an empty --from is indistinguishable from absent on the wire",
+      "argv": ["clone", "--local", "--from", "", "--name", "A"],
+      "rust_needle": "must not be empty"
+    },
+    {
+      "why": "the local-only flags mean nothing without --local",
+      "argv": ["clone", "https://example.invalid/ws.git", "--clean"],
+      "rust_needle": "--local"
+    },
+    {
+      "why": "the local-only flags mean nothing without --local",
+      "argv": ["clone", "https://example.invalid/ws.git", "--from", "A"],
+      "rust_needle": "--local"
+    },
+    {
+      "why": "§8.4: a bare --force authorizes nothing and must not encode an empty list",
+      "argv": ["local", "dispose", "C", "--force"],
+      "rust_needle": "hazard"
+    },
+    {
+      "why": "an empty hazard element is not a hazard",
+      "argv": ["local", "dispose", "C", "--force", ""],
+      "rust_needle": "empty"
+    },
+    {
+      "why": "an empty hazard element is not a hazard",
+      "argv": ["local", "dispose", "C", "--force", "dirty,"],
+      "rust_needle": "empty"
+    },
+    {
+      "why": "hazard names without --force never become a waiver",
+      "argv": ["local", "dispose", "C", "dirty"],
+      "rust_needle": "--force"
+    },
+    {
+      "why": "§5.2: keep and force are mutually exclusive",
+      "argv": ["local", "dispose", "C", "--keep", "--force", "dirty"],
+      "rust_needle": "mutually exclusive"
+    },
+    {
+      "why": "§7: local_source_name is start-only",
+      "argv": ["merge", "--remote", "A", "--abort"],
+      "rust_needle": "starting a merge"
+    },
+    {
+      "why": "§7: local_source_name is start-only",
+      "argv": ["merge", "--remote", "A", "--continue"],
+      "rust_needle": "starting a merge"
+    },
+    {
+      "why": "§7: local_source_name is start-only",
+      "argv": ["merge", "--remote", "A", "--status"],
+      "rust_needle": "starting a merge"
+    },
+    {
+      "why": "§7: local_source_name is start-only",
+      "argv": ["merge", "--remote", "A", "--gc"],
+      "rust_needle": "starting a merge"
+    }
+  ]
+}

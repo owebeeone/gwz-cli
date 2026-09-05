@@ -15,4 +15,6 @@ family, so the two can exchange work by name. There is no URL: the single
 positional is the destination, which defaults to `../<root-dirname>-<name>`.
 The default mode copies the source tree as it sits; `--clean` takes the frozen
 state without worktree dirt, and `--bare` makes a share point of bare member
-repositories. Keep the source quiet for the whole invocation.";
+repositories. `--from <name|path>` copies another family member, or a path,
+instead of the workspace this command runs in. Keep the source quiet for the
+whole invocation.";

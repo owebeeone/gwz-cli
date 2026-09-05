@@ -69,7 +69,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             operation_id,
             events,
         )
-        .map(|response| CliResponse::envelope(response.response)),
+        .map(|response| CliResponse::local_family(request.op, response)),
         CliRequest::CreateWorkspace(request) => {
             gwz_core::workspace_ops::handle_create_workspace(request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
@@ -157,6 +157,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                     branch_repos: None,
                     merge_response: None,
                     stash_bundles: None,
+                    local_family: None,
                     summary: None,
                 },
             )
@@ -174,6 +175,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                     branch_repos: None,
                     merge_response: None,
                     stash_bundles: None,
+                    local_family: None,
                     summary: None,
                 },
             )
@@ -286,6 +288,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                     branch_repos: None,
                     merge_response: None,
                     stash_bundles: None,
+                    local_family: None,
                     summary: None,
                 })
         }

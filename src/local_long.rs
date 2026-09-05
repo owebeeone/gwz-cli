@@ -14,8 +14,19 @@ pub(crate) const LOCAL_LIST_LONG: &str = "\
 List the local clone family recorded on the workspace root.
 
 Reads the index through this workspace's family pointer and reports every
-member: its name, kind (checkout or bare), recorded state, and path. The
-listing performs no repair and takes no lock.";
+member: its name, kind (checkout or bare), state, and path — the root first,
+then every member in name order.
+
+The state column carries both what the index recorded (creating, ready,
+disposing) and what was observed on disk (ready, incomplete,
+interrupted_disposal, missing, pointer_removed, mismatched, malformed,
+unobserved). They are shown as one word while they agree and as
+`recorded/observed` when they do not, so an interrupted create or an
+interrupted disposal is visible without a second command. Any diagnostic the
+index recorded for a member is shown beside its row.
+
+The listing performs no repair and takes no lock; --json and --jsonl carry
+every field of every row.";
 
 pub(crate) const LOCAL_DISPOSE_LONG: &str = "\
 Dispose of one local family member.

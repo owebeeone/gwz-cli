@@ -10,7 +10,12 @@ impl Cli {
         if let CommandArgs::Status(status) = &self.command {
             status.validate(&self.global)?;
         }
-        if matches!(&self.command, CommandArgs::Clone(_)) && self.global.dry_run {
+        // The URL clone keeps its own refusal. A *local* clone is a family
+        // operation: core owns whether `dry_run` is servable there (it refuses
+        // it today, before any allocation), and the Python driver already
+        // passes it through, so the driver must not answer ahead of core.
+        if matches!(&self.command, CommandArgs::Clone(clone) if !clone.local) && self.global.dry_run
+        {
             return Err(CliError::new("--dry-run is not supported for clone"));
         }
         Ok(())

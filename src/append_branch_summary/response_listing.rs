@@ -12,6 +12,15 @@ pub(crate) enum ArtifactListing {
     },
 }
 
+/// A `LocalFamilyResponse` as the renderers need it: the op that was asked
+/// for, and the rows it answered with. Only `list` produces a listing (design
+/// §7), so the op is what tells a table from a mutation that carries none.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct LocalFamilyResponseView {
+    pub(crate) op: gwz_core::LocalFamilyOp,
+    pub(crate) members: Vec<gwz_core::LocalFamilyMemberEntry>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct CliResponse {
     pub(crate) envelope: gwz_core::ResponseEnvelope,
@@ -21,6 +30,12 @@ pub(crate) struct CliResponse {
     pub(crate) branch_repos: Option<Vec<gwz_core::BranchRepoSummary>>,
     pub(crate) merge_response: Option<gwz_core::MergeResponse>,
     pub(crate) stash_bundles: Option<Vec<gwz_core::StashBundle>>,
+    /// `gwz local list|dispose|disband`: the op and its
+    /// `LocalFamilyResponse.members`. `Some` for every family response, so a
+    /// consumer can tell "not a family response" from "a family response with
+    /// nothing to list" — a workspace that holds no family index lists no
+    /// members and is not an error.
+    pub(crate) local_family: Option<LocalFamilyResponseView>,
     /// forall's trailing summary — rendered verbatim (it already streamed member output live).
     pub(crate) summary: Option<String>,
 }
@@ -35,6 +50,7 @@ impl CliResponse {
             branch_repos: None,
             merge_response: None,
             stash_bundles: None,
+            local_family: None,
             summary: None,
         }
     }
@@ -48,6 +64,7 @@ impl CliResponse {
             branch_repos: response.repos,
             merge_response: None,
             stash_bundles: None,
+            local_family: None,
             summary: None,
         }
     }
@@ -61,6 +78,7 @@ impl CliResponse {
             branch_repos: None,
             merge_response: Some(response),
             stash_bundles: None,
+            local_family: None,
             summary: None,
         }
     }
@@ -74,6 +92,27 @@ impl CliResponse {
             branch_repos: None,
             merge_response: None,
             stash_bundles: response.bundles,
+            local_family: None,
+            summary: None,
+        }
+    }
+
+    pub(crate) fn local_family(
+        op: gwz_core::LocalFamilyOp,
+        response: gwz_core::LocalFamilyResponse,
+    ) -> Self {
+        Self {
+            envelope: response.response,
+            workspace_git_status: None,
+            status_mode: None,
+            listing: None,
+            branch_repos: None,
+            merge_response: None,
+            stash_bundles: None,
+            local_family: Some(LocalFamilyResponseView {
+                op,
+                members: response.members,
+            }),
             summary: None,
         }
     }
@@ -87,6 +126,7 @@ impl CliResponse {
             branch_repos: None,
             merge_response: None,
             stash_bundles: None,
+            local_family: None,
             summary: None,
         }
     }
@@ -197,6 +237,14 @@ pub(crate) fn render_human_response(response: &CliResponse) -> String {
     }
     if let Some(bundles) = &response.stash_bundles {
         return render_stash_response(response, bundles);
+    }
+    // Only `local list` renders a listing. `dispose`/`disband` carry no rows
+    // (design §7), so they fall through to the ordinary envelope below rather
+    // than reporting an empty family.
+    if let Some(family) = &response.local_family
+        && family.op == gwz_core::LocalFamilyOp::List
+    {
+        return render_local_family_members(&family.members);
     }
 
     let mut lines = vec![format!(

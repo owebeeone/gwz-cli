@@ -118,6 +118,7 @@ pub(crate) fn execute_forall(
         branch_repos: None,
         merge_response: None,
         stash_bundles: None,
+        local_family: None,
         summary: Some(summary),
     })
 }
@@ -157,6 +158,7 @@ fn planned_forall(
         branch_repos: None,
         merge_response: None,
         stash_bundles: None,
+        local_family: None,
         summary: Some(summary),
     })
 }

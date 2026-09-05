@@ -31,7 +31,7 @@ pub(crate) fn render_jsonl_stream(
 }
 
 pub(crate) fn response_json(response: &CliResponse) -> serde_json::Value {
-    serde_json::json!({
+    let mut value = serde_json::json!({
         "kind": "response",
         "meta": response_meta_json(&response.envelope.meta),
         "members": response.envelope.members.iter().map(member_json).collect::<Vec<_>>(),
@@ -44,7 +44,25 @@ pub(crate) fn response_json(response: &CliResponse) -> serde_json::Value {
         "stash_bundles": response.stash_bundles.as_ref().map(|bundles| {
             bundles.iter().map(stash_bundle_json).collect::<Vec<_>>()
         }),
-    })
+    });
+    // The envelope's key set is pinned by the canonical cross-driver fixture
+    // in `gwz-core/protocol/fixtures/cli_parity/`, which this lane does not
+    // own, so the family rows are added only to a family response instead of
+    // appearing as `null` on every other one.
+    if let Some(family) = &response.local_family
+        && let Some(object) = value.as_object_mut()
+    {
+        object.insert(
+            "local_family_members".to_owned(),
+            family
+                .members
+                .iter()
+                .map(local_family_member_json)
+                .collect::<Vec<_>>()
+                .into(),
+        );
+    }
+    value
 }
 
 pub(crate) fn branch_repo_json(repo: &gwz_core::BranchRepoSummary) -> serde_json::Value {

@@ -10,8 +10,12 @@ Create a family member with `gwz clone --local --name <name> [dest]`.";
 pub(crate) const LOCAL_LIST_AFTER: &str = "\
 Example:
   gwz local list
+  gwz local list --json
 
-Output columns: name, kind, state, path.";
+Output columns: name, kind, state, path. The state column is one word while
+the recorded row and the directory agree, and `recorded/observed` when they do
+not — `creating/incomplete` for an interrupted create, for instance. A member
+that recorded a diagnostic gets a fifth column carrying it.";
 
 pub(crate) const LOCAL_DISPOSE_AFTER: &str = "\
 Examples:

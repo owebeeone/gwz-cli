@@ -72,7 +72,7 @@ pub(crate) struct CloneArgs {
         long,
         value_name = "name|path",
         help = "Copy from this family member or path instead of the current workspace",
-        long_help = "Copy from this family member or path instead of the current workspace. Not yet supported: the protocol field is unallocated pending an operator decision, so this flag is refused rather than silently ignored."
+        long_help = "Copy from this family member or path instead of the current workspace. Accepts a family name recorded in the index or a filesystem path. Accepted only with --local; core resolves the token, and refuses one that names no readable source."
     )]
     pub(crate) from: Option<String>,
 }
@@ -192,12 +192,14 @@ impl CloneArgs {
                 "--verbatim and --bare are mutually exclusive (--bare implies --clean)",
             ));
         }
-        // Design §7 holds `CloneLocalWorkspaceRequest` tag 6 unallocated
-        // pending an operator decision on its wire name, so the flag is
-        // parsed and refused rather than dropped or encoded elsewhere.
-        if self.from.is_some() {
-            return Err(CliError::unsupported(
-                "--from <name|path> is not yet supported by this gwz build",
+        // Design §7 tag 6 is `copy_source` (operator ruling 2026-09-05). The
+        // token itself is core's to resolve — a family name, a path, or
+        // neither — so only the shape that would be *misread* on the wire is
+        // refused here: an empty string is indistinguishable from "absent",
+        // which core reads as "copy this workspace".
+        if self.from.as_ref().is_some_and(|value| value.is_empty()) {
+            return Err(CliError::invalid_request(
+                "--from <name|path> must not be empty",
             ));
         }
         let mode = if self.bare {
@@ -220,10 +222,10 @@ impl CloneArgs {
                 dest: self.url.clone(),
                 mode,
                 branch: self.branch.clone(),
-                // Tag 6 `copy_source` (operator ruling 2026-09-05): `--from`
-                // is still refused above; lane CR wires it in. Compile-required
-                // literal only (LCM1.0c follow-up 2).
-                copy_source: None,
+                // Tag 6 `copy_source` (design §7, §11 item 11): `--from`, the
+                // family name or path to copy *from*. Absent means the
+                // workspace this command was run in.
+                copy_source: self.from.clone(),
             },
         ))
     }
