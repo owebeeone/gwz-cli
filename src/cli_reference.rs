@@ -123,6 +123,7 @@ fn command_page(path: &[String]) -> Option<&'static str> {
         Some("diff") => Some("diff"),
         Some("forall") => Some("forall"),
         Some("init") => Some("init"),
+        Some("local") => Some("local"),
         Some("ls") => Some("ls"),
         Some("log") => Some("log"),
         Some("materialize") => Some("materialize"),

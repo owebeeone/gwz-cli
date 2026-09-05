@@ -3,7 +3,14 @@ use crate::*;
 use super::*;
 
 impl MergeArgs {
-    pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+    /// `local_source_name` is the global `--remote` token when merge is the
+    /// verb (design §6): family-only, resolved by core at operation time and
+    /// never persisted as a Git remote.
+    pub(crate) fn request(
+        &self,
+        meta: gwz_core::RequestMeta,
+        local_source_name: Option<String>,
+    ) -> Result<CliRequest, CliError> {
         let lifecycle_ops = usize::from(self.resume)
             + usize::from(self.abort)
             + usize::from(self.status.is_some())
@@ -11,6 +18,13 @@ impl MergeArgs {
         if lifecycle_ops > 1 {
             return Err(CliError::invalid_request(
                 "merge accepts only one lifecycle operation",
+            ));
+        }
+        // §7: the selector is start-only. Core repeats the rule; the driver
+        // fails fast so no lifecycle request is built carrying it.
+        if local_source_name.is_some() && lifecycle_ops > 0 {
+            return Err(CliError::invalid_request(
+                "--remote <name> is accepted only when starting a merge",
             ));
         }
         if self.ff_only && self.no_ff {
@@ -56,9 +70,7 @@ impl MergeArgs {
             message: self.message.clone(),
             preserve: self.preserve.then_some(true),
             filesystem_strict: self.filesystem_strict.then_some(true),
-            // LCM1.0c: the family selector (`--remote <name>`) is parsed by the
-            // Rust driver lane; until then the CLI never sets it.
-            local_source_name: None,
+            local_source_name,
         }))
     }
 }

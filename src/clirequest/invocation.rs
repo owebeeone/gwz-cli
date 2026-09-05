@@ -174,7 +174,23 @@ impl Cli {
             } else {
                 meta
             }),
-            CommandArgs::Merge(args) => args.request(self.merge_meta(meta)),
+            CommandArgs::Merge(args) => {
+                // Design §6: on merge the global `--remote` names a family
+                // member, not a Git remote. The engine rejects a request that
+                // still carries `policy.remote`, so the token MOVES from the
+                // policy into the selector rather than being copied.
+                let local_source_name = self.global.remote.clone();
+                let mut meta = self.merge_meta(meta);
+                if local_source_name.is_some()
+                    && let Some(policy) = &mut meta.policy
+                {
+                    policy.remote = None;
+                }
+                args.request(meta, local_source_name)
+            }
+            // `--force` on `local dispose` is the existing global switch; the
+            // hazards it authorizes are this command's operands (design §5.2).
+            CommandArgs::Local(args) => args.request(meta, self.global.force),
             CommandArgs::Stash(args) => args.request(meta),
             CommandArgs::Materialize(args) => args.request(meta),
             CommandArgs::Pull(args) => args.request(meta),

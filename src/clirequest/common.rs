@@ -22,6 +22,11 @@ pub(crate) enum CliRequest {
         url: String,
         target: String,
     },
+    /// `gwz clone --local`: a second working copy of this workspace on the same
+    /// machine, registered in the local clone family.
+    CloneLocalWorkspace(gwz_core::CloneLocalWorkspaceRequest),
+    /// `gwz local list | dispose | disband`.
+    LocalFamily(gwz_core::LocalFamilyRequest),
     InitFromSources(gwz_core::InitFromSourcesRequest),
     AddExistingRepo(gwz_core::AddExistingRepoRequest),
     CreateRepo(gwz_core::CreateRepoRequest),
@@ -75,6 +80,7 @@ pub(crate) enum OutputMode {
 pub(crate) fn operation_label(request: &CliRequest) -> &'static str {
     match request {
         CliRequest::CloneWorkspace { .. } => "cloning",
+        CliRequest::CloneLocalWorkspace(_) => "cloning",
         CliRequest::CloneRepoMember(_) => "cloning",
         CliRequest::Materialize(_) => "materializing",
         CliRequest::InitFromSources(_) => "initializing",
@@ -113,6 +119,20 @@ impl CliError {
         Self {
             message: message.into(),
             code: Some(gwz_core::model::ErrorCode::InvalidRequest),
+            member_id: None,
+            member_path: None,
+            target_kind: None,
+            record_context: None,
+        }
+    }
+
+    /// A surface this build parses but cannot serve, carrying the same code core
+    /// would answer with (`gwz clone --local --from`, whose wire field is held
+    /// unallocated by design §7).
+    pub(crate) fn unsupported(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            code: Some(gwz_core::model::ErrorCode::UnsupportedOperation),
             member_id: None,
             member_path: None,
             target_kind: None,

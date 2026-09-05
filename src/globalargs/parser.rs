@@ -139,7 +139,7 @@ pub(crate) struct GlobalArgs {
         global = true,
         value_name = "name",
         help = "Select the git remote name",
-        long_help = "Select the git remote name used by operations that contact remotes."
+        long_help = "Select the git remote name used by operations that contact remotes. On `pull` and `push` a ready local clone family name binds to that workspace instead; on `merge` the name is family-only (`gwz merge --remote <name> [<ref>]`)."
     )]
     pub(crate) remote: Option<String>,
 
@@ -219,7 +219,8 @@ pub(crate) enum CommandArgs {
     #[command(
         about = "Clone a workspace and materialize its members",
         long_about = CLONE_LONG,
-        after_long_help = CLONE_AFTER
+        after_long_help = CLONE_AFTER,
+        override_usage = "gwz clone <url> [directory]\n       gwz clone --local --name <name> [dest] [--clean | --bare] [-b <branch>]"
     )]
     Clone(CloneArgs),
     #[command(
@@ -242,6 +243,12 @@ pub(crate) enum CommandArgs {
         after_long_help = INIT_AFTER
     )]
     Init(InitArgs),
+    #[command(
+        about = "Inspect and retire the local clone family",
+        long_about = LOCAL_LONG,
+        after_long_help = LOCAL_AFTER
+    )]
+    Local(LocalArgs),
     #[command(about = "List workspace targets (id, path; absolute or --local)")]
     Ls(LsArgs),
     #[command(
@@ -258,7 +265,7 @@ pub(crate) enum CommandArgs {
     Materialize(MaterializeArgs),
     #[command(
         about = "Merge a source ref across selected workspace repositories",
-        override_usage = "gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
+        override_usage = "gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]\n       gwz merge --remote <name> [<ref>]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
     )]
     Merge(MergeArgs),
     #[command(

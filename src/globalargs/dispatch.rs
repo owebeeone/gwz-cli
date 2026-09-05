@@ -52,6 +52,24 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             )
             .map(|response| CliResponse::envelope(response.response))
         }
+        CliRequest::CloneLocalWorkspace(request) => {
+            gwz_core::workspace_ops::handle_clone_local_workspace(
+                &backend,
+                start,
+                request.clone(),
+                operation_id,
+                events,
+            )
+            .map(|response| CliResponse::envelope(response.response))
+        }
+        CliRequest::LocalFamily(request) => gwz_core::workspace_ops::handle_local_family(
+            &backend,
+            start,
+            request.clone(),
+            operation_id,
+            events,
+        )
+        .map(|response| CliResponse::envelope(response.response)),
         CliRequest::CreateWorkspace(request) => {
             gwz_core::workspace_ops::handle_create_workspace(request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
@@ -195,7 +213,10 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             gwz_core::workspace_ops::handle_branch(&backend, start, request.clone(), operation_id)
                 .map(CliResponse::branch)
         }
-        CliRequest::Merge(request) => gwz_core::workspace_ops::handle_merge_with_events(
+        // The one merge entry point: a request carrying `local_source_name`
+        // takes core's family wrapper, and any other request reaches the
+        // unchanged engine entry through it (design §6; LCM1.0c §2.4).
+        CliRequest::Merge(request) => gwz_core::workspace_ops::handle_merge_with_local_family(
             &backend,
             start,
             request.clone(),

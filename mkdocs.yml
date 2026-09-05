@@ -74,6 +74,7 @@ nav:
           - clone: commands/clone.md
           - repo: commands/repo.md
           - ls: commands/ls.md
+          - local: commands/local.md
           - status: commands/status.md
           - diff: commands/diff.md
           - log: commands/log.md
