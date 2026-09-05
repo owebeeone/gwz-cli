@@ -56,6 +56,9 @@ impl MergeArgs {
             message: self.message.clone(),
             preserve: self.preserve.then_some(true),
             filesystem_strict: self.filesystem_strict.then_some(true),
+            // LCM1.0c: the family selector (`--remote <name>`) is parsed by the
+            // Rust driver lane; until then the CLI never sets it.
+            local_source_name: None,
         }))
     }
 }
