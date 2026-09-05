@@ -795,6 +795,11 @@ fn family_response(
                 errors: Vec::new(),
             },
             members,
+            // LCM1.0c follow-up 3 (operator ruling 2026-09-06): the family
+            // root's path, joined with each member's root-relative `path` by
+            // the renderer (lane CR). Absent here; the listing tests above
+            // pin the root-relative column, not the join.
+            root_path: None,
         },
     )
 }
