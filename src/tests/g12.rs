@@ -684,5 +684,8 @@ fn generated_reference_and_command_page_cover_local() {
     ] {
         assert!(page.contains("local clone family](local.md)"));
         assert!(page.contains("`--remote origin` keeps its usual meaning"));
+        // The binding behind the name is core's and is not landed, so the page
+        // must not read as though it already works.
+        assert!(page.contains("`missing_remote` in this build"));
     }
 }

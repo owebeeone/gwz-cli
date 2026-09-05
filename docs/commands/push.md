@@ -41,6 +41,10 @@ Each selected repository's current branch is published to the same branch in
 the named member. A name that is not in the family resolves as an ordinary Git
 remote, so `--remote origin` keeps its usual meaning.
 
+The flag and its Git meaning are unchanged; the family binding itself is still
+landing, so a family name that is not also a Git remote answers
+`missing_remote` in this build.
+
 Push one member by id:
 
 ```sh

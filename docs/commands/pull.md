@@ -67,6 +67,10 @@ A ready family name binds to that workspace and pairs each selected repository
 by its recorded member identity. A name that is not in the family resolves as
 an ordinary Git remote, so `--remote origin` keeps its usual meaning.
 
+The flag and its Git meaning are unchanged; the family binding itself is still
+landing, so a family name that is not also a Git remote answers
+`missing_remote` in this build.
+
 ## Notes
 
 - With `--sync merge`, GWZ fetches and then predicts true-merge conflicts
