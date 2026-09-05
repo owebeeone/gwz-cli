@@ -220,6 +220,10 @@ impl CloneArgs {
                 dest: self.url.clone(),
                 mode,
                 branch: self.branch.clone(),
+                // Tag 6 `copy_source` (operator ruling 2026-09-05): `--from`
+                // is still refused above; lane CR wires it in. Compile-required
+                // literal only (LCM1.0c follow-up 2).
+                copy_source: None,
             },
         ))
     }
