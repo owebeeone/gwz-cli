@@ -36,14 +36,14 @@ Commands:
   add          Stage file contents across workspace repos (multi-repo git add)
   branch       Manage git branches across workspace members
   capture      Record the live worktree state into the lock (no mutation)
-  clone        Clone a workspace and materialize its members
+  clone        Clone a workspace from a URL and materialize its members
   commit       Commit staged changes across the selected targets (root included only when selected;
                default selection includes the root and every member)
   diff         Show workspace changes as one unified diff (multi-repo git diff)
   forall       Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c
                <string>
   init         Create a workspace or initialize one from source URLs
-  local        Inspect and retire the local clone family
+  local        Create, inspect and retire the local clone family
   ls           List workspace targets (id, path; absolute or --local)
   log          Show unified commit history across workspace repositories
   materialize  Materialize workspace members to a target
@@ -482,7 +482,7 @@ Global Options:
 Command page: [clone](commands/clone.md).
 
 ```text
-Clone a GWZ workspace, from a URL or from this machine.
+Clone a GWZ workspace from a URL.
 
 `gwz clone <url>` is the one-shot form of `git clone <url>` followed by
 `gwz materialize --lock`. It clones the workspace root repository (the one that
@@ -492,63 +492,17 @@ cloned and checked out at the commits recorded in `gwz.conf/gwz.lock.yml`.
 
 If the target directory is omitted, it is derived from the URL.
 
-`gwz clone --local --name <name> [dest]` instead copies the current workspace
-into a second working copy on this machine and registers it in the local clone
-family, so the two can exchange work by name. There is no URL: the single
-positional is the destination, which defaults to `../<root-dirname>-<name>`.
-The default mode copies the source tree as it sits; `--clean` takes the frozen
-state without worktree dirt, and `--bare` makes a share point of bare member
-repositories. `--from <name|path>` copies another family member, or a path,
-instead of the workspace this command runs in. Keep the source quiet for the
-whole invocation.
-
 Usage: gwz clone <url> [directory]
-       gwz clone --local --name <name> [dest] [--clean | --bare] [-b <branch>]
 
 Arguments:
-  [url]
-          Git URL of the workspace root repository. With --local there is no URL: this positional is
-          the destination directory of the new local clone.
+  <url>
+          Git URL of the workspace root repository.
 
   [directory]
           Target directory for the cloned workspace. Defaults to a directory named after the
-          workspace repository. Not accepted with --local, which takes a single destination
-          positional.
+          workspace repository.
 
 Options:
-      --local
-          Clone the current workspace into a second working copy on this machine and register it in
-          the local clone family. Requires --name. Mutually exclusive with a workspace URL.
-
-      --name <name>
-          Family member name for the new local clone. Required with --local. `root`, `origin` and
-          Git's reserved ref names are not accepted, and a name already recorded in the family is
-          refused.
-
-      --verbatim
-          Copy the source tree as it sits, including staged edits, unstaged edits, untracked files
-          and build directories. This is the default local mode. It is refused while the source has
-          an open coordinated merge. Mutually exclusive with --clean and --bare.
-
-      --clean
-          Check out the frozen source state in the destination: no worktree or index dirt is
-          inherited, and no build directories are copied. Mutually exclusive with --verbatim.
-
-      --bare
-          Create the destination as a share point: the same workspace layout, with every member
-          repository bare. Implies --clean. Verbs that need a worktree refuse there; push, fetch,
-          log, `gwz local list` and dispose work.
-
-  -b <branch>
-          Create this branch in every destination repository at the frozen commit, before the clone
-          is marked ready. Accepted only with --clean or --bare. If the branch already exists in any
-          member, the whole create is refused.
-
-      --from <name|path>
-          Copy from this family member or path instead of the current workspace. Accepts a family
-          name recorded in the index or a filesystem path. Accepted only with --local; core resolves
-          the token, and refuses one that names no readable source.
-
   -h, --help
           Print help (see a summary with '-h')
 
@@ -630,15 +584,9 @@ Global Options:
 Examples:
   gwz clone git@github.com:org/workspace.git
   gwz clone git@github.com:org/workspace.git work/demo
-  gwz clone --local --name A ../gwz-dev-A
-  gwz clone --local --clean -b lane/agent-17 --name C ../gwz-dev-C
-  gwz clone --local --clean --from A --name B ../gwz-dev-B
-  gwz clone --local --bare --name hub ../gwz-dev-hub
 
 If you already ran a plain `git clone` on a workspace root, run
 `gwz materialize --lock` inside it to complete the clone instead.
-
-Local clones are listed and retired with `gwz local`.
 ```
 
 ### `gwz commit`
@@ -1194,20 +1142,22 @@ Examples:
 Command page: [local](commands/local.md).
 
 ```text
-Inspect and retire the local clone family of this workspace.
+Create, inspect and retire the local clone family of this workspace.
 
 A local clone is a second working copy of the whole workspace on the same
-machine, made with `gwz clone --local --name <name>`. The family index lives on
+machine, made with `gwz local clone <name> [dest]`. The family index lives on
 the workspace root; every clone carries a pointer back to it, so these commands
 work from any ready member of the family.
 
-`gwz local list` reports the family. `gwz local dispose` removes one member —
-its tree, or only its registration with `--keep`. `gwz local disband` retires
-the family itself and leaves every directory in place.
+`gwz local clone` creates a member. `gwz local list` reports the family.
+`gwz local dispose` removes one member — its tree, or only its registration
+with `--keep`. `gwz local disband` retires the family itself and leaves every
+directory in place.
 
 Usage: gwz local [OPTIONS] <COMMAND>
 
 Commands:
+  clone    Create a local clone of this workspace as a new family member
   list     List the local clone family recorded on the workspace root
   dispose  Dispose of a local family member, or detach it with --keep
   disband  Retire the family: remove pointers and the index; every tree stays
@@ -1293,12 +1243,160 @@ Global Options:
           hang forever. 0 disables the timeout. Defaults to 3.
 
 Examples:
+  gwz local clone A ../gwz-dev-A
   gwz local list
   gwz local dispose C --keep
   gwz local dispose C --force open-merge,dirty,unpreserved-history
   gwz local disband
+```
 
-Create a family member with `gwz clone --local --name <name> [dest]`.
+### `gwz local clone`
+
+Command page: [local](commands/local.md).
+
+```text
+Create a local clone of this workspace as a new family member.
+
+Copies the current workspace into a second working copy on this machine and
+registers it, by name, in the local clone family, so the two can exchange work
+by name: `gwz merge --remote <name>`, `gwz pull --head --remote <name>` and
+`gwz push --remote <name>`. There is no URL and no network. The destination
+defaults to `../<root-dirname>-<name>`.
+
+The default mode copies the source tree as it sits, dirt and build directories
+included; `--clean` takes the frozen state without worktree dirt, and `--bare`
+makes a share point of bare member repositories. `-b <branch>` creates a lane
+branch in every destination repository before the clone is marked ready.
+`--from <name|path>` copies another family member, or a path, instead of the
+workspace this command runs in; whichever member is copied, the new clone is
+registered on the workspace root. Keep the source quiet for the whole
+invocation.
+
+Usage: gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]
+
+Arguments:
+  <name>
+          Family member name for the new clone. `root`, `origin` and Git's reserved ref names are
+          not accepted, and a name already recorded in the family is refused.
+
+  [dest]
+          Destination directory of the new clone. Defaults to `../<root-dirname>-<name>` beside the
+          workspace root. A nonempty directory, a directory that is already a workspace, and a path
+          inside any family member are refused.
+
+Options:
+      --verbatim
+          Copy the source tree as it sits, including staged edits, unstaged edits, untracked files
+          and build directories. This is the default mode. It is refused while the source has an
+          open coordinated merge. Mutually exclusive with --clean and --bare.
+
+      --clean
+          Check out the frozen source state in the destination: no worktree or index dirt is
+          inherited, and no build directories are copied. Mutually exclusive with --verbatim.
+
+      --bare
+          Create the destination as a share point: the same workspace layout, with every member
+          repository bare. Implies --clean. Verbs that need a worktree refuse there; push, fetch,
+          log, `gwz local list` and dispose work.
+
+  -b <branch>
+          Create this branch in every destination repository at the frozen commit, before the clone
+          is marked ready. Accepted only with --clean or --bare. If the branch already exists in any
+          member, the whole create is refused.
+
+      --from <name|path>
+          Copy from this family member or path instead of the current workspace. Accepts a family
+          name recorded in the index or a filesystem path. Core resolves the token, and refuses one
+          that names no readable source. The new clone is registered on the workspace root whichever
+          member it was copied from.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz local clone A ../gwz-dev-A
+  gwz local clone C ../gwz-dev-C --clean -b lane/agent-17
+  gwz local clone B ../gwz-dev-B --clean --from A
+  gwz local clone hub ../gwz-dev-hub --bare
+
+`root`, `origin` and Git's reserved ref names are refused as member names, and
+so is a name already recorded in the family. A verbatim copy is refused while
+the source has an open coordinated merge: abort it, or use --clean.
 ```
 
 ### `gwz local list`

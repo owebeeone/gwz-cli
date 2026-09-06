@@ -1,11 +1,21 @@
 pub(crate) const LOCAL_AFTER: &str = "\
 Examples:
+  gwz local clone A ../gwz-dev-A
   gwz local list
   gwz local dispose C --keep
   gwz local dispose C --force open-merge,dirty,unpreserved-history
-  gwz local disband
+  gwz local disband";
 
-Create a family member with `gwz clone --local --name <name> [dest]`.";
+pub(crate) const LOCAL_CLONE_AFTER: &str = "\
+Examples:
+  gwz local clone A ../gwz-dev-A
+  gwz local clone C ../gwz-dev-C --clean -b lane/agent-17
+  gwz local clone B ../gwz-dev-B --clean --from A
+  gwz local clone hub ../gwz-dev-hub --bare
+
+`root`, `origin` and Git's reserved ref names are refused as member names, and
+so is a name already recorded in the family. A verbatim copy is refused while
+the source has an open coordinated merge: abort it, or use --clean.";
 
 pub(crate) const LOCAL_LIST_AFTER: &str = "\
 Example:

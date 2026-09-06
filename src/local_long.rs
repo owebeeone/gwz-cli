@@ -1,14 +1,33 @@
 pub(crate) const LOCAL_LONG: &str = "\
-Inspect and retire the local clone family of this workspace.
+Create, inspect and retire the local clone family of this workspace.
 
 A local clone is a second working copy of the whole workspace on the same
-machine, made with `gwz clone --local --name <name>`. The family index lives on
+machine, made with `gwz local clone <name> [dest]`. The family index lives on
 the workspace root; every clone carries a pointer back to it, so these commands
 work from any ready member of the family.
 
-`gwz local list` reports the family. `gwz local dispose` removes one member —
-its tree, or only its registration with `--keep`. `gwz local disband` retires
-the family itself and leaves every directory in place.";
+`gwz local clone` creates a member. `gwz local list` reports the family.
+`gwz local dispose` removes one member — its tree, or only its registration
+with `--keep`. `gwz local disband` retires the family itself and leaves every
+directory in place.";
+
+pub(crate) const LOCAL_CLONE_LONG: &str = "\
+Create a local clone of this workspace as a new family member.
+
+Copies the current workspace into a second working copy on this machine and
+registers it, by name, in the local clone family, so the two can exchange work
+by name: `gwz merge --remote <name>`, `gwz pull --head --remote <name>` and
+`gwz push --remote <name>`. There is no URL and no network. The destination
+defaults to `../<root-dirname>-<name>`.
+
+The default mode copies the source tree as it sits, dirt and build directories
+included; `--clean` takes the frozen state without worktree dirt, and `--bare`
+makes a share point of bare member repositories. `-b <branch>` creates a lane
+branch in every destination repository before the clone is marked ready.
+`--from <name|path>` copies another family member, or a path, instead of the
+workspace this command runs in; whichever member is copied, the new clone is
+registered on the workspace root. Keep the source quiet for the whole
+invocation.";
 
 pub(crate) const LOCAL_LIST_LONG: &str = "\
 List the local clone family recorded on the workspace root.

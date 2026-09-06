@@ -22,8 +22,8 @@ pub(crate) enum CliRequest {
         url: String,
         target: String,
     },
-    /// `gwz clone --local`: a second working copy of this workspace on the same
-    /// machine, registered in the local clone family.
+    /// `gwz local clone <name> [dest]`: a second working copy of this
+    /// workspace on the same machine, registered in the local clone family.
     CloneLocalWorkspace(gwz_core::CloneLocalWorkspaceRequest),
     /// `gwz local list | dispose | disband`.
     LocalFamily(gwz_core::LocalFamilyRequest),

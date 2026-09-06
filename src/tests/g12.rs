@@ -1,5 +1,5 @@
 //! LCM1.1c/LCM1.2 CLI coverage for the local clone family (lane CR):
-//! `gwz clone --local`, `gwz local list|dispose|disband`, and the
+//! `gwz local clone|list|dispose|disband` and the
 //! `gwz merge --remote <name> [<ref>]` family selector.
 //!
 //! Every §7 row of `dev-docs/GwzLocalCloneDesign.md` is pinned twice: once as
@@ -113,14 +113,14 @@ fn assert_unsupported(error: &CliError, names: &str) {
 }
 
 // ---------------------------------------------------------------------------
-// §7 create rows
+// §7 create rows: `gwz local clone <name> [dest]` (operator ruling 2026-09-06)
 // ---------------------------------------------------------------------------
 
-/// `gwz clone --local --name A ../gwz-dev-A` ->
+/// `gwz local clone A ../gwz-dev-A` ->
 /// `CloneLocalWorkspaceRequest` mode=verbatim name=A dest=...
 #[test]
-fn clone_local_verbatim_carries_the_name_and_the_destination() {
-    let request = clone_local(&["clone", "--local", "--name", "A", "../gwz-dev-A"]);
+fn local_clone_verbatim_carries_the_name_and_the_destination() {
+    let request = clone_local(&["local", "clone", "A", "../gwz-dev-A"]);
     assert_eq!(request.name, "A");
     assert_eq!(request.dest.as_deref(), Some("../gwz-dev-A"));
     assert_eq!(request.mode, gwz_core::LocalCloneMode::Verbatim);
@@ -129,54 +129,71 @@ fn clone_local_verbatim_carries_the_name_and_the_destination() {
 
     // Design §4: the default destination `../<root-dirname>-<Name>` is core's,
     // so an omitted dest travels as absent rather than computed here.
-    assert_eq!(clone_local(&["clone", "--local", "--name", "A"]).dest, None);
+    assert_eq!(clone_local(&["local", "clone", "A"]).dest, None);
 
     // `--verbatim` is the explicit spelling of the default mode.
-    let explicit = clone_local(&["clone", "--local", "--verbatim", "--name", "A"]);
+    let explicit = clone_local(&["local", "clone", "--verbatim", "A"]);
     assert_eq!(explicit.mode, gwz_core::LocalCloneMode::Verbatim);
 }
 
-/// `gwz clone --local --clean -b lane/x --name C dest` -> mode=clean,
-/// branch=lane/x.
+/// `gwz local clone C dest --clean -b lane/x` -> mode=clean, branch=lane/x.
 #[test]
-fn clone_local_clean_carries_the_branch() {
-    let request = clone_local(&[
-        "clone", "--local", "--clean", "-b", "lane/x", "--name", "C", "dest",
-    ]);
+fn local_clone_clean_carries_the_branch() {
+    let request = clone_local(&["local", "clone", "C", "dest", "--clean", "-b", "lane/x"]);
     assert_eq!(request.name, "C");
     assert_eq!(request.dest.as_deref(), Some("dest"));
     assert_eq!(request.mode, gwz_core::LocalCloneMode::Clean);
     assert_eq!(request.branch.as_deref(), Some("lane/x"));
 
-    let no_branch = clone_local(&["clone", "--local", "--clean", "--name", "D", "dest"]);
+    let no_branch = clone_local(&["local", "clone", "--clean", "D", "dest"]);
     assert_eq!(no_branch.mode, gwz_core::LocalCloneMode::Clean);
     assert_eq!(no_branch.branch, None);
 }
 
-/// `gwz clone --local --bare --name hub dest` -> mode=bare. `--bare` implies
-/// `--clean` (design §4.2), so it accepts `-b` and the redundant `--clean`.
+/// `gwz local clone hub dest --bare` -> mode=bare. `--bare` implies `--clean`
+/// (design §4.2), so it accepts `-b` and the redundant `--clean`.
 #[test]
-fn clone_local_bare_implies_clean() {
-    let request = clone_local(&["clone", "--local", "--bare", "--name", "hub", "dest"]);
+fn local_clone_bare_implies_clean() {
+    let request = clone_local(&["local", "clone", "hub", "dest", "--bare"]);
     assert_eq!(request.name, "hub");
     assert_eq!(request.mode, gwz_core::LocalCloneMode::Bare);
 
-    let with_branch = clone_local(&[
-        "clone", "--local", "--bare", "-b", "lane/x", "--name", "hub", "dest",
-    ]);
+    let with_branch = clone_local(&["local", "clone", "--bare", "-b", "lane/x", "hub", "dest"]);
     assert_eq!(with_branch.mode, gwz_core::LocalCloneMode::Bare);
     assert_eq!(with_branch.branch.as_deref(), Some("lane/x"));
 
-    let redundant = clone_local(&[
-        "clone", "--local", "--bare", "--clean", "--name", "hub", "dest",
-    ]);
+    let redundant = clone_local(&["local", "clone", "--bare", "--clean", "hub", "dest"]);
     assert_eq!(redundant.mode, gwz_core::LocalCloneMode::Bare);
 }
 
-/// The URL clone is untouched: same request, same derived target, and the
-/// local-only flags are refused when `--local` is absent.
+/// The first operand is the name and the second the destination, so a lone
+/// operand is a *name*: `gwz local clone dest` asks for a member called `dest`
+/// at the default destination. A path typed in the name's place is core's to
+/// refuse (no `/` or `:` in a member name), not the driver's. Flags parse on
+/// either side of the positionals.
 #[test]
-fn url_clone_is_unchanged_and_local_flags_require_local() {
+fn local_clone_positionals_are_the_name_then_the_destination() {
+    let lone = clone_local(&["local", "clone", "dest"]);
+    assert_eq!(lone.name, "dest");
+    assert_eq!(lone.dest, None);
+
+    let after = clone_local(&["local", "clone", "hub", "dest", "--bare", "-b", "lane/x"]);
+    let before = clone_local(&["local", "clone", "--bare", "-b", "lane/x", "hub", "dest"]);
+    for request in [&after, &before] {
+        assert_eq!(request.name, "hub");
+        assert_eq!(request.dest.as_deref(), Some("dest"));
+        assert_eq!(request.mode, gwz_core::LocalCloneMode::Bare);
+        assert_eq!(request.branch.as_deref(), Some("lane/x"));
+        assert_eq!(request.copy_source, None);
+    }
+}
+
+/// The URL clone is untouched: the same request, the same derived target, the
+/// same missing-URL error -- and it knows nothing of the local surface any
+/// more. Every flag `clone --local` once carried is an unknown argument to it
+/// (Clap's own error, untyped), not a driver refusal: nothing is built.
+#[test]
+fn url_clone_is_unchanged_and_the_local_flags_are_unknown_to_it() {
     let CliRequest::CloneWorkspace { url, target, .. } =
         parse(&["clone", "https://example.com/org/ws.git", "work/demo"])
             .unwrap()
@@ -186,6 +203,14 @@ fn url_clone_is_unchanged_and_local_flags_require_local() {
     };
     assert_eq!(url, "https://example.com/org/ws.git");
     assert_eq!(target, "work/demo");
+    let CliRequest::CloneWorkspace { target, .. } =
+        parse(&["clone", "https://example.com/org/ws.git"])
+            .unwrap()
+            .request
+    else {
+        panic!("expected the url clone");
+    };
+    assert_eq!(target, "ws", "the derived target is as it was");
 
     for (flag, args) in [
         ("--name", vec!["clone", "url", "--name", "A"]),
@@ -194,54 +219,125 @@ fn url_clone_is_unchanged_and_local_flags_require_local() {
         ("--bare", vec!["clone", "url", "--bare"]),
         ("-b", vec!["clone", "url", "-b", "lane/x"]),
         ("--from", vec!["clone", "url", "--from", "A"]),
+        ("--from", vec!["clone", "--from", "A", "url"]),
     ] {
-        let message = refusal(&args);
+        let error = parse(&args).expect_err("an unknown argument must not parse");
+        assert_eq!(
+            error.code, None,
+            "{flag}: Clap's own error, not a driver refusal: {}",
+            error.message
+        );
         assert!(
-            message.contains(flag) && message.contains("--local"),
-            "{flag}: {message}"
+            error.message.contains("unexpected argument") && error.message.contains(flag),
+            "{flag}: {}",
+            error.message
         );
     }
 
-    // A missing URL without `--local` is still Clap's own required-argument
-    // error (untyped), not one of the local refusals.
+    // A missing URL is still Clap's own required-argument error (untyped).
     let error = parse(&["clone"]).expect_err("url is required");
     assert_eq!(error.code, None, "{}", error.message);
 }
 
+/// `gwz clone --local` is gone, not aliased (operator ruling 2026-09-06,
+/// design §11 item 28: nothing had been released, so there is no
+/// compatibility obligation and an alias would be documented forever). The old
+/// §7 spellings are rejected by the parser naming `--local`, and none of them
+/// parses as a URL clone of the name -- no request is built. There is no alias
+/// on `clone`, none under `local`, and `clone` declares none of the local
+/// flags.
+#[test]
+fn clone_local_is_removed_without_an_alias() {
+    for args in [
+        vec!["clone", "--local", "--name", "A", "../gwz-dev-A"],
+        vec![
+            "clone", "--local", "--clean", "-b", "lane/x", "--name", "C", "dest",
+        ],
+        vec!["clone", "--local", "--bare", "--name", "hub", "dest"],
+        vec!["clone", "--local", "--name", "A"],
+        vec!["clone", "--local"],
+    ] {
+        let error = parse(&args).expect_err("the old spelling must not parse");
+        assert_eq!(error.code, None, "{args:?}: {}", error.message);
+        assert!(
+            error.message.contains("unexpected argument '--local'"),
+            "{args:?}: {}",
+            error.message
+        );
+    }
+
+    let command = Cli::command();
+    let clone = command.find_subcommand("clone").expect("clone");
+    assert!(
+        clone.get_all_aliases().next().is_none(),
+        "clone has no alias"
+    );
+    let local_flags = ["local", "name", "verbatim", "clean", "bare", "from"];
+    for arg in clone.get_arguments() {
+        assert!(
+            !arg.get_long()
+                .is_some_and(|long| local_flags.contains(&long)),
+            "clone still declares --{}",
+            arg.get_long().unwrap_or("")
+        );
+        assert_ne!(arg.get_short(), Some('b'), "clone still declares -b");
+    }
+    let local = command.find_subcommand("local").expect("local");
+    let names: Vec<&str> = local.get_subcommands().map(|sub| sub.get_name()).collect();
+    assert_eq!(names, ["clone", "list", "dispose", "disband"]);
+    for sub in local.get_subcommands() {
+        assert!(
+            sub.get_all_aliases().next().is_none(),
+            "local {} has an alias",
+            sub.get_name()
+        );
+    }
+}
+
 /// Every CLI-level create refusal, all before a request is encoded.
 #[test]
-fn clone_local_refuses_malformed_flag_combinations() {
+fn local_clone_refuses_malformed_flag_combinations() {
+    // A missing name is Clap's own required-argument error (untyped), exactly
+    // as it is for `dispose <name>`: the positional is required.
+    let missing = parse(&["local", "clone"]).expect_err("the name is required");
+    assert_eq!(missing.code, None, "{}", missing.message);
     assert!(
-        refusal(&["clone", "--local", "dest"]).contains("--name"),
-        "--local requires a name"
+        missing.message.contains("required") && missing.message.contains("<name>"),
+        "{}",
+        missing.message
     );
 
     // Operator ruling 4 (2026-09-06, design §7 and §11 item 20): an empty
-    // `--name` is refused here, typed, rather than encoded for core to reject
+    // name is refused here, typed, rather than encoded for core to reject
     // after a workspace discovery and a family read.
-    let empty_name = refusal(&["clone", "--local", "--name", ""]);
-    assert!(empty_name.contains("--name"), "{empty_name}");
-
-    // `--local` is mutually exclusive with a URL: only a destination is taken.
-    let with_url = refusal(&["clone", "--local", "--name", "A", "url", "dest"]);
-    assert!(
-        with_url.contains("destination") && with_url.contains("URL"),
-        "{with_url}"
+    assert_eq!(
+        refusal(&["local", "clone", ""]),
+        "local clone <name> must not be empty"
     );
 
-    let both_modes = refusal(&["clone", "--local", "--verbatim", "--clean", "--name", "A"]);
+    // A name and a destination are the two operands; a third is Clap's own
+    // surplus-argument error (there is no URL to confuse it with any more).
+    let surplus = parse(&["local", "clone", "A", "url", "dest"]).expect_err("two operands only");
+    assert_eq!(surplus.code, None, "{}", surplus.message);
+    assert!(
+        surplus.message.contains("unexpected argument 'dest'"),
+        "{}",
+        surplus.message
+    );
+
+    let both_modes = refusal(&["local", "clone", "--verbatim", "--clean", "A"]);
     assert!(
         both_modes.contains("--verbatim") && both_modes.contains("--clean"),
         "{both_modes}"
     );
 
-    let verbatim_bare = refusal(&["clone", "--local", "--verbatim", "--bare", "--name", "A"]);
+    let verbatim_bare = refusal(&["local", "clone", "--verbatim", "--bare", "A"]);
     assert!(
         verbatim_bare.contains("--verbatim") && verbatim_bare.contains("--bare"),
         "{verbatim_bare}"
     );
 
-    let stray_branch = refusal(&["clone", "--local", "-b", "lane/x", "--name", "A"]);
+    let stray_branch = refusal(&["local", "clone", "-b", "lane/x", "A"]);
     assert!(
         stray_branch.contains("--clean") && stray_branch.contains("--bare"),
         "{stray_branch}"
@@ -252,27 +348,25 @@ fn clone_local_refuses_malformed_flag_combinations() {
 /// `--from <name|path>` travels in that field, and the token itself is core's
 /// to resolve — a family name, a path, or neither.
 #[test]
-fn clone_local_from_travels_as_copy_source() {
+fn local_clone_from_travels_as_copy_source() {
     let by_name = clone_local(&[
+        "local",
         "clone",
-        "--local",
+        "B",
+        "../gwz-dev-B",
         "--clean",
         "--from",
         "A",
-        "--name",
-        "B",
-        "../gwz-dev-B",
     ]);
     assert_eq!(by_name.copy_source.as_deref(), Some("A"));
     assert_eq!(by_name.name, "B");
     assert_eq!(by_name.mode, gwz_core::LocalCloneMode::Clean);
 
     let by_path = clone_local(&[
+        "local",
         "clone",
-        "--local",
         "--from",
         "../gwz-dev-C",
-        "--name",
         "D",
         "../gwz-dev-D",
     ]);
@@ -281,14 +375,11 @@ fn clone_local_from_travels_as_copy_source() {
 
     // Absent means "copy the workspace this command ran in" (design §4), so
     // nothing is invented for the ordinary create.
-    assert_eq!(
-        clone_local(&["clone", "--local", "--name", "A"]).copy_source,
-        None
-    );
+    assert_eq!(clone_local(&["local", "clone", "A"]).copy_source, None);
 
     // An empty value is indistinguishable from absent once encoded, so it is
     // refused here rather than silently becoming "copy this workspace".
-    let empty = refusal(&["clone", "--local", "--from", "", "--name", "A"]);
+    let empty = refusal(&["local", "clone", "--from", "", "A"]);
     assert!(
         empty.contains("--from") && empty.contains("must not be empty"),
         "{empty}"
@@ -701,28 +792,25 @@ fn local_family_dry_run_is_refused_by_core() {
     let temp = workspace("cli-local-dry-run");
     assert_unsupported(&run_in(&temp, &["local", "list", "--dry-run"]), "dry_run");
     assert_unsupported(
-        &run_in(
-            &temp,
-            &["clone", "--local", "--name", "A", "../dest-a", "--dry-run"],
-        ),
+        &run_in(&temp, &["local", "clone", "A", "../dest-a", "--dry-run"]),
         "dry_run",
     );
 }
 
-/// `gwz clone --local` reaches `handle_clone_local_workspace`. Verbatim is
+/// `gwz local clone` reaches `handle_clone_local_workspace`. Verbatim is
 /// served (LCM1.1): the response names the destination, the recorded path
 /// and the dest-complete walk, the tree stands with its pointer and manifest,
 /// and the root founds a family. Clean and bare still come back as the typed
 /// `unsupported_operation` naming the mode, and `--from` naming the flag.
 #[test]
-fn clone_local_dispatches_verbatim_and_refuses_the_unbuilt_modes_typed() {
+fn local_clone_dispatches_verbatim_and_refuses_the_unbuilt_modes_typed() {
     let temp = workspace("cli-local-clone");
     // A destination this test owns, so a served create never lands beside
     // the temporary directory in the system temp root.
     let lanes = TempDir::new("cli-local-clone-lanes");
     let dest = lanes.path().join("dest-a");
     let dest_arg = dest.to_string_lossy().into_owned();
-    let created = dispatch_in(&temp, &["clone", "--local", "--name", "A", &dest_arg])
+    let created = dispatch_in(&temp, &["local", "clone", "A", &dest_arg])
         .expect("a verbatim local clone is served");
     assert_eq!(
         created.envelope.meta.aggregate_status,
@@ -744,17 +832,11 @@ fn clone_local_dispatches_verbatim_and_refuses_the_unbuilt_modes_typed() {
     );
 
     assert_unsupported(
-        &run_in(
-            &temp,
-            &["clone", "--local", "--clean", "--name", "C", "../dest-c"],
-        ),
+        &run_in(&temp, &["local", "clone", "C", "../dest-c", "--clean"]),
         "local clone (clean mode)",
     );
     assert_unsupported(
-        &run_in(
-            &temp,
-            &["clone", "--local", "--bare", "--name", "hub", "../dest-hub"],
-        ),
+        &run_in(&temp, &["local", "clone", "hub", "../dest-hub", "--bare"]),
         "local clone (bare mode)",
     );
 
@@ -762,18 +844,7 @@ fn clone_local_dispatches_verbatim_and_refuses_the_unbuilt_modes_typed() {
     // refusal, which is the proof the token travelled rather than being
     // answered for by the driver.
     assert_unsupported(
-        &run_in(
-            &temp,
-            &[
-                "clone",
-                "--local",
-                "--from",
-                "A",
-                "--name",
-                "B",
-                "../dest-b",
-            ],
-        ),
+        &run_in(&temp, &["local", "clone", "B", "../dest-b", "--from", "A"]),
         "--from <name|path>",
     );
 }
@@ -788,14 +859,9 @@ fn the_dry_run_gate_is_the_url_clones_and_the_family_passes_it_through() {
         .expect_err("the url clone is gated");
     assert_eq!(error.message, "--dry-run is not supported for clone");
 
-    let local = clone_local(&["clone", "--local", "--name", "A", "--dry-run"]);
+    let local = clone_local(&["local", "clone", "A", "--dry-run"]);
     assert_eq!(local.meta.dry_run, Some(true));
-    assert_eq!(
-        clone_local(&["clone", "--local", "--name", "A"])
-            .meta
-            .dry_run,
-        None
-    );
+    assert_eq!(clone_local(&["local", "clone", "A"]).meta.dry_run, None);
 }
 
 /// The merge entry switch: with a selector the request takes the family
@@ -1489,7 +1555,7 @@ fn the_three_disposal_codes_are_presented_as_typed_refusals() {
 
 /// The first of the four, end to end through the driver on a real workspace:
 /// a source repository borrowing another object store (design §4.0
-/// "objects/info/alternates") refuses `gwz clone --local` as
+/// "objects/info/alternates") refuses `gwz local clone` as
 /// `unsupported_source_layout` before anything is reserved -- not as
 /// `unsupported_operation`, which now means only "not built yet".
 #[test]
@@ -1513,7 +1579,7 @@ fn a_source_layout_hazard_reaches_the_driver_as_unsupported_source_layout() {
     )
     .unwrap();
 
-    let error = run_in(&temp, &["clone", "--local", "--name", "A"]);
+    let error = run_in(&temp, &["local", "clone", "A"]);
     assert_eq!(
         error.code,
         Some(gwz_core::model::ErrorCode::UnsupportedSourceLayout),
@@ -1698,8 +1764,9 @@ fn field(document: &serde_json::Value, path: &str) -> serde_json::Value {
 }
 
 /// `drivers` scopes a case to the drivers that can express it; the default is
-/// both. One refusal is `rust`-only (`local dispose C dirty`, which argparse
-/// rejects as an unrecognized operand before gwz-py's handler runs).
+/// both, and a row the surface itself can no longer express is scoped to no
+/// driver at all (`clone-local-dest-without-name`: with the name positional a
+/// lone operand is the name, never a destination without one).
 fn applies_here(case: &serde_json::Value) -> bool {
     match case.get("drivers") {
         None => true,
@@ -1759,7 +1826,10 @@ fn the_shared_parity_fixture_pins_every_design_row_argv_to_request() {
         // with is pinned by this module's own refusal cases through
         // `refusal()`. `url-clone-dry-run` is the pre-existing plain usage
         // error `Cli::validate` has always raised, and this lane does not
-        // re-type it.
+        // re-type it. Since the 2026-09-06 surface ruling the parser's own
+        // rejections are rows too (an unknown `--local` on `clone`, a missing
+        // or surplus operand on `local clone`): Clap's message is what a
+        // person sees, and it is read here like any other refusal.
         let message = match parse(&argv) {
             Ok(invocation) => panic!(
                 "{id}: {argv:?} must refuse before encoding, it built {:?}",
@@ -1800,14 +1870,16 @@ fn the_shared_parity_fixture_pins_every_design_row_argv_to_request() {
 
     // The fixture is the §7 table, not a sample of it. `gwz-core` owns the
     // file and may append to it (a python-only case would not raise these
-    // counts), so the pin is the floor this driver ran at follow-up 3: every
-    // one of the 30 message cases and all 23 refusals are this driver's.
+    // counts), so the pin is the floor this driver ran at the 2026-09-06
+    // surface ruling: every one of the 31 message cases and 24 of the 25
+    // refusals are this driver's (`clone-local-dest-without-name` is scoped
+    // to no driver).
     assert!(
-        cases >= 30,
+        cases >= 31,
         "a §7 message case stopped running here: {cases}"
     );
     assert!(
-        refusals >= 23,
+        refusals >= 24,
         "a refusal case stopped running here: {refusals}"
     );
 }
@@ -1831,11 +1903,49 @@ fn long_help(path: &[&str]) -> String {
 fn local_and_clone_help_describe_the_family_surface() {
     let root = usage_text();
     assert!(root.contains("local"), "{root}");
+    // The `local` summary covers creation as well as inspection and
+    // retirement, and the `clone` summary implies no local form.
+    assert!(
+        root.contains("Create, inspect and retire the local clone family"),
+        "{root}"
+    );
+    assert!(
+        root.contains("Clone a workspace from a URL and materialize its members"),
+        "{root}"
+    );
 
     let local = long_help(&["local"]);
-    for phrase in ["list", "dispose", "disband"] {
+    for phrase in [
+        "clone",
+        "list",
+        "dispose",
+        "disband",
+        "gwz local clone <name> [dest]",
+    ] {
         assert!(local.contains(phrase), "missing `{phrase}` in:\n{local}");
     }
+
+    let local_clone = long_help(&["local", "clone"]);
+    for phrase in [
+        "gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]",
+        "<name>",
+        "[dest]",
+        "--verbatim",
+        "--clean",
+        "--bare",
+        "-b <branch>",
+        "--from <name|path>",
+        "gwz local clone A ../gwz-dev-A",
+    ] {
+        assert!(
+            local_clone.contains(phrase),
+            "missing `{phrase}` in:\n{local_clone}"
+        );
+    }
+    assert!(
+        !local_clone.contains("--name") && !local_clone.contains("--local"),
+        "the name is positional and there is no --local:\n{local_clone}"
+    );
 
     let dispose = long_help(&["local", "dispose"]);
     for phrase in [
@@ -1851,9 +1961,20 @@ fn local_and_clone_help_describe_the_family_surface() {
         );
     }
 
+    // `gwz clone` is the URL form only and its help says nothing about local
+    // clones (operator ruling 2026-09-06).
     let clone = long_help(&["clone"]);
-    for phrase in ["--local", "--name", "--clean", "--bare", "--from"] {
-        assert!(clone.contains(phrase), "missing `{phrase}` in:\n{clone}");
+    assert!(clone.contains("gwz clone <url> [directory]"), "{clone}");
+    for phrase in [
+        "--local",
+        "--name",
+        "--clean",
+        "--bare",
+        "--from",
+        "local clone",
+        "family",
+    ] {
+        assert!(!clone.contains(phrase), "`{phrase}` survives in:\n{clone}");
     }
 
     let merge = long_help(&["merge"]);
@@ -1867,10 +1988,13 @@ fn local_and_clone_help_describe_the_family_surface() {
 fn generated_reference_and_command_page_cover_local() {
     let reference = cli_reference_markdown();
     assert!(reference.contains("Command page: [local](commands/local.md)."));
+    assert!(reference.contains("### `gwz local clone`"));
     assert!(reference.contains("### `gwz local dispose`"));
 
     let page = include_str!("../../docs/commands/local.md");
     for needle in [
+        "gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]",
+        "gwz local clone A ../gwz-dev-A",
         "gwz local list",
         "gwz local dispose",
         "gwz local disband",
@@ -1882,9 +2006,28 @@ fn generated_reference_and_command_page_cover_local() {
             "local command page is missing `{needle}`"
         );
     }
+    assert!(
+        !page.contains("clone --local"),
+        "the local page still spells the removed form"
+    );
 
+    // The clone page is the URL form only: no local flags, no `--local`, no
+    // `--name`, and it does not say `gwz local clone` is a form of `gwz clone`.
     let clone_page = include_str!("../../docs/commands/clone.md");
-    assert!(clone_page.contains("gwz clone --local"));
+    assert!(clone_page.contains("gwz clone <url> [directory]"));
+    for needle in [
+        "--local",
+        "--name",
+        "--clean",
+        "--bare",
+        "--from",
+        "-b <branch>",
+    ] {
+        assert!(
+            !clone_page.contains(needle),
+            "clone command page still carries `{needle}`"
+        );
+    }
 
     // The merge page used to list `--remote` among the operation policies
     // merge rejects. It is the family selector now, and the page must not

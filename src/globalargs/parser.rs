@@ -217,10 +217,10 @@ pub(crate) enum CommandArgs {
     #[command(about = "Record the live worktree state into the lock (no mutation)")]
     Capture,
     #[command(
-        about = "Clone a workspace and materialize its members",
+        about = "Clone a workspace from a URL and materialize its members",
         long_about = CLONE_LONG,
         after_long_help = CLONE_AFTER,
-        override_usage = "gwz clone <url> [directory]\n       gwz clone --local --name <name> [dest] [--clean | --bare] [-b <branch>]"
+        override_usage = "gwz clone <url> [directory]"
     )]
     Clone(CloneArgs),
     #[command(
@@ -244,7 +244,7 @@ pub(crate) enum CommandArgs {
     )]
     Init(InitArgs),
     #[command(
-        about = "Inspect and retire the local clone family",
+        about = "Create, inspect and retire the local clone family",
         long_about = LOCAL_LONG,
         after_long_help = LOCAL_AFTER
     )]

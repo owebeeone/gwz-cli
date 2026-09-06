@@ -18,6 +18,13 @@ pub(crate) struct LocalArgs {
 #[derive(Clone, Debug, Subcommand)]
 pub(crate) enum LocalCommandArgs {
     #[command(
+        about = "Create a local clone of this workspace as a new family member",
+        long_about = LOCAL_CLONE_LONG,
+        after_long_help = LOCAL_CLONE_AFTER,
+        override_usage = "gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]"
+    )]
+    Clone(LocalCloneArgs),
+    #[command(
         about = "List the local clone family recorded on the workspace root",
         long_about = LOCAL_LIST_LONG,
         after_long_help = LOCAL_LIST_AFTER
@@ -36,6 +43,63 @@ pub(crate) enum LocalCommandArgs {
         after_long_help = LOCAL_DISBAND_AFTER
     )]
     Disband,
+}
+
+/// `gwz local clone <name> [dest]` (design §4; operator ruling 2026-09-06,
+/// §11 item 28). Creation lives under the family's own verb, with the member
+/// name positional like `dispose <name>`'s. `gwz clone` is the URL form only.
+#[derive(Clone, Debug, Args)]
+pub(crate) struct LocalCloneArgs {
+    #[arg(
+        value_name = "name",
+        help = "Family member name for the new clone",
+        long_help = "Family member name for the new clone. `root`, `origin` and Git's reserved ref names are not accepted, and a name already recorded in the family is refused."
+    )]
+    pub(crate) name: String,
+
+    #[arg(
+        value_name = "dest",
+        help = "Destination directory (default ../<root-dirname>-<name>)",
+        long_help = "Destination directory of the new clone. Defaults to `../<root-dirname>-<name>` beside the workspace root. A nonempty directory, a directory that is already a workspace, and a path inside any family member are refused."
+    )]
+    pub(crate) dest: Option<String>,
+
+    #[arg(
+        long,
+        help = "Copy the source tree as it sits (the default)",
+        long_help = "Copy the source tree as it sits, including staged edits, unstaged edits, untracked files and build directories. This is the default mode. It is refused while the source has an open coordinated merge. Mutually exclusive with --clean and --bare."
+    )]
+    pub(crate) verbatim: bool,
+
+    #[arg(
+        long,
+        help = "Check out the frozen source state without worktree dirt",
+        long_help = "Check out the frozen source state in the destination: no worktree or index dirt is inherited, and no build directories are copied. Mutually exclusive with --verbatim."
+    )]
+    pub(crate) clean: bool,
+
+    #[arg(
+        long,
+        help = "Create bare member repositories (implies --clean)",
+        long_help = "Create the destination as a share point: the same workspace layout, with every member repository bare. Implies --clean. Verbs that need a worktree refuse there; push, fetch, log, `gwz local list` and dispose work."
+    )]
+    pub(crate) bare: bool,
+
+    #[arg(
+        short = 'b',
+        value_name = "branch",
+        help = "Create this branch in every destination repository (--clean/--bare only)",
+        long_help = "Create this branch in every destination repository at the frozen commit, before the clone is marked ready. Accepted only with --clean or --bare. If the branch already exists in any member, the whole create is refused."
+    )]
+    pub(crate) branch: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "name|path",
+        help = "Copy from this family member or path instead of the current workspace",
+        long_help = "Copy from this family member or path instead of the current workspace. Accepts a family name recorded in the index or a filesystem path. Core resolves the token, and refuses one that names no readable source. The new clone is registered on the workspace root whichever member it was copied from."
+    )]
+    pub(crate) from: Option<String>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -72,6 +136,7 @@ impl LocalArgs {
         force: bool,
     ) -> Result<CliRequest, CliError> {
         let request = match &self.command {
+            LocalCommandArgs::Clone(args) => return args.request(meta),
             LocalCommandArgs::List => gwz_core::LocalFamilyRequest {
                 meta,
                 op: gwz_core::LocalFamilyOp::List,
@@ -103,6 +168,74 @@ impl LocalArgs {
             }
         };
         Ok(CliRequest::LocalFamily(request))
+    }
+}
+
+impl LocalCloneArgs {
+    /// `gwz local clone <name> [dest]` -> `CloneLocalWorkspaceRequest` (design
+    /// §4, §7). Every refusal below happens before the request is built; core
+    /// owns name validity, destination defaulting and every workspace check.
+    /// The wire is the one `gwz clone --local` built before the 2026-09-06
+    /// ruling: only the spelling moved.
+    pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        // Operator ruling 4 (2026-09-06, design §7 and §11 item 20): an empty
+        // name refuses here, before anything is encoded. Core's own shape
+        // check (`validate_clone_local`) refuses the empty and the reserved
+        // names as well, so this is the earlier answer rather than the only
+        // one — it costs no workspace discovery and no family read to say the
+        // same thing about a name that was never typed. A *missing* name is
+        // Clap's own required-argument error, as it is for `dispose <name>`.
+        if self.name.is_empty() {
+            return Err(CliError::invalid_request(
+                "local clone <name> must not be empty",
+            ));
+        }
+        if self.verbatim && self.clean {
+            return Err(CliError::invalid_request(
+                "--verbatim and --clean are mutually exclusive",
+            ));
+        }
+        if self.verbatim && self.bare {
+            return Err(CliError::invalid_request(
+                "--verbatim and --bare are mutually exclusive (--bare implies --clean)",
+            ));
+        }
+        // Design §7 tag 6 is `copy_source` (operator ruling 2026-09-05). The
+        // token itself is core's to resolve — a family name, a path, or
+        // neither — so only the shape that would be *misread* on the wire is
+        // refused here: an empty string is indistinguishable from "absent",
+        // which core reads as "copy this workspace".
+        if self.from.as_ref().is_some_and(|value| value.is_empty()) {
+            return Err(CliError::invalid_request(
+                "--from <name|path> must not be empty",
+            ));
+        }
+        let mode = if self.bare {
+            gwz_core::LocalCloneMode::Bare
+        } else if self.clean {
+            gwz_core::LocalCloneMode::Clean
+        } else {
+            gwz_core::LocalCloneMode::Verbatim
+        };
+        if self.branch.is_some() && mode == gwz_core::LocalCloneMode::Verbatim {
+            return Err(CliError::invalid_request(
+                "-b <branch> is accepted only with --clean or --bare",
+            ));
+        }
+        Ok(CliRequest::CloneLocalWorkspace(
+            gwz_core::CloneLocalWorkspaceRequest {
+                meta,
+                name: self.name.clone(),
+                // Absent means core's `../<root-dirname>-<name>` default.
+                dest: self.dest.clone(),
+                mode,
+                branch: self.branch.clone(),
+                // Tag 6 `copy_source` (design §7, §11 item 11): `--from`, the
+                // family name or path to copy *from*. Absent means the
+                // workspace this command was run in.
+                copy_source: self.from.clone(),
+            },
+        ))
     }
 }
 

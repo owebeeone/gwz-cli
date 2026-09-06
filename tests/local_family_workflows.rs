@@ -47,32 +47,24 @@ fn family_verbs_reach_core_and_report_its_typed_refusal() {
             MEMBER_NOT_FOUND,
         ),
         (
-            vec!["clone", "--local", "--clean", "--name", "C", "../dest-c"],
+            vec!["local", "clone", "C", "../dest-c", "--clean"],
             UNSUPPORTED,
         ),
         (
-            vec!["clone", "--local", "--bare", "--name", "hub", "../dest-hub"],
+            vec!["local", "clone", "hub", "../dest-hub", "--bare"],
             UNSUPPORTED,
         ),
         // `--from` is `copy_source` on the wire now (design §7, §11 item 11):
         // the driver encodes it and core owns the refusal, naming the flag.
         (
-            vec![
-                "clone",
-                "--local",
-                "--from",
-                "A",
-                "--name",
-                "B",
-                "../dest-b",
-            ],
+            vec!["local", "clone", "B", "../dest-b", "--from", "A"],
             UNSUPPORTED,
         ),
         // Likewise `--dry-run` on a local create: a family operation, so core
         // answers rather than the driver. The URL clone keeps its own gate,
         // asserted below.
         (
-            vec!["--dry-run", "clone", "--local", "--name", "A", "../dest-a"],
+            vec!["--dry-run", "local", "clone", "A", "../dest-a"],
             UNSUPPORTED,
         ),
         // Design §7/§11 item 13: a family-only merge miss is its own code.
@@ -129,7 +121,7 @@ fn family_verbs_reach_core_and_report_its_typed_refusal() {
 }
 
 /// The served lifecycle, end to end through the real binary (LCM1.1): a
-/// verbatim `clone --local` into a destination this test owns, `local list`
+/// verbatim `local clone` into a destination this test owns, `local list`
 /// naming the root and the clone with the observed root beside them,
 /// `dispose --keep` detaching the clone with every file retained, and
 /// `disband` removing the index. Exit 0 and a message on every step.
@@ -141,10 +133,7 @@ fn the_verbatim_lifecycle_is_served_end_to_end() {
     let dest = lanes.path().join("dest-a");
     let dest_arg = dest.to_string_lossy().into_owned();
 
-    let created = run(
-        &temp,
-        &["--json", "clone", "--local", "--name", "A", &dest_arg],
-    );
+    let created = run(&temp, &["--json", "local", "clone", "A", &dest_arg]);
     assert_eq!(exit(&created), 0, "{}", stderr(&created));
     let json: Value = serde_json::from_slice(&created.stdout).unwrap();
     assert_eq!(json["meta"]["aggregate_status"], "Ok");
@@ -204,7 +193,7 @@ fn the_verbatim_lifecycle_is_served_end_to_end() {
 }
 
 /// LCM1.2, the plan's MVP loop through the real binary: a member committed
-/// at the root, `clone --local --name A`, work committed in A's member, and
+/// at the root, `local clone A`, work committed in A's member, and
 /// `gwz merge --remote A` integrating it at the root -- the engine's own
 /// merge response with the retained import ref as its `source_ref`, the
 /// import summarised in `meta.message`, one operation lifecycle on the
@@ -222,7 +211,7 @@ fn a_family_merge_by_name_integrates_the_clones_commits_end_to_end() {
     let lanes = TempDir::new("family-merge-lanes");
     let dest = lanes.path().join("dest-a");
     let dest_arg = dest.to_string_lossy().into_owned();
-    let cloned = run(&temp, &["clone", "--local", "--name", "A", &dest_arg]);
+    let cloned = run(&temp, &["local", "clone", "A", &dest_arg]);
     assert_eq!(exit(&cloned), 0, "{}", stderr(&cloned));
     assert_eq!(repo_ref(&dest.join("app"), "HEAD"), Some(base.clone()));
 
@@ -413,7 +402,7 @@ fn ordinary_dispose_deletes_a_preserved_lane_and_refuses_unique_history_end_to_e
     // A: clean, every protected root preserved in the root: deleted.
     let dest_a = lanes.path().join("dest-a");
     let dest_a_arg = dest_a.to_string_lossy().into_owned();
-    let cloned = run(&temp, &["clone", "--local", "--name", "A", &dest_a_arg]);
+    let cloned = run(&temp, &["local", "clone", "A", &dest_a_arg]);
     assert_eq!(exit(&cloned), 0, "{}", stderr(&cloned));
     assert!(dest_a.join("gwz.conf/gwz.yml").is_file());
     let deleted = run(&temp, &["local", "dispose", "A"]);
@@ -426,7 +415,7 @@ fn ordinary_dispose_deletes_a_preserved_lane_and_refuses_unique_history_end_to_e
     // B: a commit only B holds: refused, nothing removed, on both channels.
     let dest_b = lanes.path().join("dest-b");
     let dest_b_arg = dest_b.to_string_lossy().into_owned();
-    let cloned = run(&temp, &["clone", "--local", "--name", "B", &dest_b_arg]);
+    let cloned = run(&temp, &["local", "clone", "B", &dest_b_arg]);
     assert_eq!(exit(&cloned), 0, "{}", stderr(&cloned));
     let unique = commit_file(&dest_b.join("app"), "feature.txt", "from B\n", "only in B");
     let machine = run(&temp, &["--json", "local", "dispose", "B"]);
@@ -484,28 +473,58 @@ fn driver_refusals_are_rejected_before_anything_is_dispatched() {
     init_workspace(&temp);
 
     for (args, needle) in [
-        (vec!["clone", "--local", "dest"], "--name"),
+        // The name is a required positional: Clap's own error, exit 2.
+        (vec!["local", "clone"], "<name>"),
         (
-            vec!["clone", "--local", "--name", "A", "url", "dest"],
-            "not a workspace URL",
+            vec!["local", "clone", ""],
+            "local clone <name> must not be empty",
+        ),
+        // A name and a destination are the two operands; there is no URL.
+        (
+            vec!["local", "clone", "A", "url", "dest"],
+            "unexpected argument 'dest'",
         ),
         (
-            vec!["clone", "--local", "--verbatim", "--clean", "--name", "A"],
+            vec!["local", "clone", "--verbatim", "--clean", "A"],
             "mutually exclusive",
         ),
         (
-            vec!["clone", "--local", "-b", "lane/x", "--name", "A"],
+            vec!["local", "clone", "-b", "lane/x", "A"],
             "--clean or --bare",
         ),
         (
-            vec!["clone", "--local", "--from", "", "--name", "A"],
+            vec!["local", "clone", "--from", "", "A"],
             "must not be empty",
         ),
         (
             vec!["--dry-run", "clone", "https://example.invalid/ws.git"],
             "--dry-run is not supported for clone",
         ),
-        (vec!["clone", "url", "--clean"], "only with --local"),
+        // `gwz clone` is the URL form only (operator ruling 2026-09-06): the
+        // local flags are unknown to it, and the old create spelling is
+        // rejected outright naming `--local` -- not aliased, and not parsed
+        // as a URL clone of `A` (no destination is allocated, asserted below).
+        (
+            vec!["clone", "url", "--clean"],
+            "unexpected argument '--clean'",
+        ),
+        (
+            vec!["clone", "--local", "--name", "A", "dest-old-a"],
+            "unexpected argument '--local'",
+        ),
+        (
+            vec![
+                "clone",
+                "--local",
+                "--clean",
+                "-b",
+                "lane/x",
+                "--name",
+                "C",
+                "dest-old-c",
+            ],
+            "unexpected argument '--local'",
+        ),
         (vec!["local", "dispose", "C", "--force"], "hazard names"),
         (
             vec!["local", "dispose", "C", "--keep", "--force", "dirty"],
@@ -526,6 +545,17 @@ fn driver_refusals_are_rejected_before_anything_is_dispatched() {
         );
         assert!(output.stdout.is_empty(), "{args:?} wrote to stdout");
     }
+
+    // A rejected create allocated nothing: neither the old spelling's
+    // destination nor a URL-clone target named after its `--name` operand
+    // (both would land under the invocation's own directory).
+    for stray in ["dest-old-a", "dest-old-c", "A", "C"] {
+        assert!(
+            !temp.path().join(stray).exists(),
+            "{stray} was allocated by a rejected invocation"
+        );
+    }
+    assert!(!temp.path().join(".gwz/local-family.yml").exists());
 }
 
 /// The URL clone keeps its own required-argument error, and the local flags
