@@ -1350,6 +1350,58 @@ fn the_four_local_create_codes_are_presented_as_typed_refusals() {
     }
 }
 
+/// LCM1.2 (lane C, 2026-09-06): the two family-merge import outcomes,
+/// `pairing_mismatch` (67, refused before any fetch, nothing written) and
+/// `import_incomplete` (68, the import stopped before the engine; the
+/// retained import refs travel in core's message), presented like every
+/// other typed refusal and distinct from the codes they would have folded
+/// into. No rendering code changed: the labels are the model enum's names.
+#[test]
+fn the_two_family_merge_import_codes_are_presented_as_typed_refusals() {
+    use gwz_core::model::ErrorCode;
+    for (code, wire, label, message) in [
+        (
+            ErrorCode::PairingMismatch,
+            67,
+            "PairingMismatch",
+            "local family merge from `A`: import of HEAD from `A` as \
+             refs/gwz/local-imports/xfer_0123456789abcdef0123456789abcdef failed: import \
+             pairing is incomplete; unpaired: mem_extra; no import ref was created; nothing \
+             was written; the merge engine was not entered; a retry mints a fresh transfer id",
+        ),
+        (
+            ErrorCode::ImportIncomplete,
+            68,
+            "ImportIncomplete",
+            "local family merge from `A`: import of HEAD from `A` as \
+             refs/gwz/local-imports/xfer_0123456789abcdef0123456789abcdef failed: mem_lib: \
+             transfer failed: /ws/lib: failed to update refs; retained import refs (ordinary \
+             Git refs, never pruned by gwz): mem_app \
+             refs/gwz/local-imports/xfer_0123456789abcdef0123456789abcdef = \
+             2f44c2f5f825e785ae19c1b85bc358fb4e89d61d; the merge engine was not entered; a \
+             retry mints a fresh transfer id",
+        ),
+    ] {
+        let error =
+            CliError::from_model(gwz_core::model::ModelError::new(code, message.to_owned()));
+        assert_eq!(error.code, Some(code), "{label}");
+        assert_eq!(error.human_message(), format!("{label}: {message}"));
+        let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
+        assert_eq!(json["errors"][0]["code"], label);
+        assert_eq!(json["errors"][0]["message"], message);
+        let wired = gwz_core::GwzErrorCode::from(code);
+        assert_eq!(wired.wire(), wire, "{label}");
+        for folded in [
+            ErrorCode::InvalidRequest,
+            ErrorCode::MemberNotFound,
+            ErrorCode::GitCommandFailed,
+            ErrorCode::IoError,
+        ] {
+            assert_ne!(wired, gwz_core::GwzErrorCode::from(folded), "{label}");
+        }
+    }
+}
+
 /// The first of the four, end to end through the driver on a real workspace:
 /// a source repository borrowing another object store (design §4.0
 /// "objects/info/alternates") refuses `gwz clone --local` as

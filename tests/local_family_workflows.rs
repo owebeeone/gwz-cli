@@ -196,6 +196,129 @@ fn the_verbatim_lifecycle_is_served_end_to_end() {
     assert!(dest.is_dir(), "every tree is retained");
 }
 
+/// LCM1.2, the plan's MVP loop through the real binary: a member committed
+/// at the root, `clone --local --name A`, work committed in A's member, and
+/// `gwz merge --remote A` integrating it at the root -- the engine's own
+/// merge response with the retained import ref as its `source_ref`, the
+/// import summarised in `meta.message`, one operation lifecycle on the
+/// `--jsonl` stream, and a second merge after more work in A finding a
+/// fresh import name beside the retained one.
+#[test]
+fn a_family_merge_by_name_integrates_the_clones_commits_end_to_end() {
+    let temp = TempDir::new("family-merge");
+    init_workspace(&temp);
+    let created = run(&temp, &["repo", "create", "app"]);
+    assert_eq!(exit(&created), 0, "{}", stderr(&created));
+    let app = temp.path().join("app");
+    let base = commit_file(&app, "README.md", "one\n", "initial");
+    commit_workspace_root(temp.path());
+    let lanes = TempDir::new("family-merge-lanes");
+    let dest = lanes.path().join("dest-a");
+    let dest_arg = dest.to_string_lossy().into_owned();
+    let cloned = run(&temp, &["clone", "--local", "--name", "A", &dest_arg]);
+    assert_eq!(exit(&cloned), 0, "{}", stderr(&cloned));
+    assert_eq!(repo_ref(&dest.join("app"), "HEAD"), Some(base.clone()));
+
+    let work = commit_file(&dest.join("app"), "feature.txt", "from A\n", "work in A");
+    let merged = run(&temp, &["--json", "merge", "--remote", "A"]);
+    assert_eq!(exit(&merged), 0, "{}", stderr(&merged));
+    let json: Value = serde_json::from_slice(&merged.stdout).unwrap();
+    assert_eq!(json["meta"]["aggregate_status"], "Ok");
+    assert_eq!(json["merge"]["state"], "Completed");
+    assert_eq!(json["merge"]["open"], false);
+    let repo = &json["merge"]["repos"][0];
+    assert_eq!(repo["target_id"], "mem_app");
+    assert_eq!(repo["state"], "FastForwarded");
+    let import_ref = repo["source_ref"].as_str().unwrap().to_owned();
+    assert!(
+        import_ref.starts_with("refs/gwz/local-imports/xfer_"),
+        "{import_ref}"
+    );
+    assert_eq!(repo["source_commit"], work);
+    assert_eq!(repo["resulting_commit"], work);
+    let message = json["meta"]["message"].as_str().unwrap_or("");
+    assert!(
+        message.contains(&format!(
+            "imported HEAD of family member `A` as {import_ref} (mem_app={work})"
+        )),
+        "{message}"
+    );
+    assert_eq!(repo_ref(&app, "HEAD"), Some(work.clone()));
+    assert_eq!(repo_ref(&app, &import_ref), Some(work.clone()));
+    assert!(
+        git2::Repository::open(&app)
+            .unwrap()
+            .remotes()
+            .unwrap()
+            .is_empty(),
+        "no family remote is persisted"
+    );
+
+    // More work in A; the stream carries one lifecycle and the retained
+    // ref stays beside the fresh one.
+    let more = commit_file(
+        &dest.join("app"),
+        "feature.txt",
+        "more from A\n",
+        "more work in A",
+    );
+    let streamed = run(&temp, &["--jsonl", "merge", "--remote", "A"]);
+    assert_eq!(exit(&streamed), 0, "{}", stderr(&streamed));
+    let lines: Vec<Value> = String::from_utf8_lossy(&streamed.stdout)
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    let event_kinds: Vec<&str> = lines
+        .iter()
+        .filter(|line| line["kind"] == "event")
+        .map(|line| line["event_kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        event_kinds
+            .iter()
+            .filter(|kind| **kind == "OperationStarted")
+            .count(),
+        1,
+        "{event_kinds:?}"
+    );
+    assert_eq!(
+        event_kinds
+            .iter()
+            .filter(|kind| **kind == "OperationFinished")
+            .count(),
+        1,
+        "{event_kinds:?}"
+    );
+    assert_eq!(event_kinds.first(), Some(&"OperationStarted"));
+    assert_eq!(event_kinds.last(), Some(&"OperationFinished"));
+    let response = lines.last().unwrap();
+    assert_eq!(response["kind"], "response");
+    assert_eq!(response["merge"]["state"], "Completed");
+    let fresh = response["merge"]["repos"][0]["source_ref"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert_ne!(fresh, import_ref, "a retry mints a fresh transfer id");
+    assert_eq!(repo_ref(&app, "HEAD"), Some(more.clone()));
+    assert_eq!(repo_ref(&app, &fresh), Some(more));
+    assert_eq!(
+        repo_ref(&app, &import_ref),
+        Some(work),
+        "the earlier import ref is retained, never pruned"
+    );
+
+    // The human channel, up to date now: exit 0 and the engine's own table,
+    // whose source column names the retained import ref.
+    let human = run(&temp, &["merge", "--remote", "A"]);
+    assert_eq!(exit(&human), 0, "{}", stderr(&human));
+    let stdout = String::from_utf8_lossy(&human.stdout);
+    assert!(stdout.contains("app (mem_app)  up-to-date"), "{stdout}");
+    assert!(
+        stdout.contains("source: refs/gwz/local-imports/xfer_"),
+        "{stdout}"
+    );
+}
+
 /// `gwz local list` end to end. A workspace that holds no family index lists
 /// nothing, and says so: exit 0 on stdout, not a refusal, and no fabricated
 /// row. The columns themselves are pinned by the unit tests, which can supply
@@ -333,6 +456,73 @@ fn run(temp: &TempDir, args: &[&str]) -> Output {
         .args(args)
         .output()
         .unwrap()
+}
+
+fn commit_file(repo_path: &Path, relative_path: &str, content: &str, message: &str) -> String {
+    let repo = git2::Repository::open(repo_path).unwrap();
+    let workdir = repo.workdir().unwrap();
+    std::fs::write(workdir.join(relative_path), content).unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_path(Path::new(relative_path)).unwrap();
+    index.write().unwrap();
+    let tree_id = index.write_tree().unwrap();
+    let tree = repo.find_tree(tree_id).unwrap();
+    let signature = git2::Signature::now("GWZ Test", "gwz@example.invalid").unwrap();
+    let parents: Vec<git2::Commit<'_>> = repo
+        .head()
+        .ok()
+        .and_then(|head| head.target())
+        .map(|oid| repo.find_commit(oid).unwrap())
+        .into_iter()
+        .collect();
+    let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        message,
+        &tree,
+        &parent_refs,
+    )
+    .unwrap()
+    .to_string()
+}
+
+fn commit_workspace_root(root: &Path) {
+    let repo = git2::Repository::open(root).unwrap();
+    let mut index = repo.index().unwrap();
+    index
+        .add_all(["."], git2::IndexAddOption::DEFAULT, None)
+        .unwrap();
+    index.write().unwrap();
+    let tree_id = index.write_tree().unwrap();
+    let tree = repo.find_tree(tree_id).unwrap();
+    let signature = git2::Signature::now("GWZ Test", "gwz@example.invalid").unwrap();
+    let parents: Vec<git2::Commit<'_>> = repo
+        .head()
+        .ok()
+        .and_then(|head| head.target())
+        .map(|oid| repo.find_commit(oid).unwrap())
+        .into_iter()
+        .collect();
+    let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        "init workspace",
+        &tree,
+        &parent_refs,
+    )
+    .unwrap();
+}
+
+fn repo_ref(repo_path: &Path, ref_name: &str) -> Option<String> {
+    git2::Repository::open(repo_path)
+        .unwrap()
+        .revparse_single(ref_name)
+        .ok()
+        .map(|object| object.id().to_string())
 }
 
 fn init_workspace(temp: &TempDir) {
