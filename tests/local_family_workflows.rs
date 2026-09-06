@@ -4,9 +4,12 @@
 //! The driver must reach core's entry points and present what comes back,
 //! rather than answering for them. Since LCM1.1 (gwz-core `81fcaf2`) the
 //! verbatim create, `local list`, `dispose --keep` and `disband` are served
-//! end to end; clean and bare, `--from`, ordinary `dispose` and a family
-//! `--dry-run` still answer the typed `UnsupportedOperation` this build owes,
-//! and the rows here moved with core (LCM1.1 fix 1, lane C, 2026-09-06).
+//! end to end, since LCM1.2 the family merge, and since LCM2.1/LCM2.2
+//! ordinary `dispose` (deleting a lane whose history is verifiably
+//! preserved elsewhere, refusing every other); clean and bare, `--from` and
+//! a family `--dry-run` still answer the typed `UnsupportedOperation` this
+//! build owes, and the rows here moved with core each time (lane C,
+//! 2026-09-06).
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -24,8 +27,12 @@ const REJECTED: i32 = 2;
 const UNSUPPORTED: &str = "UnsupportedOperation";
 /// Design §7 / §11 item 13: `merge --remote <name>` named no ready member.
 const UNKNOWN_LOCAL: &str = "UnknownLocal";
-/// `dispose --keep` in a workspace that is in no family (served since LCM1.1).
+/// `dispose` (served since LCM2.2) and `dispose --keep` (since LCM1.1) in a
+/// workspace that is in no family.
 const MEMBER_NOT_FOUND: &str = "MemberNotFound";
+/// Design §5 / §7: ordinary `dispose` found a known hazard `--force` did not
+/// name (LCM2.2).
+const UNWAIVED_HAZARD: &str = "UnwaivedHazard";
 
 #[test]
 fn family_verbs_reach_core_and_report_its_typed_refusal() {
@@ -33,11 +40,11 @@ fn family_verbs_reach_core_and_report_its_typed_refusal() {
     init_workspace(&temp);
 
     for (args, code) in [
-        (vec!["local", "dispose", "C"], UNSUPPORTED),
+        (vec!["local", "dispose", "C"], MEMBER_NOT_FOUND),
         (vec!["local", "dispose", "C", "--keep"], MEMBER_NOT_FOUND),
         (
             vec!["local", "dispose", "C", "--force", "dirty"],
-            UNSUPPORTED,
+            MEMBER_NOT_FOUND,
         ),
         (
             vec!["clone", "--local", "--clean", "--name", "C", "../dest-c"],
@@ -349,7 +356,7 @@ fn local_list_reports_an_empty_family_without_inventing_one() {
 
 /// A refusal never carries a listing: the family rows are absent from the
 /// error envelope rather than rendered as an empty table. Ordinary `dispose`
-/// is the verb this build still refuses (`disband` is served since LCM1.1).
+/// outside any family is the refusal used here (`member_not_found`).
 #[test]
 fn a_refused_family_verb_carries_no_listing() {
     let temp = TempDir::new("family-list-refusal");
@@ -358,7 +365,7 @@ fn a_refused_family_verb_carries_no_listing() {
     let machine = run(&temp, &["--json", "local", "dispose", "C"]);
     assert_eq!(exit(&machine), DISPATCHED);
     let json: Value = serde_json::from_slice(&machine.stdout).unwrap();
-    assert_eq!(json["errors"][0]["code"], UNSUPPORTED);
+    assert_eq!(json["errors"][0]["code"], MEMBER_NOT_FOUND);
     assert!(
         json.get("local_family_members").is_none(),
         "a refusal carries no family rows: {json}"
@@ -383,7 +390,92 @@ fn jsonl_streams_the_operation_lifecycle_then_the_refusal() {
     assert_eq!(kinds, vec!["event", "event", "response"], "{lines:?}");
     assert_eq!(lines[0]["event_kind"], "OperationStarted");
     assert_eq!(lines[1]["event_kind"], "OperationFinished");
-    assert_eq!(lines[2]["errors"][0]["code"], "UnsupportedOperation");
+    assert_eq!(lines[2]["errors"][0]["code"], MEMBER_NOT_FOUND);
+}
+
+/// LCM2.1/LCM2.2 through the real binary: a clean lane whose history the
+/// root holds is deleted by a plain `local dispose` (exit 0, the directory
+/// gone, the row gone); a lane holding a commit nothing else holds refuses
+/// `UnwaivedHazard` on both channels, naming the commit and the waiver,
+/// with its directory intact -- and deletes once the operator names the
+/// loss with `--force unpreserved-history`.
+#[test]
+fn ordinary_dispose_deletes_a_preserved_lane_and_refuses_unique_history_end_to_end() {
+    let temp = TempDir::new("family-dispose");
+    init_workspace(&temp);
+    let created = run(&temp, &["repo", "create", "app"]);
+    assert_eq!(exit(&created), 0, "{}", stderr(&created));
+    let app = temp.path().join("app");
+    commit_file(&app, "README.md", "one\n", "initial");
+    commit_workspace_root(temp.path());
+    let lanes = TempDir::new("family-dispose-lanes");
+
+    // A: clean, every protected root preserved in the root: deleted.
+    let dest_a = lanes.path().join("dest-a");
+    let dest_a_arg = dest_a.to_string_lossy().into_owned();
+    let cloned = run(&temp, &["clone", "--local", "--name", "A", &dest_a_arg]);
+    assert_eq!(exit(&cloned), 0, "{}", stderr(&cloned));
+    assert!(dest_a.join("gwz.conf/gwz.yml").is_file());
+    let deleted = run(&temp, &["local", "dispose", "A"]);
+    assert_eq!(exit(&deleted), 0, "{}", stderr(&deleted));
+    let stdout = String::from_utf8_lossy(&deleted.stdout);
+    assert!(stdout.contains("deleted local clone `A`"), "{stdout}");
+    assert!(stdout.contains("its row removed"), "{stdout}");
+    assert!(!dest_a.exists(), "the directory is gone");
+
+    // B: a commit only B holds: refused, nothing removed, on both channels.
+    let dest_b = lanes.path().join("dest-b");
+    let dest_b_arg = dest_b.to_string_lossy().into_owned();
+    let cloned = run(&temp, &["clone", "--local", "--name", "B", &dest_b_arg]);
+    assert_eq!(exit(&cloned), 0, "{}", stderr(&cloned));
+    let unique = commit_file(&dest_b.join("app"), "feature.txt", "from B\n", "only in B");
+    let machine = run(&temp, &["--json", "local", "dispose", "B"]);
+    assert_eq!(exit(&machine), DISPATCHED, "{}", stderr(&machine));
+    let json: Value = serde_json::from_slice(&machine.stdout).unwrap();
+    assert_eq!(json["errors"][0]["code"], UNWAIVED_HAZARD);
+    let message = json["errors"][0]["message"].as_str().unwrap();
+    assert!(message.contains("<unpreserved-history>"), "{message}");
+    assert!(message.contains(&unique), "{message}");
+    assert!(message.contains("nothing was removed"), "{message}");
+    assert!(json.get("local_family_members").is_none());
+    let human = run(&temp, &["local", "dispose", "B"]);
+    assert_eq!(exit(&human), DISPATCHED);
+    assert!(
+        stderr(&human).starts_with(&format!("gwz: {UNWAIVED_HAZARD}: ")),
+        "{}",
+        stderr(&human)
+    );
+    assert!(human.stdout.is_empty());
+    assert!(
+        dest_b.join("app/feature.txt").is_file(),
+        "nothing was removed"
+    );
+    assert_eq!(repo_ref(&dest_b.join("app"), "HEAD"), Some(unique));
+
+    // The operator names the loss: deleted, and the family forgets B.
+    let forced = run(
+        &temp,
+        &["local", "dispose", "B", "--force", "unpreserved-history"],
+    );
+    assert_eq!(exit(&forced), 0, "{}", stderr(&forced));
+    let stdout = String::from_utf8_lossy(&forced.stdout);
+    assert!(stdout.contains("deleted local clone `B`"), "{stdout}");
+    assert!(
+        stdout.contains("forced past: unpreserved-history"),
+        "{stdout}"
+    );
+    assert!(!dest_b.exists());
+    let listed = run(&temp, &["--json", "local", "list"]);
+    assert_eq!(exit(&listed), 0, "{}", stderr(&listed));
+    let json: Value = serde_json::from_slice(&listed.stdout).unwrap();
+    let names: Vec<&str> = json["local_family_members"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|member| member["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["root"]);
+    assert!(app.join("README.md").is_file(), "the root is untouched");
 }
 
 #[test]

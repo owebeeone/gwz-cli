@@ -599,11 +599,31 @@ fn pull_keeps_the_policy_binding_and_push_encodes_the_token_once() {
 fn local_family_verbs_dispatch_and_answer_for_a_workspace_in_no_family() {
     let temp = workspace("cli-local-family");
 
-    assert_unsupported(&run_in(&temp, &["local", "dispose", "C"]), "local dispose");
-    assert_unsupported(
-        &run_in(&temp, &["local", "dispose", "C", "--force", "dirty"]),
-        "local dispose",
-    );
+    // LCM2.1/LCM2.2 (lane C, 2026-09-06): ordinary `dispose` is served, so
+    // outside any family it answers as `--keep` does -- `member_not_found`
+    // at the family observation, naming the verb -- with or without waivers.
+    for args in [
+        &["local", "dispose", "C"][..],
+        &["local", "dispose", "C", "--force", "dirty"][..],
+    ] {
+        let error = run_in(&temp, args);
+        assert_eq!(
+            error.code,
+            Some(gwz_core::model::ErrorCode::MemberNotFound),
+            "{args:?}: {}",
+            error.message
+        );
+        assert!(
+            error.message.starts_with("local dispose:"),
+            "{}",
+            error.message
+        );
+        assert!(
+            error.message.contains("is in no local family"),
+            "{}",
+            error.message
+        );
+    }
 
     let keep = run_in(&temp, &["local", "dispose", "C", "--keep"]);
     assert_eq!(
@@ -1396,6 +1416,71 @@ fn the_two_family_merge_import_codes_are_presented_as_typed_refusals() {
             ErrorCode::MemberNotFound,
             ErrorCode::GitCommandFailed,
             ErrorCode::IoError,
+        ] {
+            assert_ne!(wired, gwz_core::GwzErrorCode::from(folded), "{label}");
+        }
+    }
+}
+
+/// LCM2.1/LCM2.2 (lane C, 2026-09-06): the three ordinary-disposal outcomes
+/// -- `unwaived_hazard` (69, a known hazard `--force` did not name),
+/// `unknown_evidence` (70, evidence that could not be established; no force
+/// name waives it) and `disposal_incomplete` (71, the removal stopped
+/// part-way; the row is `disposing`) -- are presented as typed refusals
+/// like their neighbours: the human line carries core's message unedited,
+/// machine output the PascalCase label, and none is folded into the codes
+/// it replaces.
+#[test]
+fn the_three_disposal_codes_are_presented_as_typed_refusals() {
+    use gwz_core::model::ErrorCode;
+    for (code, wire, label, message) in [
+        (
+            ErrorCode::UnwaivedHazard,
+            69,
+            "UnwaivedHazard",
+            "local dispose `B` at /lanes/dest-b: unwaived hazard(s): `mem_app` \
+             <unpreserved-history>: 1 protected root(s) of mem_app are preserved whole in no \
+             surviving family repository: Head 2f44c2f5f825e785ae19c1b85bc358fb4e89d61d; name \
+             each accepted loss with --force <hazard,...> to delete, or --keep to detach and \
+             retain every file; nothing was removed; effects: []",
+        ),
+        (
+            ErrorCode::UnknownEvidence,
+            70,
+            "UnknownEvidence",
+            "local dispose `A` at /lanes/dest-a: unknown evidence: UnsupportedEvidence: `@root`: \
+             OpenGwzStash has no waiver (1 gwz stash record(s) under \
+             /lanes/dest-a/.gwz/stash/bundles: this build does not decode gwz stash \
+             coordination records); no force name waives unknown evidence: make it \
+             interpretable, or --keep to detach and retain every file; nothing was removed; \
+             effects: []",
+        ),
+        (
+            ErrorCode::DisposalIncomplete,
+            71,
+            "DisposalIncomplete",
+            "local dispose `A` at /lanes/dest-a: removal stopped (/lanes/dest-a/app/locked/held: \
+             Permission denied (os error 13)); remaining: /lanes/dest-a, \
+             /lanes/dest-a/app/locked/held; the row is `disposing` and the remainder is \
+             retained for inspection; there is no replay and a repeat is refused: clean up by \
+             hand, then an explicit dispose removes the stale row, or --keep detaches the \
+             remainder; effects: [RowDisposing]",
+        ),
+    ] {
+        let error =
+            CliError::from_model(gwz_core::model::ModelError::new(code, message.to_owned()));
+        assert_eq!(error.code, Some(code), "{label}");
+        assert_eq!(error.human_message(), format!("{label}: {message}"));
+        let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
+        assert_eq!(json["errors"][0]["code"], label);
+        assert_eq!(json["errors"][0]["message"], message);
+        let wired = gwz_core::GwzErrorCode::from(code);
+        assert_eq!(wired.wire(), wire, "{label}");
+        for folded in [
+            ErrorCode::PermissionDenied,
+            ErrorCode::UnsupportedOperation,
+            ErrorCode::IoError,
+            ErrorCode::InvalidRequest,
         ] {
             assert_ne!(wired, gwz_core::GwzErrorCode::from(folded), "{label}");
         }
