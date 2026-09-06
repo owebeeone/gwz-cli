@@ -8,7 +8,9 @@ exports_files(["Cargo.toml"])  # the manifest @crates mirrors by hand (see MODUL
 # from @crates, a from_specs hub whose crate.spec pins mirror this crate's Cargo.toml
 # [dependencies] at the versions in //:Cargo.lock (MODULE.bazel says why the outer workspace
 # cannot be spliced with from_cargo). A [dependencies] change in Cargo.toml therefore has to be
-# mirrored in MODULE.bazel and here. gwz-core is the outer workspace's excluded path dependency
+# mirrored in MODULE.bazel and here; `gwz-core/scripts/checks/check_bazel_pin_drift.py`, run from
+# the gwz-dev root, refuses a version, feature or dependency-set mismatch between the three and a
+# `@crates//:` label here that no spec pins. gwz-core is the outer workspace's excluded path dependency
 # and is wired to the workspace target //gwz-core:gwz_core, built by the @gwz_core_crates hub
 # from gwz-core's own lock -- never a copy of gwz-core spliced into this hub.
 #
