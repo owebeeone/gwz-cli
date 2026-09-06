@@ -29,21 +29,21 @@ Push to an explicit remote:
 gwz --remote origin push
 ```
 
-Publish into another working copy of this workspace on the same machine — a
-member of the [local clone family](local.md), typically a bare share point —
-by naming it instead:
+Naming another working copy of this workspace on the same machine — a member
+of the [local clone family](local.md) — is the intended form, with each
+selected repository's current branch published to the same branch there:
 
 ```sh
 gwz push --remote hub
 ```
 
-Each selected repository's current branch is published to the same branch in
-the named member. A name that is not in the family resolves as an ordinary Git
-remote, so `--remote origin` keeps its usual meaning.
-
-The flag and its Git meaning are unchanged; the family binding itself is still
-landing, so a family name that is not also a Git remote answers
-`missing_remote` in this build.
+**This build does not serve it.** The family name is looked up and the flag
+then falls through to ordinary Git remote resolution, so a family name that
+is not also a Git remote fails every selected target with
+`MissingRemote: missing remote 'hub'` (`missing_remote` in this build's
+machine output). `--remote origin` keeps its usual meaning. Integrate from the
+receiving side with `gwz merge --remote <name>` instead; see
+[`gwz merge`](merge.md) and [Local Clones](../LocalClones.md).
 
 Push one member by id:
 

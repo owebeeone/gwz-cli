@@ -198,6 +198,36 @@ Recovery:
   delete merge records, `refs/gwz/` refs, `gwz:`-prefixed stashes, or stash
   bundles.
 
+## A Local Clone Will Not Dispose
+
+Symptoms:
+
+- `gwz local dispose <name>` refuses with `UnwaivedHazard`, naming
+  `open-merge`, `dirty` or `unpreserved-history` per repository.
+- It refuses with `UnknownEvidence`, typically because the lane holds a GWZ
+  stash record.
+
+Meaning:
+
+- Deletion is allowed only when the lane's history is verifiably preserved in
+  another surviving family member. A clean working tree is not proof, and
+  neither is a push to a network remote.
+- After `gwz merge --remote <name>`, the lane's **root** commits are usually
+  the unpreserved ones: the default merge selects members only, and every
+  `gwz commit` in the lane produced a root commit.
+
+Recovery:
+
+- Preserve first, then dispose: `gwz --target @root merge --remote <name>`
+  for the root, and a fetch into a surviving member for anything only a
+  network remote holds.
+- Pop or drop a GWZ stash in the lane; unknown evidence cannot be waived.
+- Keep the tree and only forget the lane: `gwz local dispose <name> --keep`.
+- Accept the loss explicitly: `gwz local dispose <name> --force <hazard,...>`,
+  naming every hazard the refusal reported.
+
+See [Local Clones](LocalClones.md#the-deletion-position-in-plain-terms).
+
 ## Machine Output Looks Unexpected
 
 Checks:

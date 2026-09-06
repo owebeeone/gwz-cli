@@ -41,6 +41,18 @@ way a merge was started.
 
 ## Unreleased Compatibility Notes
 
+- A local clone family. `gwz local clone <name> [dest]` copies the workspace
+  as it sits into a named second working copy on the same machine,
+  `gwz local list` reports the family, `gwz merge --remote <name> [<ref>]`
+  integrates a clone's work through a retained
+  `refs/gwz/local-imports/<transfer-id>` ref, and `gwz local dispose <name>`
+  deletes a clone only when its history is verifiably preserved in another
+  surviving member (`--keep` forgets it without deleting anything;
+  `--force <hazard,...>` names accepted losses). `--clean`, `--bare` and
+  `--from` on `gwz local clone`, and family names on `pull` and `push`, are
+  parsed but refused by this build. Family names are never written into
+  `gwz.conf/` and never become Git remotes. See
+  [Local Clones](LocalClones.md).
 - `gwz log` adds one newest-first history across the workspace root and selected
   member repositories, with coordinated-marker and conservative heuristic
   coalescing, revision/snapshot/lock ranges, six filters, compact and full human

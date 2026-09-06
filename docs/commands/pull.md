@@ -56,20 +56,20 @@ Select a remote:
 gwz --remote origin pull --head
 ```
 
-Pull from another working copy of this workspace on the same machine — a
-member of the [local clone family](local.md) — by naming it instead:
+Naming another working copy of this workspace on the same machine — a member
+of the [local clone family](local.md) — is the intended form:
 
 ```sh
 gwz --sync ff-only pull --head --remote C
 ```
 
-A ready family name binds to that workspace and pairs each selected repository
-by its recorded member identity. A name that is not in the family resolves as
-an ordinary Git remote, so `--remote origin` keeps its usual meaning.
-
-The flag and its Git meaning are unchanged; the family binding itself is still
-landing, so a family name that is not also a Git remote answers
-`missing_remote` in this build.
+**This build does not serve it.** The family name is looked up and the flag
+then falls through to ordinary Git remote resolution, so a family name that
+is not also a Git remote answers `MissingRemote: missing remote 'C'`
+(`missing_remote` in this build's machine output).
+`--remote origin` keeps its usual meaning. Integrate from the receiving side
+with `gwz merge --remote <name>` instead; see [`gwz merge`](merge.md) and
+[Local Clones](../LocalClones.md).
 
 ## Notes
 

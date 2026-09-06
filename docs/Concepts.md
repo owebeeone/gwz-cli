@@ -130,6 +130,32 @@ Network operations are bounded by `--jobs <n>` across the whole operation and
 `--max-per-host <n>` per remote host. `--ssh-timeout <secs>` bounds stalled
 SSH/network reads; `0` disables the timeout.
 
+On `gwz merge`, `--remote <name>` does not name a Git remote at all: it names
+a member of the local clone family, described next.
+
+## Local Clone Family
+
+A local clone is a second working copy of the whole workspace on the same
+machine, made with `gwz local clone <name> [dest]` and registered by name in
+the workspace's local clone family. A create copies the tree as it sits,
+uncommitted work and build output included. The family index lives on the
+workspace root; each clone carries a pointer back to it, so family commands
+work from any ready member. Names resolve at operation time, are never
+written into `gwz.conf/`, and never become Git remotes.
+
+Work comes back by name: `gwz merge --remote <name> [<ref>]` imports the
+clone's commits into each receiving repository under a retained
+`refs/gwz/local-imports/<transfer-id>` ref and runs the ordinary coordinated
+merge from there. On `merge` the name is family-only. On `pull` and `push` a
+family name is not served by this build and falls through to Git remote
+resolution.
+
+A clone is deleted with `gwz local dispose <name>` only when its history is
+verifiably preserved in another surviving member; a clean working tree is not
+proof. `--keep` forgets the clone without deleting anything, `--force
+<hazard,...>` names the losses you accept, and `gwz local disband` retires the
+family while keeping every tree. See [Local Clones](LocalClones.md).
+
 ## Progress Events
 
 Human mode renders live progress to stderr when stderr is a terminal.

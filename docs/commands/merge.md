@@ -438,6 +438,15 @@ participant's current branch is the merge target, and everything after that —
 preflight, the coordinated record, conflicts, continue, abort, retention — is
 the ordinary merge lifecycle described above.
 
+Before the engine runs, the source commit is fetched into each receiving
+repository under one fresh, retained ref, `refs/gwz/local-imports/<transfer-id>`,
+and that ref is what the engine merges; status output names it as the source.
+Import refs are kept after completion and after abort — see
+[Local Clones](../LocalClones.md#import-references-are-retained). As with any
+merge, the root participates only when selected, so
+`gwz --target @root merge --remote A` is how the clone's root commits come
+across; without it they stay unpreserved, and `gwz local dispose A` says so.
+
 On `merge` the name is family-only. A name that is not a ready family member is
 refused with `unknown_local`, whose message says which case it is — a name the
 index does not hold (or a reserved one), or a row that is `creating` or

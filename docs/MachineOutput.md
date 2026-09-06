@@ -495,6 +495,11 @@ Read-only listing commands render listing objects with `--json` or `--jsonl`.
 }
 ```
 
+`gwz --json local list` renders the local clone family under
+`local_family_members`, with the family root's path beside the rows under
+`local_family_root_path`; see the
+[`gwz local` command page](commands/local.md#machine-output).
+
 ## Status JSON
 
 `gwz --json status` includes `workspace_git_status`:

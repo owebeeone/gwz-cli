@@ -12,7 +12,8 @@ gwz local disband
 A local clone is a second working copy of the whole workspace on the same
 machine, created with `gwz local clone`. The family index lives on the
 workspace root and every clone carries a pointer back to it, so these commands
-work from any ready family member, including a bare share point.
+work from any ready family member. [Local Clones](../LocalClones.md) explains
+the model, the lifecycle and the deletion rules; this page is the reference.
 
 Family names are resolved from the index at operation time. They are never
 written into `gwz.conf/gwz.yml` and never become Git remotes. The family's own
@@ -35,11 +36,11 @@ network.
 
 | Option | Meaning |
 | --- | --- |
-| `--verbatim` | Copy the source tree as it sits, dirt and build directories included. The default. |
-| `--clean` | Take the frozen source state without worktree dirt. |
-| `--bare` | Make the destination a share point of bare repositories (implies `--clean`). |
-| `-b <branch>` | Create this branch in every destination repository before the clone is marked ready. `--clean`/`--bare` only. |
-| `--from <name\|path>` | Copy from this family member or path instead of the current workspace. |
+| `--verbatim` | Copy the source tree as it sits, dirt and build directories included. The default, and the only mode this build serves. |
+| `--clean` | Take the frozen source state without worktree dirt. **Refused by this build.** |
+| `--bare` | Make the destination a share point of bare repositories (implies `--clean`). **Refused by this build.** |
+| `-b <branch>` | Create this branch in every destination repository before the clone is marked ready. `--clean`/`--bare` only, so **refused by this build** either way. |
+| `--from <name\|path>` | Copy from this family member or path instead of the current workspace. **Refused by this build.** |
 
 Clone this workspace, tree and Git state as they sit:
 
@@ -47,35 +48,64 @@ Clone this workspace, tree and Git state as they sit:
 gwz local clone A ../gwz-dev-A
 ```
 
-Take the frozen state instead, on a new lane branch in every repository:
+```text
+status: Ok
+created local clone `A` at /Users/you/limbo/gwz-dev-A (verbatim; recorded as ../gwz-dev-A; 61 files copied (61 natively, 0 ordinarily), 48 directories, 0 symlinks, 37774 logical bytes; 0 remote URL(s) removed; dest-complete: 2 repositories, 15 objects verified of 20 in store, 1 ms; family fam_3fa95fa799ee9ec5b04999adba13e651, founded)
+```
+
+The counts are from a small illustrative workspace. A create copies staged
+edits, unstaged edits, untracked files and build directories alike; what it
+does not copy is the source's `.gwz/` runtime state, which the destination
+gets fresh.
+
+The first operand is always the name and the second the destination, so
+`gwz local clone dest` asks for a member called `dest` at the default
+destination; a path typed in the name's place is refused by the name rules.
+A verbatim copy is refused while the source has an open coordinated merge
+(`source has an open gwz merge (...); abort it or use --clean`): finish or
+abort the merge, since the `--clean` the message offers is not served by this
+build. Keep the source quiet for the whole invocation. `--from` names the
+*source* to copy, not the destination — a family name recorded in the index,
+or a filesystem path; a token that names neither is refused, and so is an
+empty one. In this build every `--from` is refused before that, as
+unsupported.
+
+### Modes this build refuses
+
+The other modes are parsed and dispatched but answer `UnsupportedOperation`
+before anything is written; a refused create allocates nothing. These are the
+intended forms, with what the current build prints for each.
+
+A frozen checkout on a new lane branch in every repository:
 
 ```sh
 gwz local clone C ../gwz-dev-C --clean -b lane/agent-17
 ```
 
-Make a bare share point the whole family can push to and pull from:
+```text
+gwz: UnsupportedOperation: local clone (clean mode) is not supported by this gwz-core build
+```
+
+A bare share point:
 
 ```sh
 gwz local clone hub ../gwz-dev-hub --bare
 ```
 
-Copy a different member instead of the workspace you are standing in. The new
-clone is still registered on the root, whichever member it was copied from:
+```text
+gwz: UnsupportedOperation: local clone (bare mode) is not supported by this gwz-core build
+```
+
+A copy of a different member — the new clone would still be registered on the
+root, whichever member it was copied from:
 
 ```sh
-gwz local clone B ../gwz-dev-B --clean --from A
 gwz local clone D ../gwz-dev-D --from ../gwz-dev-C
 ```
 
-The first operand is always the name and the second the destination, so
-`gwz local clone dest` asks for a member called `dest` at the default
-destination; a path typed in the name's place is refused by core's name rules.
-A verbatim copy is refused while the source has an open coordinated merge:
-abort it, or use `--clean`. Keep the source quiet for the whole invocation.
-`--from` names the *source* to copy, not the destination; core resolves the
-token -- a family name recorded in the index, or a filesystem path -- and
-refuses one that names neither. An empty `--from` is refused by the CLI,
-because on the wire it would be indistinguishable from "copy this workspace".
+```text
+gwz: UnsupportedOperation: local create from an explicit copy source (--from <name|path>) is not supported by this gwz-core build
+```
 
 ## `gwz local list`
 
@@ -183,13 +213,23 @@ gwz local dispose C --force open-merge,dirty,unpreserved-history
 interrupted member is retained rather than force-deleted, and manual cleanup is
 the accepted recovery path.
 
-`--keep` is the non-destructive alternative. It removes only the pointer and
-the index row; the tree, its open merge and its history stay on disk and remain
-usable as an ordinary GWZ workspace:
+`--keep` is the non-destructive alternative: `--keep` deletes nothing on
+disk. It removes only the pointer and the index row; the tree, its open merge
+and its history stay where they are and remain usable as an ordinary GWZ
+workspace:
 
 ```sh
 gwz local dispose C --keep
 ```
+
+Evidence the check cannot interpret refuses as `UnknownEvidence`, and no
+`--force` name waives it. The case you will meet is a GWZ stash record in the
+lane (`gwz stash push`), which this build does not decode: pop or drop the
+stash in the lane first, or `--keep`. And because every `gwz commit` in a lane
+also commits the lane's root repository, a member-only
+`gwz merge --remote <name>` leaves the lane's root history unpreserved;
+`gwz --target @root merge --remote <name>` brings it across, after which the
+same `dispose` deletes.
 
 The workspace root is never disposed — use `gwz local disband` to retire the
 family — and neither is the member you are standing in.
@@ -212,20 +252,22 @@ repeated after an error.
 - **Status:** this build serves the verbatim `gwz local clone`, `gwz local
   list`, `gwz local dispose` (ordinary deletion and `--keep`), `gwz local
   disband` and the family merge end to end. `--clean`, `--bare` and `--from`
-  are parsed and dispatched but still answer `UnsupportedOperation` while the
-  engine behind them lands; a refused create allocates nothing.
-- [`gwz clone`](clone.md) takes a URL and nothing else: it has no local form
-  and rejects `--local` as an unknown argument (operator ruling 2026-09-06; the
-  local create moved here without an alias, nothing having been released).
+  are parsed and dispatched but answer `UnsupportedOperation` in this build;
+  a refused create allocates nothing. Family names on `pull` and `push` are
+  not served either: they fall through to Git remote resolution and answer
+  `MissingRemote` (see [pull](pull.md) and [push](push.md)).
+- [`gwz clone`](clone.md) takes a URL and nothing else. An earlier draft of
+  this feature hung creation off `gwz clone` behind a `--local` flag; that
+  form was removed before any release, without an alias, and `gwz clone` now
+  rejects `--local` as an unknown argument.
 - A workspace that holds no family index lists nothing, and that is an answer
   rather than an error — no family is invented, and nothing is repaired.
-- `--dry-run` travels to core for every local family verb, `gwz local clone`
-  included, rather than being answered by the CLI; core refuses it today,
-  before any write. Only the URL clone keeps a CLI-side `--dry-run` refusal.
+- `--dry-run` is refused for every local family verb, `gwz local clone`
+  included, before any write (`UnsupportedOperation`).
 - Hazard names are split on `,` and on nothing else — no trimming, no case
-  folding. The vocabulary belongs to core, so an unknown name travels and core
-  names it; only a bare `--force`, an empty element and `--keep` together with
-  `--force` are refused before the request is encoded.
+  folding. An unknown name is refused by name; a bare `--force`, an empty
+  element and `--keep` together with `--force` are refused before the request
+  is even sent.
 - Refusals carry a typed error code and are rendered structured under `--json`
   and `--jsonl`. `gwz merge --remote <name>` that names no ready member is
   `unknown_local`, and its message says which — an absent or reserved name, or
