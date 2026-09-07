@@ -41,6 +41,18 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         None
     };
     let response = match &invocation.request {
+        CliRequest::RemoteIdentity(request) => gwz_core::workspace_ops::handle_remote_identity(
+            &backend,
+            start,
+            request.clone(),
+            operation_id,
+        )
+        .map(|response| {
+            CliResponse::listing(
+                response.response,
+                ArtifactListing::Identities(response.identities),
+            )
+        }),
         CliRequest::CloneWorkspace { meta, url, target } => {
             gwz_core::workspace_ops::handle_clone_workspace(
                 &backend,

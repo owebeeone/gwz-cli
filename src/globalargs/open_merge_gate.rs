@@ -9,6 +9,7 @@ pub(super) fn open_merge_gate_request(
     use gwz_core::operation::OpenMergeCommand as Command;
 
     let (meta, command) = match request {
+        CliRequest::RemoteIdentity(request) => (&request.meta, Command::RemoteIdentity),
         CliRequest::CreateWorkspace(_) | CliRequest::CloneWorkspace { .. } => return None,
         // The local clone family has no row in core's open-merge command
         // vocabulary, and its own source/target gating (design §4.1's refusal

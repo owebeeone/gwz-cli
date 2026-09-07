@@ -984,6 +984,7 @@ fn family_response(
         gwz_core::LocalFamilyResponse {
             response: gwz_core::ResponseEnvelope {
                 meta: gwz_core::ResponseMeta {
+                    transport: None,
                     request_id: "req_test".to_owned(),
                     schema_version: "gwz.protocol/v0".to_owned(),
                     action: gwz_core::ActionKind::LocalFamily,

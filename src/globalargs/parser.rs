@@ -48,6 +48,17 @@ pub(crate) struct GlobalArgs {
     #[arg(
         long,
         global = true,
+        value_name = "PATH",
+        help = "Use only this SSH private-key file; no agent fallback"
+    )]
+    pub(crate) identity: Option<String>,
+
+    #[arg(long = "remote-identity", global = true, value_name = "NAME=PATH", value_parser = parse_remote_identity,
+        help = "Override SSH identity for this remote name across selected repositories; repeatable")]
+    pub(crate) remote_identities: Vec<gwz_core::RemoteSshIdentity>,
+    #[arg(
+        long,
+        global = true,
         value_name = "path",
         help = "Workspace root",
         long_help = "Workspace root. Defaults to the current directory when not supplied."
@@ -216,8 +227,23 @@ pub(crate) struct GlobalArgs {
     pub(crate) ssh_timeout: Option<i64>,
 }
 
+fn parse_remote_identity(value: &str) -> Result<gwz_core::RemoteSshIdentity, String> {
+    let (remote, path) = value
+        .split_once('=')
+        .ok_or("expected NAME=PATH for --remote-identity")?;
+    Ok(gwz_core::RemoteSshIdentity {
+        remote: remote.into(),
+        private_key_path: path.into(),
+    })
+}
+
 #[derive(Clone, Debug, Subcommand)]
 pub(crate) enum CommandArgs {
+    #[command(about = "Manage local SSH identity configuration")]
+    Auth {
+        #[command(subcommand)]
+        command: AuthCommandArgs,
+    },
     #[command(
         about = "Stage file contents across workspace repos (multi-repo git add)",
         long_about = STAGE_LONG,
@@ -326,6 +352,19 @@ pub(crate) enum CommandArgs {
         after_long_help = TAG_AFTER
     )]
     Tag(TagArgs),
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub(crate) enum AuthCommandArgs {
+    #[command(about = "Read or change a remote's local key path for selected repositories")]
+    Identity {
+        #[arg(value_name = "REMOTE")]
+        remote_name: String,
+        #[arg(long = "set", value_name = "PATH", conflicts_with = "unset")]
+        key_path: Option<String>,
+        #[arg(long)]
+        unset: bool,
+    },
 }
 
 #[derive(Clone, Debug, Args)]

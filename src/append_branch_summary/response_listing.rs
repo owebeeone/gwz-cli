@@ -4,6 +4,7 @@ use super::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ArtifactListing {
+    Identities(Vec<gwz_core::RemoteIdentityEntry>),
     Tags(Vec<gwz_core::TagInfo>),
     Snapshots(Vec<gwz_core::SnapshotInfo>),
     Members {
@@ -141,6 +142,18 @@ impl CliResponse {
 pub(crate) fn render_listing_text(listing: &ArtifactListing) -> String {
     let plural = |count: usize| if count == 1 { "" } else { "s" };
     match listing {
+        ArtifactListing::Identities(entries) => entries
+            .iter()
+            .map(|entry| {
+                format!(
+                    "{}\t{}\t{}",
+                    entry.member_id,
+                    entry.remote,
+                    entry.private_key_path.as_deref().unwrap_or("(unset)")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
         ArtifactListing::Tags(tags) => {
             if tags.is_empty() {
                 return "no tags".to_owned();
@@ -196,6 +209,9 @@ pub(crate) fn render_listing_text(listing: &ArtifactListing) -> String {
 pub(crate) fn listing_json(listing: &ArtifactListing) -> serde_json::Value {
     use serde_json::json;
     match listing {
+        ArtifactListing::Identities(entries) => {
+            json!({ "kind": "identities", "entries": entries.iter().map(|entry| json!({"member_id": entry.member_id, "member_path": entry.member_path, "remote": entry.remote, "private_key_path": entry.private_key_path})).collect::<Vec<_>>() })
+        }
         ArtifactListing::Tags(tags) => json!({
             "kind": "tags",
             "entries": tags

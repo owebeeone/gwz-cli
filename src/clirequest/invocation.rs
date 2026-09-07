@@ -48,6 +48,12 @@ impl Cli {
             selection: self.selection(),
             policy: self.policy(),
             dry_run: self.global.dry_run.then_some(true),
+            transport: (self.global.identity.is_some()
+                || !self.global.remote_identities.is_empty())
+            .then(|| gwz_core::TransportOptions {
+                default_identity: self.global.identity.clone(),
+                remote_identities: self.global.remote_identities.clone(),
+            }),
             ..Default::default()
         }
     }
@@ -106,6 +112,27 @@ impl Cli {
         current_dir: &std::path::Path,
     ) -> Result<CliRequest, CliError> {
         match &self.command {
+            CommandArgs::Auth {
+                command:
+                    AuthCommandArgs::Identity {
+                        remote_name,
+                        key_path,
+                        unset,
+                    },
+            } => Ok(CliRequest::RemoteIdentity(
+                gwz_core::RemoteIdentityRequest {
+                    meta,
+                    remote: remote_name.clone(),
+                    private_key_path: key_path.clone(),
+                    op: if *unset {
+                        gwz_core::RemoteIdentityOp::Unset
+                    } else if key_path.is_some() {
+                        gwz_core::RemoteIdentityOp::Set
+                    } else {
+                        gwz_core::RemoteIdentityOp::Get
+                    },
+                },
+            )),
             CommandArgs::Init(args) => args.request(meta, workspace_root),
             CommandArgs::Clone(args) => args.request(meta),
             CommandArgs::Add(args) => args.request(meta, current_dir),

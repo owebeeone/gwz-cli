@@ -33,6 +33,7 @@ Documentation: https://owebeeone.github.io/gwz-cli/
 Usage: gwz [OPTIONS] <COMMAND>
 
 Commands:
+  auth         Manage local SSH identity configuration
   add          Stage file contents across workspace repos (multi-repo git add)
   branch       Manage git branches across workspace members
   capture      Record the live worktree state into the lock (no mutation)
@@ -65,6 +66,12 @@ Options:
           Print version
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -150,6 +157,206 @@ Documentation: https://owebeeone.github.io/gwz-cli/
 
 ## Command Help
 
+### `gwz auth`
+
+```text
+Manage local SSH identity configuration
+
+Usage: gwz auth [OPTIONS] <COMMAND>
+
+Commands:
+  identity  Read or change a remote's local key path for selected repositories
+  help      Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+```
+
+### `gwz auth identity`
+
+```text
+Read or change a remote's local key path for selected repositories
+
+Usage: gwz auth identity [OPTIONS] <REMOTE>
+
+Arguments:
+  <REMOTE>
+
+
+Options:
+      --set <PATH>
+
+
+      --unset
+
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+```
+
 ### `gwz add`
 
 Command page: [add](commands/add.md).
@@ -183,6 +390,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -304,6 +517,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -402,6 +621,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -507,6 +732,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -616,6 +847,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -824,6 +1061,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -936,6 +1179,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1055,6 +1304,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1168,6 +1423,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1314,6 +1575,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1428,6 +1695,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1560,6 +1833,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1667,6 +1946,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1767,6 +2052,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1926,6 +2217,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2045,6 +2342,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2177,6 +2480,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2278,6 +2587,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2379,6 +2694,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2488,6 +2809,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2599,6 +2926,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2712,6 +3045,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2821,6 +3160,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2924,6 +3269,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3027,6 +3378,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3129,6 +3486,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3244,6 +3607,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3356,6 +3725,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3464,6 +3839,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3556,6 +3937,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3649,6 +4036,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3742,6 +4135,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3835,6 +4234,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3944,6 +4349,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -4072,6 +4483,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 

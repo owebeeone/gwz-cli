@@ -119,6 +119,7 @@ pub(crate) fn human_renderer_surfaces_response_messages() {
 fn branch_response_envelope() -> gwz_core::ResponseEnvelope {
     gwz_core::ResponseEnvelope {
         meta: gwz_core::ResponseMeta {
+            transport: None,
             request_id: "req_branch".to_owned(),
             schema_version: "gwz.protocol/v0".to_owned(),
             action: gwz_core::ActionKind::Branch,
@@ -270,6 +271,7 @@ pub(crate) fn sample_response(
         });
     gwz_core::ResponseEnvelope {
         meta: gwz_core::ResponseMeta {
+            transport: None,
             request_id: "req_render".to_owned(),
             schema_version: "gwz.protocol/v0".to_owned(),
             action: gwz_core::ActionKind::Status,
@@ -318,6 +320,7 @@ pub(crate) fn sample_event() -> gwz_core::OperationEvent {
 
 pub(crate) fn sample_result() -> gwz_core::OperationResult {
     gwz_core::OperationResult {
+        transport: None,
         operation_id: "op_render".to_owned(),
         request_id: "req_render".to_owned(),
         action: gwz_core::ActionKind::Status,

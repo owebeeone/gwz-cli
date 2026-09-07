@@ -14,6 +14,7 @@ pub(crate) fn error_path_renders_structured_json_envelope() {
         member_path: None,
         target_kind: None,
         record_context: None,
+        response_meta: None,
     };
     let json: serde_json::Value = serde_json::from_str(&render_error_json(&error)).unwrap();
     assert_eq!(json["kind"], "response");
@@ -229,6 +230,7 @@ pub(crate) fn merge_renderer_reports_idle_without_fabricating_an_operation() {
     let response = gwz_core::MergeResponse {
         response: gwz_core::ResponseEnvelope {
             meta: gwz_core::ResponseMeta {
+                transport: None,
                 request_id: "req-idle".to_owned(),
                 schema_version: "gwz.protocol/v0".to_owned(),
                 action: gwz_core::ActionKind::Merge,
@@ -457,6 +459,7 @@ fn parity_merge_response() -> gwz_core::MergeResponse {
     gwz_core::MergeResponse {
         response: gwz_core::ResponseEnvelope {
             meta: gwz_core::ResponseMeta {
+                transport: None,
                 request_id: "req-parity-1".to_owned(),
                 schema_version: "gwz.protocol/v0".to_owned(),
                 action: gwz_core::ActionKind::Merge,
@@ -583,4 +586,35 @@ fn merge_repo(path: &str, state: gwz_core::MergeParticipantState) -> gwz_core::M
         state,
         ..Default::default()
     }
+}
+
+#[test]
+fn transport_renderer_distinguishes_offer_from_authentication() {
+    let mut meta = gwz_core::ResponseMeta::default();
+    meta.transport = Some(vec![gwz_core::TransportObservation {
+        repository_path: "repos/app".into(),
+        remote: "origin".into(),
+        operation: gwz_core::TransportOperation::Push,
+        credential_method: gwz_core::TransportCredentialMethod::File,
+        selection_source: gwz_core::TransportSelectionSource::InvocationDefault,
+        credential_offered: true,
+        authenticated: None,
+        public_key_fingerprint: None,
+    }]);
+    let response = CliResponse::envelope(gwz_core::ResponseEnvelope {
+        meta,
+        ..Default::default()
+    });
+    assert!(
+        render_response(&response, OutputMode::Human).contains(
+            "credential=file source=invocation_default offered=true authenticated=unknown"
+        )
+    );
+    let value: serde_json::Value =
+        serde_json::from_str(&render_response(&response, OutputMode::Json)).unwrap();
+    assert_eq!(
+        value["meta"]["transport"][0]["authenticated"],
+        serde_json::Value::Null
+    );
+    assert_eq!(value["meta"]["transport"][0]["credential_method"], "file");
 }

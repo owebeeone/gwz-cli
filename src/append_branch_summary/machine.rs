@@ -150,7 +150,7 @@ pub(crate) fn stash_bundle_member_json(member: &gwz_core::StashBundleMember) -> 
 pub(crate) fn render_error_json(error: &CliError) -> String {
     serde_json::json!({
         "kind": "response",
-        "meta": serde_json::Value::Null,
+        "meta": error.response_meta.as_deref().map(response_meta_json),
         "members": [],
         "errors": [{
             "code": error
@@ -172,7 +172,7 @@ pub(crate) fn render_error_json(error: &CliError) -> String {
 }
 
 pub(crate) fn result_json(result: &gwz_core::OperationResult) -> serde_json::Value {
-    serde_json::json!({
+    let mut value = serde_json::json!({
         "kind": "result",
         "operation_id": result.operation_id,
         "request_id": result.request_id,
@@ -183,7 +183,11 @@ pub(crate) fn result_json(result: &gwz_core::OperationResult) -> serde_json::Val
         "members": result.members.iter().map(member_json).collect::<Vec<_>>(),
         "errors": result.errors.iter().map(error_json).collect::<Vec<_>>(),
         "attribution": result.attribution.as_ref().map(attribution_json),
-    })
+    });
+    if let Some(rows) = &result.transport {
+        value["transport"] = rows.iter().map(transport_observation_json).collect();
+    }
+    value
 }
 
 pub(crate) fn event_json(event: &gwz_core::OperationEvent) -> serde_json::Value {
