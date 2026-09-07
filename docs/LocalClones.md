@@ -43,6 +43,23 @@ The command surface is wider than what runs behind it, so this first:
 
 Nothing on this page promises when a refused form starts working.
 
+## Disk Space and Copy Speed
+
+Source and destination must share a reflink-capable filesystem to benefit from
+copy-on-write cloning. Without that support, GWZ makes ordinary independent
+copies. Later edits remain private in either case.
+
+A Raspberry Pi test with a roughly 54 MiB, eight-repository workspace measured
+one clone at **2.10 MiB of additional XFS space versus 53.72 MiB on ext4**,
+repeated twice on fresh images. Clone times overlapped at 1.2–1.4 seconds.
+Ten retained clones used about 20.5 MiB additional XFS space versus 537.2 MiB
+on ext4. These are incremental filesystem measurements excluding the source,
+not per-directory `du` totals that can double-count shared extents.
+
+The test used 10 GiB loop images on ext4 host storage, a development build,
+and normal caches on a shared ARM64 machine. Larger workspaces, build output,
+subsequent writes and native partitions can behave differently.
+
 ## The Family Model
 
 A family is one original workspace, whose reserved name is `root`, plus the

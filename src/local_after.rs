@@ -9,13 +9,11 @@ Examples:
 pub(crate) const LOCAL_CLONE_AFTER: &str = "\
 Examples:
   gwz local clone A ../gwz-dev-A
-  gwz local clone C ../gwz-dev-C --clean -b lane/agent-17
-  gwz local clone B ../gwz-dev-B --clean --from A
-  gwz local clone hub ../gwz-dev-hub --bare
 
 `root`, `origin` and Git's reserved ref names are refused as member names, and
 so is a name already recorded in the family. A verbatim copy is refused while
-the source has an open coordinated merge: abort it, or use --clean.";
+the source has an open coordinated merge: finish or abort it first.
+--clean, --bare, -b and --from are reserved and unsupported in this build.";
 
 pub(crate) const LOCAL_LIST_AFTER: &str = "\
 Example:

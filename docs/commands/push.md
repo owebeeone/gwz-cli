@@ -71,3 +71,22 @@ gwz --dry-run push
 - Use `gwz tag --push` for tag push workflows.
 - Network behavior is controlled by global options such as `--jobs`,
   `--max-per-host`, `--progress-interval`, and `--ssh-timeout`.
+
+## Publication and authentication
+
+GWZ captures the selected source refs before transfer. A failed selected member
+push withholds root publication; root-only pushes also require proof that the
+committed lock's dependencies are available. A refusal can follow successful
+member transfers, so read the per-target results, repair the failure and retry.
+
+Select a private-key file for an SSH destination:
+
+```sh
+gwz --identity ~/.ssh/project_key push
+gwz --remote-identity "origin=$HOME/.ssh/project_key" push
+```
+
+A selected file does not fall back to another agent identity if it fails.
+Exact encrypted-agent key selection is unsupported. File selection does not
+grant access: the destination must authorize that key. Use `--ssh-timeout` to
+bound stalled SSH reads; setting it to zero disables that timeout.

@@ -73,23 +73,23 @@ pub(crate) struct LocalCloneArgs {
 
     #[arg(
         long,
-        help = "Check out the frozen source state without worktree dirt",
-        long_help = "Check out the frozen source state in the destination: no worktree or index dirt is inherited, and no build directories are copied. Mutually exclusive with --verbatim."
+        help = "Reserved clean mode (unsupported in this build)",
+        long_help = "Unsupported in this build; parsed but refused before copying. Check out the frozen source state in the destination: no worktree or index dirt is inherited, and no build directories are copied. Mutually exclusive with --verbatim."
     )]
     pub(crate) clean: bool,
 
     #[arg(
         long,
-        help = "Create bare member repositories (implies --clean)",
-        long_help = "Create the destination as a share point: the same workspace layout, with every member repository bare. Implies --clean. Verbs that need a worktree refuse there; push, fetch, log, `gwz local list` and dispose work."
+        help = "Reserved bare mode (unsupported in this build)",
+        long_help = "Unsupported in this build; parsed but refused before copying. Create the destination as a share point: the same workspace layout, with every member repository bare. Implies --clean. Verbs that need a worktree refuse there; push, fetch, log, `gwz local list` and dispose work."
     )]
     pub(crate) bare: bool,
 
     #[arg(
         short = 'b',
         value_name = "branch",
-        help = "Create this branch in every destination repository (--clean/--bare only)",
-        long_help = "Create this branch in every destination repository at the frozen commit, before the clone is marked ready. Accepted only with --clean or --bare. If the branch already exists in any member, the whole create is refused."
+        help = "Reserved branch option (unsupported in this build)",
+        long_help = "Unsupported in this build; parsed but refused before copying. Create this branch in every destination repository at the frozen commit, before the clone is marked ready. Accepted only with --clean or --bare. If the branch already exists in any member, the whole create is refused."
     )]
     pub(crate) branch: Option<String>,
 
@@ -97,7 +97,7 @@ pub(crate) struct LocalCloneArgs {
         long,
         value_name = "name|path",
         help = "Copy from this family member or path instead of the current workspace",
-        long_help = "Copy from this family member or path instead of the current workspace. Accepts a family name recorded in the index or a filesystem path. Core resolves the token, and refuses one that names no readable source. The new clone is registered on the workspace root whichever member it was copied from."
+        long_help = "Unsupported in this build; parsed but refused before copying. Copy from this family member or path instead of the current workspace. Accepts a family name recorded in the index or a filesystem path. Core resolves the token, and refuses one that names no readable source. The new clone is registered on the workspace root whichever member it was copied from."
     )]
     pub(crate) from: Option<String>,
 }

@@ -2054,3 +2054,20 @@ fn generated_reference_and_command_page_cover_local() {
         assert!(page.contains("`missing_remote` in this build"));
     }
 }
+
+#[test]
+fn local_clone_help_marks_unimplemented_modes_and_transport() {
+    let help = long_help(&["local", "clone"]);
+    assert!(
+        help.contains("Only verbatim cloning is supported"),
+        "{help}"
+    );
+    assert!(
+        help.contains("Family pull and push are not supported"),
+        "{help}"
+    );
+    assert!(
+        !help.contains("gwz local clone hub ../gwz-dev-hub --bare"),
+        "{help}"
+    );
+}

@@ -18,10 +18,8 @@ the model, the lifecycle and the deletion rules; this page is the reference.
 Family names are resolved from the index at operation time. They are never
 written into `gwz.conf/gwz.yml` and never become Git remotes. The family's own
 verb owns creation, inspection and retirement together; exchange stays on the
-verbs that already do it, with a family-resolved remote:
-`gwz merge --remote <name> [<ref>]`, `gwz pull --head --remote <name>` and
-`gwz push --remote <name>` (see [merge](merge.md), [pull](pull.md) and
-[push](push.md)). [`gwz clone`](clone.md) is the URL form and nothing else.
+receiving workspace's [merge](merge.md) command:
+`gwz merge --remote <name> [<ref>]`. Family pull and push are unsupported. [`gwz clone`](clone.md) is the URL form and nothing else.
 
 ## `gwz local clone`
 

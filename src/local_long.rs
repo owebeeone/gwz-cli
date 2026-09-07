@@ -15,19 +15,15 @@ pub(crate) const LOCAL_CLONE_LONG: &str = "\
 Create a local clone of this workspace as a new family member.
 
 Copies the current workspace into a second working copy on this machine and
-registers it, by name, in the local clone family, so the two can exchange work
-by name: `gwz merge --remote <name>`, `gwz pull --head --remote <name>` and
-`gwz push --remote <name>`. There is no URL and no network. The destination
-defaults to `../<root-dirname>-<name>`.
+registers it, by name, in the local clone family. Integrate work from the
+receiving workspace with `gwz merge --remote <name>`. Family pull and push are not supported
+by this build. There is no URL and no network. The destination defaults to
+`../<root-dirname>-<name>`.
 
-The default mode copies the source tree as it sits, dirt and build directories
-included; `--clean` takes the frozen state without worktree dirt, and `--bare`
-makes a share point of bare member repositories. `-b <branch>` creates a lane
-branch in every destination repository before the clone is marked ready.
-`--from <name|path>` copies another family member, or a path, instead of the
-workspace this command runs in; whichever member is copied, the new clone is
-registered on the workspace root. Keep the source quiet for the whole
-invocation.";
+Only verbatim cloning is supported: it copies the source tree as it sits,
+dirt and build directories included. The parser accepts --clean, --bare,
+-b and --from, but this build refuses those forms before copying.
+Keep the source quiet for the whole invocation.";
 
 pub(crate) const LOCAL_LIST_LONG: &str = "\
 List the local clone family recorded on the workspace root.
