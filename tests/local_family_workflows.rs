@@ -223,7 +223,13 @@ fn a_family_merge_by_name_integrates_the_clones_commits_end_to_end() {
         "root work in A",
     );
     let merged = run(&temp, &["--json", "merge", "--remote", "A"]);
-    assert_eq!(exit(&merged), 0, "{}", stderr(&merged));
+    assert_eq!(
+        exit(&merged),
+        0,
+        "stdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&merged.stdout),
+        stderr(&merged)
+    );
     let json: Value = serde_json::from_slice(&merged.stdout).unwrap();
     assert_eq!(json["meta"]["aggregate_status"], "Ok");
     assert_eq!(json["merge"]["state"], "Completed");
@@ -669,6 +675,10 @@ fn init_workspace(temp: &TempDir) {
         "init failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+    let repo = git2::Repository::open(temp.path()).unwrap();
+    let mut config = repo.config().unwrap();
+    config.set_str("user.name", "GWZ Test").unwrap();
+    config.set_str("user.email", "gwz@example.invalid").unwrap();
 }
 
 fn exit(output: &Output) -> i32 {
