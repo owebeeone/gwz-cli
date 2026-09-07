@@ -9,9 +9,9 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
-## 1.0.0-rc.3: lane recovery release candidate
+## 1.0.0: lane recovery
 
-This candidate makes the ordinary lane cycle work with one default merge:
+This release makes the ordinary lane cycle work with one default merge:
 
 ```sh
 gwz local clone A
@@ -43,7 +43,6 @@ and Linux ARM64 ext4 operation have focused acceptance evidence. XFS supports
 space-efficient CoW copies; ext4 uses independent ordinary copies. See
 [Local Clones](LocalClones.md#disk-space-and-copy-speed) for measured scope.
 
-This is a prerelease; stable 1.0.0 promotion follows release-artifact validation.
 The older open-merge upgrade restriction below still applies.
 
 ## Upgrading To 0.14.0
