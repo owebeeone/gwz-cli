@@ -28,3 +28,6 @@ sha2 = "0.10"
 [profile.dist]
 inherits = "release"
 lto = "thin"
+
+[build-dependencies]
+sha2 = "0.10"

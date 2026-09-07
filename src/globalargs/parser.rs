@@ -4,6 +4,21 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::*;
 
+fn long_version() -> &'static str {
+    static VALUE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VALUE
+        .get_or_init(|| {
+            format!(
+                "{}\ncli: {}\ncore {}: {}",
+                env!("CARGO_PKG_VERSION"),
+                env!("GWZ_BUILD_PROVENANCE"),
+                gwz_core::VERSION,
+                gwz_core::BUILD_PROVENANCE
+            )
+        })
+        .as_str()
+}
+
 #[cfg(test)]
 pub(crate) fn usage_text() -> String {
     Cli::command().render_long_help().to_string()
@@ -13,6 +28,7 @@ pub(crate) fn usage_text() -> String {
 #[command(
     name = "gwz",
     version,
+    long_version = long_version(),
     about = "Manage GWZ multi-repository workspaces",
     long_about = CLI_LONG,
     after_long_help = CLI_AFTER,

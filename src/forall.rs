@@ -49,18 +49,17 @@ pub(crate) fn execute_forall(
     operation_id: String,
 ) -> Result<crate::CliResponse, gwz_core::model::ModelError> {
     let root = gwz_core::workspace_ops::resolve_workspace_root(start, meta.workspace.as_ref())?;
-    let mut ls_meta = meta.clone();
+    let mut target_meta = meta.clone();
     if !projects.is_empty() {
-        let selection = ls_meta.selection.get_or_insert_with(Default::default);
+        let selection = target_meta.selection.get_or_insert_with(Default::default);
         selection.targets.extend(projects.iter().cloned());
     }
 
-    // Resolve the target list via the ls op. Positional projects are selector tokens, so @root
-    // and future @sets are resolved by core instead of by a local post-filter.
-    let listed = gwz_core::workspace_ops::handle_ls(
+    // Positional projects join the common core selection service directly.
+    let listed = gwz_core::workspace_ops::resolve_forall_targets(
         start,
         gwz_core::LsRequest {
-            meta: ls_meta,
+            meta: target_meta,
             include_unmaterialized: None,
         },
         operation_id.clone(),

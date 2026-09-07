@@ -12,8 +12,9 @@ gwz merge --abort [--preserve]
 gwz merge --gc [<merge-id>]
 ```
 
-With no selection, all active members participate and the workspace root does
-not. Select the root explicitly as `@root`.
+With no selection, the workspace root and all active members participate.
+Explicit member selection remains partial. For the previous member-only default,
+use `--target @all --no-target @root`.
 
 ## Quick start
 
@@ -99,12 +100,12 @@ gwz --target mem_app --target @root merge feature/refactor
 ```
 
 Selection is frozen from the pre-merge manifest. Members remain in manifest
-order and an explicitly selected root is appended last. A root merge cannot
+order and a selected root is appended last. A root merge cannot
 add, remove, reorder, or rename participants in the operation already under
 way.
 
-`@all` and bare `--all` retain merge's member-only default. Use
-`--target @root` when root participation is intended.
+`@all` and bare `--all` include root and members. Use `--target @root` for a
+root-only merge.
 
 ## The coordinated state machine
 

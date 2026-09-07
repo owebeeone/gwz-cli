@@ -216,12 +216,27 @@ fn a_family_merge_by_name_integrates_the_clones_commits_end_to_end() {
     assert_eq!(repo_ref(&dest.join("app"), "HEAD"), Some(base.clone()));
 
     let work = commit_file(&dest.join("app"), "feature.txt", "from A\n", "work in A");
+    let root_work = commit_file(
+        &dest,
+        "root-feature.txt",
+        "root work from A\n",
+        "root work in A",
+    );
     let merged = run(&temp, &["--json", "merge", "--remote", "A"]);
     assert_eq!(exit(&merged), 0, "{}", stderr(&merged));
     let json: Value = serde_json::from_slice(&merged.stdout).unwrap();
     assert_eq!(json["meta"]["aggregate_status"], "Ok");
     assert_eq!(json["merge"]["state"], "Completed");
     assert_eq!(json["merge"]["open"], false);
+    assert_eq!(json["merge"]["repos"].as_array().unwrap().len(), 2);
+    let root_head = repo_ref(temp.path(), "HEAD").unwrap();
+    assert!(
+        root_head == root_work
+            || git2::Repository::open(temp.path())
+                .unwrap()
+                .graph_descendant_of(root_head.parse().unwrap(), root_work.parse().unwrap())
+                .unwrap()
+    );
     let repo = &json["merge"]["repos"][0];
     assert_eq!(repo["target_id"], "mem_app");
     assert_eq!(repo["state"], "FastForwarded");
@@ -235,7 +250,7 @@ fn a_family_merge_by_name_integrates_the_clones_commits_end_to_end() {
     let message = json["meta"]["message"].as_str().unwrap_or("");
     assert!(
         message.contains(&format!(
-            "imported HEAD of family member `A` as {import_ref} (mem_app={work})"
+            "imported HEAD of family member `A` as {import_ref} (mem_app={work}, @root={root_work})"
         )),
         "{message}"
     );
@@ -691,4 +706,53 @@ impl Drop for TempDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.path);
     }
+}
+
+#[test]
+fn ordinary_gwz_commit_merge_dispose_needs_no_root_workaround() {
+    let temp = TempDir::new("debt-recovery-lifecycle");
+    init_workspace(&temp);
+    let created = run(&temp, &["repo", "create", "app"]);
+    assert_eq!(exit(&created), 0, "{}", stderr(&created));
+    commit_file(&temp.path().join("app"), "work.txt", "before\n", "baseline");
+    for path in [temp.path().to_owned(), temp.path().join("app")] {
+        let mut config = git2::Repository::open(path).unwrap().config().unwrap();
+        config.set_str("user.name", "GWZ Test").unwrap();
+        config.set_str("user.email", "gwz@example.invalid").unwrap();
+    }
+    commit_workspace_root(temp.path());
+    let lanes = TempDir::new("debt-recovery-lanes");
+    let lane = lanes.path().join("A");
+    let cloned = run(&temp, &["local", "clone", "A", lane.to_str().unwrap()]);
+    assert_eq!(exit(&cloned), 0, "{}", stderr(&cloned));
+    let root_before = repo_ref(&lane, "HEAD");
+    std::fs::write(lane.join("app/work.txt"), "from lane A\n").unwrap();
+    for args in [
+        vec!["add", "app/work.txt"],
+        vec!["commit", "-m", "work in A"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_gwz"))
+            .current_dir(&lane)
+            .args(args)
+            .output()
+            .unwrap();
+        assert_eq!(exit(&output), 0, "{}", stderr(&output));
+    }
+    assert_ne!(
+        repo_ref(&lane, "HEAD"),
+        root_before,
+        "gwz commit writes the root lock commit"
+    );
+    for args in [
+        vec!["merge", "--remote", "A"],
+        vec!["local", "dispose", "A"],
+    ] {
+        let output = run(&temp, &args);
+        assert_eq!(exit(&output), 0, "{}", stderr(&output));
+    }
+    assert!(!lane.exists());
+    assert_eq!(
+        std::fs::read_to_string(temp.path().join("app/work.txt")).unwrap(),
+        "from lane A\n"
+    );
 }
