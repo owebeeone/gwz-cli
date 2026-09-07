@@ -179,17 +179,29 @@ def reconcile_cargo_toml(worktree, tag: str, version: str) -> bool:
     # The gwz-core git dependency's tag (git=/tag= order within the inline table is irrelevant).
     updated = re.sub(r'(gwz-core\s*=\s*\{[^}\n]*\btag\s*=\s*)"[^"]*"', rf'\g<1>"{tag}"', updated)
 
+    bazel_path = worktree / "BUILD.bazel"
+    bazel = bazel_path.read_text(encoding="utf-8")
+    updated_bazel, artifact_count = re.subn(
+        r'^(\s*version\s*=\s*)"[^"\n]*"', rf'\g<1>"{version}"', bazel, flags=re.M
+    )
+    if artifact_count != 2:
+        fail("expected exactly two CLI Bazel artifact versions")
+    bazel_changed = updated_bazel != bazel
+
     already_correct = f'version = "{version}"' in updated and f'tag = "{tag}"' in updated
     if updated == text:
         if already_correct:
             log("Cargo.toml already reconciled (version + gwz-core tag already match)")
-            return False
+            if bazel_changed:
+                bazel_path.write_text(updated_bazel, encoding="utf-8", newline="\n")
+            return bazel_changed
         fail("Cargo.toml reconcile changed nothing and the expected lines are absent -- the merged "
              "gwz-core dependency may not be in git+tag form (did main edit the dependency line?), "
              "or the file format is unexpected")
     if not already_correct:
         fail(f"Cargo.toml reconcile did not yield version={version} + gwz-core tag={tag}")
     path.write_text(updated, encoding="utf-8", newline="\n")  # force LF regardless of core.autocrlf
+    bazel_path.write_text(updated_bazel, encoding="utf-8", newline="\n")
     log(f"reconciled Cargo.toml: version = {version}, gwz-core tag = {tag}")
     return True
 
