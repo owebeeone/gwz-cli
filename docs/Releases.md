@@ -114,8 +114,7 @@ way a merge was started.
   `target_kind` and retain member id/path context even for whole-operation
   preflight failures. Durable record compatibility errors also include typed
   `record_context` rather than encoding merge id, schema/version, required
-  wave, or legacy mode only in prose. Because GWZ is pre-1.0, strict consumers
-  must tolerate additive keys.
+  wave, or legacy mode only in prose. Consumers must tolerate additive keys within these versioned envelopes.
 - Merge status rows expose durable pending-action reconciliation as
   `NotStarted`, `ExpectedConflict`, `CompletedExactly`, or `Ambiguous`.
   Ambiguity is also reported as dedicated structured drift and remains
