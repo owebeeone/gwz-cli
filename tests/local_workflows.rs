@@ -1243,6 +1243,10 @@ fn commit_in_repo(
     content: &str,
     message: &str,
 ) -> String {
+    // Fixture commits also establish the identity used by later CLI commits.
+    let mut config = repo.config().unwrap();
+    config.set_str("user.name", "GWZ Test").unwrap();
+    config.set_str("user.email", "gwz@example.invalid").unwrap();
     let workdir = repo.workdir().unwrap();
     fs::write(workdir.join(relative_path), content).unwrap();
     let mut index = repo.index().unwrap();
@@ -1419,6 +1423,10 @@ fn workspace_with_member(temp: &TempDir) -> PathBuf {
             .output()
             .unwrap(),
     );
+    let root_repo = git2::Repository::open(temp.path()).unwrap();
+    let mut config = root_repo.config().unwrap();
+    config.set_str("user.name", "GWZ Test").unwrap();
+    config.set_str("user.email", "gwz@example.invalid").unwrap();
     let member = temp.path().join("repos/app");
     create_repo_with_commit(&member);
     assert_success(

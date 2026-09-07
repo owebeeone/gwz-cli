@@ -29,6 +29,8 @@ unless ``--push`` is given.
 This operates on your LOCAL ``main`` and ``release`` refs and does not fetch; it warns if
 either is behind its upstream. Pull first if you want the latest.
 
+Use ``--core-tag`` when only the CLI advances; otherwise both tags match.
+
 Usage:
     python scripts/release.py vX.Y.Z              # reconcile + verify + commit + tag (no push)
     python scripts/release.py vX.Y.Z --push       # also push the release branch + tag to origin
@@ -287,11 +289,19 @@ def release_version(tag: str) -> str:
     return tag[1:]
 
 
+def release_versions(tag: str, core_tag: str | None) -> tuple[str, str]:
+    version = release_version(tag)
+    core_tag = core_tag or tag
+    release_version(core_tag)
+    return version, core_tag
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Reconcile the gwz-cli release branch for a release tag, in a temp worktree."
     )
     parser.add_argument("tag", help="release tag, e.g. v0.3.0")
+    parser.add_argument("--core-tag", help="existing core release tag (default: CLI release tag)")
     parser.add_argument("--main", default="main", help="source branch to merge from (default: main)")
     parser.add_argument("--release", default="release", help="release branch to reconcile (default: release)")
     parser.add_argument("--no-test", action="store_true", help="skip `cargo test` (still runs `cargo build`)")
@@ -303,7 +313,7 @@ def main():
     args = parser.parse_args()
 
     tag = args.tag
-    version = release_version(tag)
+    version, core_tag = release_versions(tag, args.core_tag)
 
     for tool in ("git", "cargo"):
         if not shutil.which(tool):
@@ -316,7 +326,7 @@ def main():
     warn_if_behind_upstream(args.release)
 
     core_url = gwz_core_url(args.release)
-    verify_remote_tag(core_url, tag)
+    verify_remote_tag(core_url, core_tag)
 
     # If the tag already exists, the release is already cut: never advance release past it and never
     # move it. Checking here -- before any commit -- also removes any commit-but-no-tag window.
@@ -338,8 +348,8 @@ def main():
     try:
         do_merge(worktree, args.main, args.release)
         merged = merge_head_exists(worktree)
-        changed = reconcile_cargo_toml(worktree, tag, version)
-        checkout_gwz_core(core_url, tag, core_checkout)
+        changed = reconcile_cargo_toml(worktree, core_tag, version)
+        checkout_gwz_core(core_url, core_tag, core_checkout)
         core_sha = git_wt(core_checkout, ["rev-parse", "HEAD"], capture=True).stdout.strip()
         # Refresh even when the manifest already names this tag. A failed/provisional release may
         # have been removed and recreated at a corrected commit; Cargo otherwise trusts the stale
@@ -358,19 +368,19 @@ def main():
             run(["cargo", "build"], cwd=worktree)
             if not args.no_test:
                 run(["cargo", "test"], cwd=worktree)
-            verify_locked_git_pin(worktree, tag, core_sha)
+            verify_locked_git_pin(worktree, core_tag, core_sha)
             if not args.no_doc_check:
                 verify_cli_reference_docs(worktree)
             git_wt(worktree, ["add", "-A"])
-            message = f"chore(release): gwz-cli {version} (pins gwz-core {tag})"
+            message = f"chore(release): gwz-cli {version} (pins gwz-core {core_tag})"
             git_wt(worktree, ["commit", "-m", message])
             sha = git_wt(worktree, ["rev-parse", "HEAD"], capture=True, check=False).stdout.strip()
             log(f"{args.release} reconciled -> {sha[:10] if sha else '(committed)'}  "
-                f"(gwz-cli {version}, gwz-core {tag})")
+                f"(gwz-cli {version}, gwz-core {core_tag})")
         else:
             log(f"{args.release} already reconciled for {tag}; no new commit needed")
             verify_locked_git_pin(
-                worktree, tag, core_sha
+                worktree, core_tag, core_sha
             )  # only ever tag a commit whose lock pins the exact Git tag target
             if not args.no_doc_check:
                 verify_cli_reference_docs(worktree)

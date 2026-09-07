@@ -13,6 +13,6 @@ fn release_script_checks_generated_cli_reference_by_default() {
 fn release_script_checks_out_the_exact_core_tag_for_parity_fixtures() {
     assert!(RELEASE_SCRIPT.contains("def checkout_gwz_core"));
     assert!(RELEASE_SCRIPT.contains("core_checkout = temp_root / \"gwz-core\""));
-    assert!(RELEASE_SCRIPT.contains("checkout_gwz_core(core_url, tag, core_checkout)"));
+    assert!(RELEASE_SCRIPT.contains("checkout_gwz_core(core_url, core_tag, core_checkout)"));
     assert!(RELEASE_SCRIPT.contains("\"--branch\", tag"));
 }
