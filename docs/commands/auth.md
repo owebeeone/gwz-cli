@@ -4,7 +4,7 @@ Use an identity for one invocation:
 
 ```sh
 gwz push --identity ~/.ssh/work_key
-gwz pull --remote-identity origin=~/.ssh/work_key
+gwz pull --remote-identity "origin=$HOME/.ssh/work_key"
 ```
 
 `--remote-identity NAME=PATH` can be repeated for different remote names. The

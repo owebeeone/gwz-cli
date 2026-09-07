@@ -90,5 +90,6 @@ nav:
           - materialize: commands/materialize.md
           - pull: commands/pull.md
           - push: commands/push.md
+          - SSH identity: commands/auth.md
           - forall: commands/forall.md
   - Releases: Releases.md
