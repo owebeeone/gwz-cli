@@ -65,6 +65,7 @@ nav:
       - Root Workspaces: RootWorkspace.md
       - Troubleshooting: Troubleshooting.md
       - Merge Recovery Runbook: MergeRecovery.md
+      - Local Clones: LocalClones.md
       - Agent Bootstrap: AgentBootstrap.md
   - Reference:
       - CLI Reference: CLI.md
@@ -74,6 +75,7 @@ nav:
           - clone: commands/clone.md
           - repo: commands/repo.md
           - ls: commands/ls.md
+          - local: commands/local.md
           - status: commands/status.md
           - diff: commands/diff.md
           - log: commands/log.md
@@ -88,5 +90,6 @@ nav:
           - materialize: commands/materialize.md
           - pull: commands/pull.md
           - push: commands/push.md
+          - SSH identity: commands/auth.md
           - forall: commands/forall.md
   - Releases: Releases.md

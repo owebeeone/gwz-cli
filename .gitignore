@@ -27,3 +27,11 @@ bazel-*
 
 # Compiled Rust artifacts left in the tree
 *.rlib
+
+# Generated documentation and cargo-dist workflow reports (not source inputs)
+/site/
+/dist-manifest.json
+/plan-dist-manifest.json
+/gate-dist-manifest.json
+/gate-upload-files.txt
+/gate-identity-*.json

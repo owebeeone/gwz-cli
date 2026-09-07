@@ -5,14 +5,16 @@ repository.
 
 ```text
 gwz merge <source> [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]
+gwz merge --remote <name> [<ref>]
 gwz merge --status [<merge-id>]
 gwz merge --continue
 gwz merge --abort [--preserve]
 gwz merge --gc [<merge-id>]
 ```
 
-With no selection, all active members participate and the workspace root does
-not. Select the root explicitly as `@root`.
+With no selection, the workspace root and all active members participate.
+Explicit member selection remains partial. For the previous member-only default,
+use `--target @all --no-target @root`.
 
 ## Quick start
 
@@ -98,12 +100,12 @@ gwz --target mem_app --target @root merge feature/refactor
 ```
 
 Selection is frozen from the pre-merge manifest. Members remain in manifest
-order and an explicitly selected root is appended last. A root merge cannot
+order and a selected root is appended last. A root merge cannot
 add, remove, reorder, or rename participants in the operation already under
 way.
 
-`@all` and bare `--all` retain merge's member-only default. Use
-`--target @root` when root participation is intended.
+`@all` and bare `--all` include root and members. Use `--target @root` for a
+root-only merge.
 
 ## The coordinated state machine
 
@@ -411,12 +413,53 @@ that cannot support crash recovery still runs; see
 [Crash recovery and filesystems](#crash-recovery-and-filesystems).
 
 Merge also rejects unrelated operation policies supplied explicitly:
-`--sync`, `--remote`, `--jobs`, `--max-per-host`,
-`--progress-interval`, `--partial`, and `--force`. Diagnostics name the option
-that must be removed.
+`--sync`, `--jobs`, `--max-per-host`, `--progress-interval`, `--partial`, and
+`--force`. Diagnostics name the option that must be removed. `--remote` is the
+exception: on `merge` it is not an operation policy at all, but the local clone
+family selector described below.
 
 `gwz branch --merge <source>` remains a deprecated compatibility spelling. It
 constructs the same first-class merge request.
+
+## Merging from a local clone (`--remote <name>`)
+
+`gwz merge --remote <name>` integrates work from another working copy of this
+workspace on the same machine — a member of the [local clone
+family](local.md) — instead of resolving a Git ref:
+
+```sh
+gwz merge --remote A
+gwz merge --remote C lane/agent-17
+```
+
+With no ref, the source is the named member's HEAD commit, resolved
+independently for every paired participant. With a ref, that ref is resolved
+*inside* the named member, again per participant. Either way the receiving
+participant's current branch is the merge target, and everything after that —
+preflight, the coordinated record, conflicts, continue, abort, retention — is
+the ordinary merge lifecycle described above.
+
+Before the engine runs, the source commit is fetched into each receiving
+repository under one fresh, retained ref, `refs/gwz/local-imports/<transfer-id>`,
+and that ref is what the engine merges; status output names it as the source.
+Import refs are kept after completion and after abort — see
+[Local Clones](../LocalClones.md#import-references-are-retained). As with any
+merge, the root participates only when selected, so
+`gwz --target @root merge --remote A` is how the clone's root commits come
+across; without it they stay unpreserved, and `gwz local dispose A` says so.
+
+On `merge` the name is family-only. A name that is not a ready family member is
+refused with `unknown_local`, whose message says which case it is — a name the
+index does not hold (or a reserved one), or a row that is `creating` or
+`disposing` rather than ready. It never falls back to a Git remote, so
+`gwz merge --remote origin` is a family miss rather than a fetch. The mirror
+image also holds: a bare `gwz merge A` resolves the Git ref `A` in each
+receiving repository and never means the family member `A`.
+
+The selector is accepted only when starting a merge — not with `--continue`,
+`--abort`, `--status` or `--gc` — and family bindings are resolved from the
+index at operation time. They are never written into `gwz.conf/gwz.yml` and
+never become Git remotes.
 
 ## Crash recovery and filesystems
 

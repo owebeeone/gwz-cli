@@ -1,9 +1,9 @@
 # `gwz clone`
 
-Clone a GWZ workspace root repository and materialize its members.
+Clone a GWZ workspace root repository from a URL and materialize its members.
 
 ```text
-gwz clone [OPTIONS] <url> [directory]
+gwz clone <url> [directory]
 ```
 
 `gwz clone` is the one-shot form of cloning the root repository and then running
@@ -44,3 +44,6 @@ gwz materialize --lock
 - `--dry-run` is rejected for `gwz clone`.
 - Network behavior is controlled by global options such as `--jobs`,
   `--max-per-host`, `--remote`, `--progress-interval`, and `--ssh-timeout`.
+- A second working copy of a workspace on the same machine is a different
+  command: [`gwz local clone`](local.md). `gwz clone` takes a URL and nothing
+  else.

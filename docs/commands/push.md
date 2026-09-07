@@ -29,6 +29,22 @@ Push to an explicit remote:
 gwz --remote origin push
 ```
 
+Naming another working copy of this workspace on the same machine — a member
+of the [local clone family](local.md) — is the intended form, with each
+selected repository's current branch published to the same branch there:
+
+```sh
+gwz push --remote hub
+```
+
+**This build does not serve it.** The family name is looked up and the flag
+then falls through to ordinary Git remote resolution, so a family name that
+is not also a Git remote fails every selected target with
+`MissingRemote: missing remote 'hub'` (`missing_remote` in this build's
+machine output). `--remote origin` keeps its usual meaning. Integrate from the
+receiving side with `gwz merge --remote <name>` instead; see
+[`gwz merge`](merge.md) and [Local Clones](../LocalClones.md).
+
 Push one member by id:
 
 ```sh
@@ -55,3 +71,22 @@ gwz --dry-run push
 - Use `gwz tag --push` for tag push workflows.
 - Network behavior is controlled by global options such as `--jobs`,
   `--max-per-host`, `--progress-interval`, and `--ssh-timeout`.
+
+## Publication and authentication
+
+GWZ captures the selected source refs before transfer. A failed selected member
+push withholds root publication; root-only pushes also require proof that the
+committed lock's dependencies are available. A refusal can follow successful
+member transfers, so read the per-target results, repair the failure and retry.
+
+Select a private-key file for an SSH destination:
+
+```sh
+gwz --identity ~/.ssh/project_key push
+gwz --remote-identity "origin=$HOME/.ssh/project_key" push
+```
+
+A selected file does not fall back to another agent identity if it fails.
+Exact encrypted-agent key selection is unsupported. File selection does not
+grant access: the destination must authorize that key. Use `--ssh-timeout` to
+bound stalled SSH reads; setting it to zero disables that timeout.

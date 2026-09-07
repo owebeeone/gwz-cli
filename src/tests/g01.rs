@@ -9,6 +9,40 @@ mod commands;
 pub(crate) use commands::*;
 
 #[test]
+fn ssh_identity_flags_preserve_remote_overrides_and_equals_in_paths() {
+    let invocation = parse_args_with_request_id(
+        strings([
+            "--identity",
+            "default=key",
+            "push",
+            "--remote-identity",
+            "origin=work=key",
+            "--remote-identity",
+            "upstream=other-key",
+        ]),
+        "identity",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+    let CliRequest::Push(request) = invocation.request else {
+        panic!("expected push");
+    };
+    let transport = request.meta.transport.unwrap();
+    assert_eq!(transport.default_identity.as_deref(), Some("default=key"));
+    assert_eq!(transport.remote_identities[0].remote, "origin");
+    assert_eq!(transport.remote_identities[0].private_key_path, "work=key");
+    assert_eq!(transport.remote_identities[1].remote, "upstream");
+    assert!(
+        parse_args_with_request_id(
+            strings(["push", "--remote-identity", "missing-separator"]),
+            "bad",
+            Path::new("/cwd")
+        )
+        .is_err()
+    );
+}
+
+#[test]
 pub(crate) fn parses_init_workspace_with_root() {
     let invocation = parse_args_with_request_id(
         strings(["--root", "/tmp/gwz-test", "init"]),
@@ -613,4 +647,23 @@ pub(crate) fn global_all_selects_targets_for_add_and_commit_without_setting_the_
         assert_eq!(request.all, None, "--all must not mean `git add -A`");
         assert_eq!(request.meta.selection.unwrap().targets, vec!["@all"]);
     }
+}
+
+#[test]
+fn auth_identity_parses_set_get_unset_and_selection() {
+    let invocation = parse(strings([
+        "auth", "identity", "origin", "--set", "key=one", "--member", "@root",
+    ]));
+    let CliRequest::RemoteIdentity(request) = invocation.request else {
+        panic!("expected identity configuration");
+    };
+    assert_eq!(request.op, gwz_core::RemoteIdentityOp::Set);
+    assert_eq!(request.private_key_path.as_deref(), Some("key=one"));
+    assert_eq!(request.meta.selection.unwrap().targets, vec!["@root"]);
+    assert!(
+        parse_result(strings([
+            "auth", "identity", "origin", "--set", "key", "--unset"
+        ]))
+        .is_err()
+    );
 }

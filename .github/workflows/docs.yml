@@ -21,6 +21,8 @@ concurrency:
 
 jobs:
   build:
+    # Keep stable documentation on the stable release when an RC is published.
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
     runs-on: ubuntu-latest
     steps:
       - name: Check out the released documentation

@@ -1,0 +1,23 @@
+name: Workspace candidate validation
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  configured-tuple:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require a reviewed workspace revision
+        env:
+          WORKSPACE_SHA: ${{ vars.GWZ_WORKSPACE_REVISION }}
+        run: |
+          [[ "$WORKSPACE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Set GWZ_WORKSPACE_REVISION to the reviewed gwz-dev commit; floating sibling branches are forbidden.'; exit 1; }
+  candidate:
+    needs: configured-tuple
+    uses: owebeeone/gwz-dev/.github/workflows/debt-recovery.yml@main
+    with:
+      workspace_sha: ${{ vars.GWZ_WORKSPACE_REVISION }}
+      candidate_member: gwz-cli
+      candidate_sha: ${{ github.event.pull_request.head.sha || github.sha }}

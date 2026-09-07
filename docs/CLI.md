@@ -33,16 +33,18 @@ Documentation: https://owebeeone.github.io/gwz-cli/
 Usage: gwz [OPTIONS] <COMMAND>
 
 Commands:
+  auth         Manage local SSH identity configuration
   add          Stage file contents across workspace repos (multi-repo git add)
   branch       Manage git branches across workspace members
   capture      Record the live worktree state into the lock (no mutation)
-  clone        Clone a workspace and materialize its members
+  clone        Clone a workspace from a URL and materialize its members
   commit       Commit staged changes across the selected targets (root included only when selected;
                default selection includes the root and every member)
   diff         Show workspace changes as one unified diff (multi-repo git diff)
   forall       Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c
                <string>
   init         Create a workspace or initialize one from source URLs
+  local        Create, inspect and retire the local clone family
   ls           List workspace targets (id, path; absolute or --local)
   log          Show unified commit history across workspace repositories
   materialize  Materialize workspace members to a target
@@ -64,6 +66,12 @@ Options:
           Print version
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -110,7 +118,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -147,39 +157,28 @@ Documentation: https://owebeeone.github.io/gwz-cli/
 
 ## Command Help
 
-### `gwz add`
-
-Command page: [add](commands/add.md).
+### `gwz auth`
 
 ```text
-Stage file contents across the workspace's member repositories.
+Manage local SSH identity configuration
 
-`gwz add` is the multi-repo `git add`: each pathspec is resolved relative to the
-current directory, routed to the member (or workspace root) repository that owns
-it, and staged there. Pair it with `gwz commit`. To register an existing
-repository as a workspace member, use `gwz repo add` instead.
+Usage: gwz auth [OPTIONS] <COMMAND>
 
-A target selection (`--target`/`--member`/`--path`) scopes the staging. With
-`-A` it stages the selected targets only. With pathspecs it constrains routing:
-a pathspec that names a repository outside the selection is an error, and
-repositories reached only by `.` fan-out are skipped. `--dry-run` validates the
-routing and stages nothing.
-
-Usage: gwz add [OPTIONS] [pathspec]...
-
-Arguments:
-  [pathspec]...
-          Paths to stage; resolved relative to the current directory like `git add`
+Commands:
+  identity  Read or change a remote's local key path for selected repositories
+  help      Print this message or the help of the given subcommand(s)
 
 Options:
-  -A
-          Stage all changes across every workspace repo (git add -A). `--all` is the target
-          selector.
-
   -h, --help
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -226,7 +225,226 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+```
+
+### `gwz auth identity`
+
+```text
+Read or change a remote's local key path for selected repositories
+
+Usage: gwz auth identity [OPTIONS] <REMOTE>
+
+Arguments:
+  <REMOTE>
+
+
+Options:
+      --set <PATH>
+
+
+      --unset
+
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+```
+
+### `gwz add`
+
+Command page: [add](commands/add.md).
+
+```text
+Stage file contents across the workspace's member repositories.
+
+`gwz add` is the multi-repo `git add`: each pathspec is resolved relative to the
+current directory, routed to the member (or workspace root) repository that owns
+it, and staged there. Pair it with `gwz commit`. To register an existing
+repository as a workspace member, use `gwz repo add` instead.
+
+A target selection (`--target`/`--member`/`--path`) scopes the staging. With
+`-A` it stages the selected targets only. With pathspecs it constrains routing:
+a pathspec that names a repository outside the selection is an error, and
+repositories reached only by `.` fan-out are skipped. `--dry-run` validates the
+routing and stages nothing.
+
+Usage: gwz add [OPTIONS] [pathspec]...
+
+Arguments:
+  [pathspec]...
+          Paths to stage; resolved relative to the current directory like `git add`
+
+Options:
+  -A
+          Stage all changes across every workspace repo (git add -A). `--all` is the target
+          selector.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -299,6 +517,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -345,7 +569,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -395,6 +621,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -441,7 +673,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -473,9 +707,9 @@ Global Options:
 Command page: [clone](commands/clone.md).
 
 ```text
-Clone a GWZ workspace from its root repository URL.
+Clone a GWZ workspace from a URL.
 
-`gwz clone` is the one-shot form of `git clone <url>` followed by
+`gwz clone <url>` is the one-shot form of `git clone <url>` followed by
 `gwz materialize --lock`. It clones the workspace root repository (the one that
 owns the tracked `gwz.conf/` directory) into a target directory, verifies it is
 a GWZ workspace, then materializes every member: missing member repositories are
@@ -483,11 +717,11 @@ cloned and checked out at the commits recorded in `gwz.conf/gwz.lock.yml`.
 
 If the target directory is omitted, it is derived from the URL.
 
-Usage: gwz clone [OPTIONS] <url> [directory]
+Usage: gwz clone <url> [directory]
 
 Arguments:
   <url>
-          Git URL of the workspace root repository
+          Git URL of the workspace root repository.
 
   [directory]
           Target directory for the cloned workspace. Defaults to a directory named after the
@@ -498,6 +732,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -544,7 +784,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -605,6 +847,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -651,7 +899,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -811,6 +1061,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -857,7 +1113,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -921,6 +1179,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -967,7 +1231,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1038,6 +1304,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1084,7 +1356,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1118,26 +1392,43 @@ Examples:
   gwz init git@github.com:org/app.git git@github.com:org/lib.git
 ```
 
-### `gwz ls`
+### `gwz local`
 
-Command page: [ls](commands/ls.md).
+Command page: [local](commands/local.md).
 
 ```text
-List workspace targets (id, path; absolute or --local)
+Create, inspect and retire the local clone family of this workspace.
 
-Usage: gwz ls [OPTIONS]
+A local clone is a second working copy of the whole workspace on the same
+machine, made with `gwz local clone <name> [dest]`. The family index lives on
+the workspace root; every clone carries a pointer back to it, so these commands
+work from any ready member of the family.
+
+`gwz local clone` creates a member. `gwz local list` reports the family.
+`gwz local dispose` removes one member — its tree, or only its registration
+with `--keep`. `gwz local disband` retires the family itself and leaves every
+directory in place.
+
+Usage: gwz local [OPTIONS] <COMMAND>
+
+Commands:
+  clone    Create a local clone of this workspace as a new family member
+  list     List the local clone family recorded on the workspace root
+  dispose  Dispose of a local family member, or detach it with --keep
+  disband  Retire the family: remove pointers and the index; every tree stays
+  help     Print this message or the help of the given subcommand(s)
 
 Options:
-      --local
-          Print workspace-relative paths instead of absolute paths
-
-      --unmaterialized
-          Include configured-but-unmaterialized members
-
   -h, --help
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1184,7 +1475,635 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz local clone A ../gwz-dev-A
+  gwz local list
+  gwz local dispose C --keep
+  gwz local dispose C --force open-merge,dirty,unpreserved-history
+  gwz local disband
+```
+
+### `gwz local clone`
+
+Command page: [local](commands/local.md).
+
+```text
+Create a local clone of this workspace as a new family member.
+
+Copies the current workspace into a second working copy on this machine and
+registers it, by name, in the local clone family. Integrate work from the
+receiving workspace with `gwz merge --remote <name>`. Family pull and push are not supported
+by this build. There is no URL and no network. The destination defaults to
+`../<root-dirname>-<name>`.
+
+Only verbatim cloning is supported: it copies the source tree as it sits,
+dirt and build directories included. The parser accepts --clean, --bare,
+-b and --from, but this build refuses those forms before copying.
+Keep the source quiet for the whole invocation.
+
+Usage: gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]
+
+Arguments:
+  <name>
+          Family member name for the new clone. `root`, `origin` and Git's reserved ref names are
+          not accepted, and a name already recorded in the family is refused.
+
+  [dest]
+          Destination directory of the new clone. Defaults to `../<root-dirname>-<name>` beside the
+          workspace root. A nonempty directory, a directory that is already a workspace, and a path
+          inside any family member are refused.
+
+Options:
+      --verbatim
+          Copy the source tree as it sits, including staged edits, unstaged edits, untracked files
+          and build directories. This is the default mode. It is refused while the source has an
+          open coordinated merge. Mutually exclusive with --clean and --bare.
+
+      --clean
+          Unsupported in this build; parsed but refused before copying. Check out the frozen source
+          state in the destination: no worktree or index dirt is inherited, and no build directories
+          are copied. Mutually exclusive with --verbatim.
+
+      --bare
+          Unsupported in this build; parsed but refused before copying. Create the destination as a
+          share point: the same workspace layout, with every member repository bare. Implies
+          --clean. Verbs that need a worktree refuse there; push, fetch, log, `gwz local list` and
+          dispose work.
+
+  -b <branch>
+          Unsupported in this build; parsed but refused before copying. Create this branch in every
+          destination repository at the frozen commit, before the clone is marked ready. Accepted
+          only with --clean or --bare. If the branch already exists in any member, the whole create
+          is refused.
+
+      --from <name|path>
+          Unsupported in this build; parsed but refused before copying. Copy from this family member
+          or path instead of the current workspace. Accepts a family name recorded in the index or a
+          filesystem path. Core resolves the token, and refuses one that names no readable source.
+          The new clone is registered on the workspace root whichever member it was copied from.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz local clone A ../gwz-dev-A
+
+`root`, `origin` and Git's reserved ref names are refused as member names, and
+so is a name already recorded in the family. A verbatim copy is refused while
+the source has an open coordinated merge: finish or abort it first.
+--clean, --bare, -b and --from are reserved and unsupported in this build.
+```
+
+### `gwz local list`
+
+Command page: [local](commands/local.md).
+
+```text
+List the local clone family recorded on the workspace root.
+
+Reads the index through this workspace's family pointer and reports every
+member: its name, kind (checkout or bare), state, and path — the root first,
+then every member in name order.
+
+The state column carries both what the index recorded (creating, ready,
+disposing) and what was observed on disk (ready, incomplete,
+interrupted_disposal, missing, pointer_removed, mismatched, malformed,
+unobserved). They are shown as one word while they agree and as
+`recorded/observed` when they do not, so an interrupted create or an
+interrupted disposal is visible without a second command. Any diagnostic the
+index recorded for a member is shown beside its row.
+
+The listing performs no repair and takes no lock; --json and --jsonl carry
+every field of every row.
+
+Usage: gwz local list [OPTIONS]
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Example:
+  gwz local list
+  gwz local list --json
+
+Output columns: name, kind, state, path. The state column is one word while
+the recorded row and the directory agree, and `recorded/observed` when they do
+not — `creating/incomplete` for an interrupted create, for instance. A member
+that recorded a diagnostic gets a fifth column carrying it.
+```
+
+### `gwz local dispose`
+
+Command page: [local](commands/local.md).
+
+```text
+Dispose of one local family member.
+
+By default this deletes the member's directory, and it refuses to do so while
+any hazard is detected: an open coordinated merge, uncommitted or untracked
+work, or history that is not verifiably preserved in another surviving family
+member. A clean working tree is not preservation proof, and network-only
+preservation is not certified.
+
+Each reported hazard must be named explicitly with `--force` before the
+deletion proceeds. That is an operator loss waiver, not crash recovery: an
+incomplete or interrupted member is retained rather than force-deleted.
+
+`--keep` is the non-destructive alternative: it removes only the pointer and
+the index row, so the tree, its open merge and its history stay on disk and
+remain usable as an ordinary workspace.
+
+The workspace root is never disposed, and neither is the member you are
+standing in.
+
+Usage: gwz local dispose <name> [--keep]
+       gwz local dispose <name> --force <hazard,...>
+
+Arguments:
+  <name>
+          Family member name recorded in the index
+
+  [hazard,...]...
+          Deletion hazards this disposal is authorized to waive, comma-separated, and accepted only
+          together with --force. GWZ refuses to delete a member whose work or history is not
+          verifiably preserved elsewhere; every hazard it reports must be named here before it will.
+          Known names: open-merge, dirty, unpreserved-history. This is an operator loss waiver, not
+          crash recovery, and it is mutually exclusive with --keep.
+
+Options:
+      --keep
+          Detach only: remove the pointer and the index row. The member's entire tree, its open
+          merge and its history stay on disk and remain usable as an ordinary workspace. Mutually
+          exclusive with --force.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz local dispose C
+  gwz local dispose C --keep
+  gwz local dispose C --force unpreserved-history
+  gwz local dispose C --force open-merge,dirty,unpreserved-history
+
+Hazard names: open-merge, dirty, unpreserved-history. They are operands of
+this command and are accepted only together with --force; `--force` with no
+names is refused, and so is `--keep` together with `--force`.
+```
+
+### `gwz local disband`
+
+Command page: [local](commands/local.md).
+
+```text
+Retire the local clone family.
+
+Removes the family pointers and the index only. Every member directory stays
+exactly where it is and remains an ordinary GWZ workspace. Family names stop
+resolving afterwards, so `--remote <name>` on pull, push and merge falls back
+to ordinary Git remote resolution.
+
+Disband may be repeated after an error; it never routes a remaining row through
+directory deletion.
+
+Usage: gwz local disband [OPTIONS]
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Example:
+  gwz local disband
+
+Every member directory survives; only the pointers and the index are removed.
+```
+
+### `gwz ls`
+
+Command page: [ls](commands/ls.md).
+
+```text
+List workspace targets (id, path; absolute or --local)
+
+Usage: gwz ls [OPTIONS]
+
+Options:
+      --local
+          Print workspace-relative paths instead of absolute paths
+
+      --unmaterialized
+          Include configured-but-unmaterialized members
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied.
+
+      --target <selector>
+          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
+          supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1295,6 +2214,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1341,7 +2266,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1412,6 +2339,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1458,7 +2391,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1500,6 +2435,7 @@ Command page: [merge](commands/merge.md).
 Merge a source ref across selected workspace repositories
 
 Usage: gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]
+       gwz merge --remote <name> [<ref>]
        gwz merge --status [merge-id]
        gwz merge --continue
        gwz merge --abort [--preserve]
@@ -1541,6 +2477,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1587,7 +2529,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1640,6 +2584,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1686,7 +2636,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1739,6 +2691,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1785,7 +2743,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1846,6 +2806,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -1892,7 +2858,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1955,6 +2923,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2001,7 +2975,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2066,6 +3042,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2112,7 +3094,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2173,6 +3157,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2219,7 +3209,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2274,6 +3266,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2320,7 +3318,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2375,6 +3375,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2421,7 +3427,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2475,6 +3483,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2521,7 +3535,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2588,6 +3604,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2634,7 +3656,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2698,6 +3722,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2744,7 +3774,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2804,6 +3836,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2850,7 +3888,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2894,6 +3934,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -2940,7 +3986,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2985,6 +4033,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3031,7 +4085,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3076,6 +4132,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3122,7 +4184,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3167,6 +4231,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3213,7 +4283,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3274,6 +4346,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3320,7 +4398,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3400,6 +4480,12 @@ Options:
           Print help (see a summary with '-h')
 
 Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
       --root <path>
           Workspace root. Defaults to the current directory when not supplied.
 
@@ -3446,7 +4532,9 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes.
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across

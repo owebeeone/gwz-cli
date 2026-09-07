@@ -19,6 +19,7 @@ workspace, make a cross-repository change, and learn the repository lifecycle.
 | Script the CLI | [Machine Output](MachineOutput.md) and [CLI Reference](CLI.md) |
 | Inspect history across the whole workspace | [`gwz log`](commands/log.md) |
 | Get out of a merge that will not finish or close | [Merge Recovery Runbook](MergeRecovery.md) |
+| Work in an isolated copy of the workspace and merge it back by name | [Local Clones](LocalClones.md) |
 
 GWZ resolves the workspace from the current directory, including from inside a
 member repository. Use `--root <path>` only to override that discovery.
@@ -36,6 +37,9 @@ member repository. Use `--root <path>` only to override that discovery.
 - [Troubleshooting](Troubleshooting.md): common failures and recovery.
 - [Merge Recovery Runbook](MergeRecovery.md): refused recovery checkouts,
   unavailable rollbacks, and an open merge no command can close.
+- [Local Clones](LocalClones.md): a second working copy of the whole
+  workspace on the same machine, integrated by name and deleted only when its
+  history provably survives elsewhere.
 - [Agent Bootstrap](AgentBootstrap.md): the generated `AGENTS_GWZ.md` hint and
   standard `AGENTS.md` entry point.
 - [Releases](Releases.md): release docs and installer verification.

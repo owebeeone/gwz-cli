@@ -13,6 +13,7 @@ pub(crate) struct CliInvocation {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum CliRequest {
+    RemoteIdentity(gwz_core::RemoteIdentityRequest),
     CreateWorkspace(gwz_core::CreateWorkspaceRequest),
     UpdateBootstrap {
         meta: gwz_core::RequestMeta,
@@ -22,6 +23,11 @@ pub(crate) enum CliRequest {
         url: String,
         target: String,
     },
+    /// `gwz local clone <name> [dest]`: a second working copy of this
+    /// workspace on the same machine, registered in the local clone family.
+    CloneLocalWorkspace(gwz_core::CloneLocalWorkspaceRequest),
+    /// `gwz local list | dispose | disband`.
+    LocalFamily(gwz_core::LocalFamilyRequest),
     InitFromSources(gwz_core::InitFromSourcesRequest),
     AddExistingRepo(gwz_core::AddExistingRepoRequest),
     CreateRepo(gwz_core::CreateRepoRequest),
@@ -75,6 +81,7 @@ pub(crate) enum OutputMode {
 pub(crate) fn operation_label(request: &CliRequest) -> &'static str {
     match request {
         CliRequest::CloneWorkspace { .. } => "cloning",
+        CliRequest::CloneLocalWorkspace(_) => "cloning",
         CliRequest::CloneRepoMember(_) => "cloning",
         CliRequest::Materialize(_) => "materializing",
         CliRequest::InitFromSources(_) => "initializing",
@@ -84,7 +91,7 @@ pub(crate) fn operation_label(request: &CliRequest) -> &'static str {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct CliError {
     pub(crate) message: String,
     pub(crate) code: Option<gwz_core::model::ErrorCode>,
@@ -92,7 +99,9 @@ pub(crate) struct CliError {
     pub(crate) member_path: Option<String>,
     pub(crate) target_kind: Option<String>,
     pub(crate) record_context: Option<Box<gwz_core::MergeRecordCompatibilityContext>>,
+    pub(crate) response_meta: Option<Box<gwz_core::ResponseMeta>>,
 }
+impl Eq for CliError {}
 
 impl CliError {
     pub(crate) fn new(message: impl Into<String>) -> Self {
@@ -103,6 +112,7 @@ impl CliError {
             member_path: None,
             target_kind: None,
             record_context: None,
+            response_meta: None,
         }
     }
 
@@ -117,6 +127,7 @@ impl CliError {
             member_path: None,
             target_kind: None,
             record_context: None,
+            response_meta: None,
         }
     }
 
@@ -139,16 +150,24 @@ impl CliError {
             member_path: error.member_path,
             target_kind,
             record_context: error.record_context,
+            response_meta: error.response_meta,
         }
     }
 
     /// Human rendering: prefix with the error code when present, matching
     /// gwz-core's `ModelError` Display.
     pub(crate) fn human_message(&self) -> String {
-        match self.code {
+        let mut message = match self.code {
             Some(code) => format!("{code:?}: {}", self.message),
             None => self.message.clone(),
+        };
+        if let Some(meta) = &self.response_meta {
+            for line in transport_human_lines(meta.transport.as_deref().unwrap_or_default()) {
+                message.push('\n');
+                message.push_str(&line);
+            }
         }
+        message
     }
 }
 

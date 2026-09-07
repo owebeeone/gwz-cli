@@ -4,6 +4,21 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::*;
 
+fn long_version() -> &'static str {
+    static VALUE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VALUE
+        .get_or_init(|| {
+            format!(
+                "{}\ncli: {}\ncore {}: {}",
+                env!("CARGO_PKG_VERSION"),
+                env!("GWZ_BUILD_PROVENANCE"),
+                gwz_core::VERSION,
+                gwz_core::BUILD_PROVENANCE
+            )
+        })
+        .as_str()
+}
+
 #[cfg(test)]
 pub(crate) fn usage_text() -> String {
     Cli::command().render_long_help().to_string()
@@ -13,6 +28,7 @@ pub(crate) fn usage_text() -> String {
 #[command(
     name = "gwz",
     version,
+    long_version = long_version(),
     about = "Manage GWZ multi-repository workspaces",
     long_about = CLI_LONG,
     after_long_help = CLI_AFTER,
@@ -29,6 +45,17 @@ pub(crate) struct Cli {
 
 #[derive(Clone, Debug, Default, Args)]
 pub(crate) struct GlobalArgs {
+    #[arg(
+        long,
+        global = true,
+        value_name = "PATH",
+        help = "Use only this SSH private-key file; no agent fallback"
+    )]
+    pub(crate) identity: Option<String>,
+
+    #[arg(long = "remote-identity", global = true, value_name = "NAME=PATH", value_parser = parse_remote_identity,
+        help = "Override SSH identity for this remote name across selected repositories; repeatable")]
+    pub(crate) remote_identities: Vec<gwz_core::RemoteSshIdentity>,
     #[arg(
         long,
         global = true,
@@ -139,7 +166,7 @@ pub(crate) struct GlobalArgs {
         global = true,
         value_name = "name",
         help = "Select the git remote name",
-        long_help = "Select the git remote name used by operations that contact remotes."
+        long_help = "Select the git remote name used by operations that contact remotes. On `pull` and `push` a ready local clone family name binds to that workspace instead; on `merge` the name is family-only (`gwz merge --remote <name> [<ref>]`)."
     )]
     pub(crate) remote: Option<String>,
 
@@ -200,8 +227,23 @@ pub(crate) struct GlobalArgs {
     pub(crate) ssh_timeout: Option<i64>,
 }
 
+fn parse_remote_identity(value: &str) -> Result<gwz_core::RemoteSshIdentity, String> {
+    let (remote, path) = value
+        .split_once('=')
+        .ok_or("expected NAME=PATH for --remote-identity")?;
+    Ok(gwz_core::RemoteSshIdentity {
+        remote: remote.into(),
+        private_key_path: path.into(),
+    })
+}
+
 #[derive(Clone, Debug, Subcommand)]
 pub(crate) enum CommandArgs {
+    #[command(about = "Manage local SSH identity configuration")]
+    Auth {
+        #[command(subcommand)]
+        command: AuthCommandArgs,
+    },
     #[command(
         about = "Stage file contents across workspace repos (multi-repo git add)",
         long_about = STAGE_LONG,
@@ -217,9 +259,10 @@ pub(crate) enum CommandArgs {
     #[command(about = "Record the live worktree state into the lock (no mutation)")]
     Capture,
     #[command(
-        about = "Clone a workspace and materialize its members",
+        about = "Clone a workspace from a URL and materialize its members",
         long_about = CLONE_LONG,
-        after_long_help = CLONE_AFTER
+        after_long_help = CLONE_AFTER,
+        override_usage = "gwz clone <url> [directory]"
     )]
     Clone(CloneArgs),
     #[command(
@@ -242,6 +285,12 @@ pub(crate) enum CommandArgs {
         after_long_help = INIT_AFTER
     )]
     Init(InitArgs),
+    #[command(
+        about = "Create, inspect and retire the local clone family",
+        long_about = LOCAL_LONG,
+        after_long_help = LOCAL_AFTER
+    )]
+    Local(LocalArgs),
     #[command(about = "List workspace targets (id, path; absolute or --local)")]
     Ls(LsArgs),
     #[command(
@@ -258,7 +307,7 @@ pub(crate) enum CommandArgs {
     Materialize(MaterializeArgs),
     #[command(
         about = "Merge a source ref across selected workspace repositories",
-        override_usage = "gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
+        override_usage = "gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]\n       gwz merge --remote <name> [<ref>]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
     )]
     Merge(MergeArgs),
     #[command(
@@ -303,6 +352,19 @@ pub(crate) enum CommandArgs {
         after_long_help = TAG_AFTER
     )]
     Tag(TagArgs),
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub(crate) enum AuthCommandArgs {
+    #[command(about = "Read or change a remote's local key path for selected repositories")]
+    Identity {
+        #[arg(value_name = "REMOTE")]
+        remote_name: String,
+        #[arg(long = "set", value_name = "PATH", conflicts_with = "unset")]
+        key_path: Option<String>,
+        #[arg(long)]
+        unset: bool,
+    },
 }
 
 #[derive(Clone, Debug, Args)]

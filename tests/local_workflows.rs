@@ -391,6 +391,12 @@ fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
             .output()
             .unwrap(),
     );
+    // This fixture creates the source branch only in the member repository.
+    // Root-inclusive default merges are covered by local_family_workflows.
+    let root_repo = git2::Repository::open(temp.path()).unwrap();
+    let mut config = root_repo.config().unwrap();
+    config.set_str("user.name", "GWZ Test").unwrap();
+    config.set_str("user.email", "gwz@example.invalid").unwrap();
     let member = temp.path().join("repos/remote");
     checkout_branch(&member, "feature/source");
     let source = commit_file(&member, "source.txt", "source\n", "source");
@@ -400,6 +406,8 @@ fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
         .args([
             "--root",
             temp.path_str(),
+            "--target",
+            "repos/remote",
             "--dry-run",
             "--json",
             "branch",
@@ -417,6 +425,8 @@ fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
         .args([
             "--root",
             temp.path_str(),
+            "--target",
+            "repos/remote",
             "--json",
             "merge",
             "feature/source",
@@ -439,7 +449,7 @@ fn merge_dry_run_alias_and_first_class_start_work_end_to_end() {
 
     for extra in [Some("--dry-run"), None] {
         let mut command = gwz(outside.path());
-        command.args(["--root", temp.path_str()]);
+        command.args(["--root", temp.path_str(), "--target", "repos/remote"]);
         if let Some(flag) = extra {
             command.arg(flag);
         }

@@ -179,17 +179,29 @@ def reconcile_cargo_toml(worktree, tag: str, version: str) -> bool:
     # The gwz-core git dependency's tag (git=/tag= order within the inline table is irrelevant).
     updated = re.sub(r'(gwz-core\s*=\s*\{[^}\n]*\btag\s*=\s*)"[^"]*"', rf'\g<1>"{tag}"', updated)
 
+    bazel_path = worktree / "BUILD.bazel"
+    bazel = bazel_path.read_text(encoding="utf-8")
+    updated_bazel, artifact_count = re.subn(
+        r'^(\s*version\s*=\s*)"[^"\n]*"', rf'\g<1>"{version}"', bazel, flags=re.M
+    )
+    if artifact_count != 2:
+        fail("expected exactly two CLI Bazel artifact versions")
+    bazel_changed = updated_bazel != bazel
+
     already_correct = f'version = "{version}"' in updated and f'tag = "{tag}"' in updated
     if updated == text:
         if already_correct:
             log("Cargo.toml already reconciled (version + gwz-core tag already match)")
-            return False
+            if bazel_changed:
+                bazel_path.write_text(updated_bazel, encoding="utf-8", newline="\n")
+            return bazel_changed
         fail("Cargo.toml reconcile changed nothing and the expected lines are absent -- the merged "
              "gwz-core dependency may not be in git+tag form (did main edit the dependency line?), "
              "or the file format is unexpected")
     if not already_correct:
         fail(f"Cargo.toml reconcile did not yield version={version} + gwz-core tag={tag}")
     path.write_text(updated, encoding="utf-8", newline="\n")  # force LF regardless of core.autocrlf
+    bazel_path.write_text(updated_bazel, encoding="utf-8", newline="\n")
     log(f"reconciled Cargo.toml: version = {version}, gwz-core tag = {tag}")
     return True
 
@@ -267,6 +279,14 @@ def remove_worktree(worktree):
             "then run `git worktree prune`")
 
 
+def release_version(tag: str) -> str:
+    """Accept stable releases and numbered release candidates, with no leading zeroes."""
+    number = r"(?:0|[1-9][0-9]*)"
+    if not re.fullmatch(rf"v{number}\.{number}\.{number}(?:-rc\.[1-9][0-9]*)?", tag):
+        fail(f"tag must look like vX.Y.Z or vX.Y.Z-rc.N, got '{tag}'")
+    return tag[1:]
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Reconcile the gwz-cli release branch for a release tag, in a temp worktree."
@@ -283,9 +303,7 @@ def main():
     args = parser.parse_args()
 
     tag = args.tag
-    if not re.fullmatch(r"v\d+\.\d+\.\d+", tag):
-        fail(f"tag must look like vX.Y.Z, got '{tag}'")
-    version = tag[1:]
+    version = release_version(tag)
 
     for tool in ("git", "cargo"):
         if not shutil.which(tool):

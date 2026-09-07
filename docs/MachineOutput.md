@@ -296,8 +296,7 @@ Preservation entries contain `target_id`, `path`, `backup_ref`,
 `backup_commit`, `stash_id`, and `stash_object_id`.
 
 Preservation remains null until that later feature is available. Publication
-steps are populated while finalization is open and end at `Complete`. GWZ is
-pre-1.0, so strict consumers must tolerate additive keys while continuing to
+steps are populated while finalization is open and end at `Complete`. Consumers of these versioned envelopes must tolerate additive keys while continuing to
 validate the keys they understand.
 
 Participant drift distinguishes advanced, rewound, and diverged heads, missing
@@ -494,6 +493,11 @@ Read-only listing commands render listing objects with `--json` or `--jsonl`.
   ]
 }
 ```
+
+`gwz --json local list` renders the local clone family under
+`local_family_members`, with the family root's path beside the rows under
+`local_family_root_path`; see the
+[`gwz local` command page](commands/local.md#machine-output).
 
 ## Status JSON
 

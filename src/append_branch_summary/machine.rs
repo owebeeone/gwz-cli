@@ -31,7 +31,7 @@ pub(crate) fn render_jsonl_stream(
 }
 
 pub(crate) fn response_json(response: &CliResponse) -> serde_json::Value {
-    serde_json::json!({
+    let mut value = serde_json::json!({
         "kind": "response",
         "meta": response_meta_json(&response.envelope.meta),
         "members": response.envelope.members.iter().map(member_json).collect::<Vec<_>>(),
@@ -44,7 +44,35 @@ pub(crate) fn response_json(response: &CliResponse) -> serde_json::Value {
         "stash_bundles": response.stash_bundles.as_ref().map(|bundles| {
             bundles.iter().map(stash_bundle_json).collect::<Vec<_>>()
         }),
-    })
+    });
+    // The envelope's key set is pinned by the canonical cross-driver fixture
+    // in `gwz-core/protocol/fixtures/cli_parity/`, which this lane does not
+    // own, so the family rows are added only to a family response instead of
+    // appearing as `null` on every other one.
+    if let Some(family) = &response.local_family
+        && let Some(object) = value.as_object_mut()
+    {
+        object.insert(
+            "local_family_members".to_owned(),
+            family
+                .members
+                .iter()
+                .map(local_family_member_json)
+                .collect::<Vec<_>>()
+                .into(),
+        );
+        // The response's own `root_path` (design §7 tag 3, operator ruling 3
+        // of 2026-09-06) travels once, beside the rows, exactly as the wire
+        // carries it -- the rows' `path` stays root-relative, and a consumer
+        // that wants absolute paths joins the two the way the human table
+        // does. Folding it into every row would say it six times and say it
+        // differently from the protocol.
+        object.insert(
+            "local_family_root_path".to_owned(),
+            serde_json::json!(family.root_path),
+        );
+    }
+    value
 }
 
 pub(crate) fn branch_repo_json(repo: &gwz_core::BranchRepoSummary) -> serde_json::Value {
@@ -122,7 +150,7 @@ pub(crate) fn stash_bundle_member_json(member: &gwz_core::StashBundleMember) -> 
 pub(crate) fn render_error_json(error: &CliError) -> String {
     serde_json::json!({
         "kind": "response",
-        "meta": serde_json::Value::Null,
+        "meta": error.response_meta.as_deref().map(response_meta_json),
         "members": [],
         "errors": [{
             "code": error
@@ -144,7 +172,7 @@ pub(crate) fn render_error_json(error: &CliError) -> String {
 }
 
 pub(crate) fn result_json(result: &gwz_core::OperationResult) -> serde_json::Value {
-    serde_json::json!({
+    let mut value = serde_json::json!({
         "kind": "result",
         "operation_id": result.operation_id,
         "request_id": result.request_id,
@@ -155,7 +183,11 @@ pub(crate) fn result_json(result: &gwz_core::OperationResult) -> serde_json::Val
         "members": result.members.iter().map(member_json).collect::<Vec<_>>(),
         "errors": result.errors.iter().map(error_json).collect::<Vec<_>>(),
         "attribution": result.attribution.as_ref().map(attribution_json),
-    })
+    });
+    if let Some(rows) = &result.transport {
+        value["transport"] = rows.iter().map(transport_observation_json).collect();
+    }
+    value
 }
 
 pub(crate) fn event_json(event: &gwz_core::OperationEvent) -> serde_json::Value {

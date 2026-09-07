@@ -22,6 +22,34 @@ If the change must be backed out to the snapshot:
 gwz materialize --snapshot before-change
 ```
 
+## Work In An Isolated Lane
+
+Copy the workspace as it sits — uncommitted work and build output included —
+into a named local clone beside it, work there, and merge the result back by
+name. For a workspace at `./demo` the default destination is `../demo-A`:
+
+```sh
+gwz local clone A
+cd ../demo-A
+gwz status
+# ... edit, gwz add, gwz commit ...
+cd ../demo
+gwz merge --remote A
+gwz --target @root merge --remote A
+gwz local dispose A
+```
+
+The second merge brings across the lane's root commits, which every
+`gwz commit` in the lane produces; without it `dispose` refuses, because that
+history is preserved nowhere else. To keep the tree and only forget the lane:
+
+```sh
+gwz local dispose A --keep
+```
+
+See [Local Clones](LocalClones.md) for the family model, the deletion rules,
+and what this build does not serve yet.
+
 ## Inspect Workspace History
 
 Start with the compact workspace stream, then expand only the entries you need:

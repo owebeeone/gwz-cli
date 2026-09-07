@@ -4,9 +4,18 @@ use crate::*;
 
 use super::*;
 
+/// `gwz clone <url> [directory]`: the URL form, and only the URL form. A second
+/// working copy of this workspace on the same machine is `gwz local clone`
+/// (operator ruling 2026-09-06, design §11 item 28): the two share a name and
+/// almost nothing else, so the local flags this command once carried are gone
+/// rather than aliased.
 #[derive(Clone, Debug, Args)]
 pub(crate) struct CloneArgs {
-    #[arg(value_name = "url", help = "Git URL of the workspace root repository")]
+    #[arg(
+        value_name = "url",
+        help = "Git URL of the workspace root repository",
+        long_help = "Git URL of the workspace root repository."
+    )]
     pub(crate) url: String,
 
     #[arg(
@@ -73,15 +82,12 @@ impl InitArgs {
 
 impl CloneArgs {
     pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        let url = self.url.clone();
         let target = match &self.dir {
             Some(dir) => dir.clone(),
-            None => repo_name_from_url(&self.url)?,
+            None => repo_name_from_url(&url)?,
         };
-        Ok(CliRequest::CloneWorkspace {
-            meta,
-            url: self.url.clone(),
-            target,
-        })
+        Ok(CliRequest::CloneWorkspace { meta, url, target })
     }
 }
 

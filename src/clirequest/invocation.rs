@@ -10,6 +10,11 @@ impl Cli {
         if let CommandArgs::Status(status) = &self.command {
             status.validate(&self.global)?;
         }
+        // The URL clone keeps its own refusal. A local clone (`gwz local
+        // clone`) is a family operation: core owns whether `dry_run` is
+        // servable there (it refuses it today, before any allocation), and the
+        // Python driver already passes it through, so the driver must not
+        // answer ahead of core.
         if matches!(&self.command, CommandArgs::Clone(_)) && self.global.dry_run {
             return Err(CliError::new("--dry-run is not supported for clone"));
         }
@@ -43,6 +48,12 @@ impl Cli {
             selection: self.selection(),
             policy: self.policy(),
             dry_run: self.global.dry_run.then_some(true),
+            transport: (self.global.identity.is_some()
+                || !self.global.remote_identities.is_empty())
+            .then(|| gwz_core::TransportOptions {
+                default_identity: self.global.identity.clone(),
+                remote_identities: self.global.remote_identities.clone(),
+            }),
             ..Default::default()
         }
     }
@@ -101,6 +112,27 @@ impl Cli {
         current_dir: &std::path::Path,
     ) -> Result<CliRequest, CliError> {
         match &self.command {
+            CommandArgs::Auth {
+                command:
+                    AuthCommandArgs::Identity {
+                        remote_name,
+                        key_path,
+                        unset,
+                    },
+            } => Ok(CliRequest::RemoteIdentity(
+                gwz_core::RemoteIdentityRequest {
+                    meta,
+                    remote: remote_name.clone(),
+                    private_key_path: key_path.clone(),
+                    op: if *unset {
+                        gwz_core::RemoteIdentityOp::Unset
+                    } else if key_path.is_some() {
+                        gwz_core::RemoteIdentityOp::Set
+                    } else {
+                        gwz_core::RemoteIdentityOp::Get
+                    },
+                },
+            )),
             CommandArgs::Init(args) => args.request(meta, workspace_root),
             CommandArgs::Clone(args) => args.request(meta),
             CommandArgs::Add(args) => args.request(meta, current_dir),
@@ -174,15 +206,43 @@ impl Cli {
             } else {
                 meta
             }),
-            CommandArgs::Merge(args) => args.request(self.merge_meta(meta)),
+            CommandArgs::Merge(args) => {
+                // Design §6: on merge the global `--remote` names a family
+                // member, not a Git remote. The engine rejects a request that
+                // still carries `policy.remote`, so the token MOVES from the
+                // policy into the selector rather than being copied.
+                let local_source_name = self.global.remote.clone();
+                let mut meta = self.merge_meta(meta);
+                if local_source_name.is_some()
+                    && let Some(policy) = &mut meta.policy
+                {
+                    policy.remote = None;
+                }
+                args.request(meta, local_source_name)
+            }
+            // `--force` on `local dispose` is the existing global switch; the
+            // hazards it authorizes are this command's operands (design §5.2).
+            CommandArgs::Local(args) => args.request(meta, self.global.force),
             CommandArgs::Stash(args) => args.request(meta),
             CommandArgs::Materialize(args) => args.request(meta),
             CommandArgs::Pull(args) => args.request(meta),
-            CommandArgs::Push => Ok(CliRequest::Push(gwz_core::PushRequest {
-                remote: self.global.remote.clone(),
-                refspec: None,
-                meta,
-            })),
+            // Design §7 (operator ruling 2026-09-06, §11 item 20): the push
+            // token is encoded ONCE, in `PushRequest.remote`, so it MOVES out
+            // of the policy rather than being copied and both drivers send
+            // the same bytes. Core reads the request field first and still
+            // honours a policy-only token from an older caller, so this
+            // decides what is sent, not what core binds.
+            CommandArgs::Push => {
+                let mut meta = meta;
+                if let Some(policy) = &mut meta.policy {
+                    policy.remote = None;
+                }
+                Ok(CliRequest::Push(gwz_core::PushRequest {
+                    remote: self.global.remote.clone(),
+                    refspec: None,
+                    meta,
+                }))
+            }
             CommandArgs::Capture => Ok(CliRequest::Capture(gwz_core::CaptureRequest { meta })),
             CommandArgs::Commit(args) => {
                 // DR-5 fold (review P2-1): `--all` is the `@all` selector under every verb,

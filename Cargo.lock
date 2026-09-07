@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "0.14.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "clap",
  "console",
@@ -430,15 +430,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "gwz-copy-contract"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+
+[[package]]
 name = "gwz-core"
-version = "0.14.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v0.14.0#c67e0d4100dd81c1b923cc20529421161c7cb876"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
  "chrono",
  "getrandom 0.3.4",
  "git2",
+ "gwz-copy-contract",
+ "gwz-family-model",
+ "gwz-family-store",
+ "gwz-family-store-contract",
+ "gwz-history-check",
+ "gwz-local-disposal",
+ "gwz-local-import",
+ "gwz-refcopy",
+ "gwz-repo-contract",
+ "gwz-repo-factory",
+ "gwz-repo-inspect",
+ "gwz-work-detector",
+ "gwz-workspace-install",
  "libc",
  "regex",
  "rustix",
@@ -452,6 +470,110 @@ dependencies = [
  "url",
  "windows-sys 0.61.2",
  "yaml-rust2",
+]
+
+[[package]]
+name = "gwz-family-model"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+
+[[package]]
+name = "gwz-family-store"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-family-model",
+ "gwz-family-store-contract",
+ "serde",
+ "serde_yaml",
+]
+
+[[package]]
+name = "gwz-family-store-contract"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-family-model",
+]
+
+[[package]]
+name = "gwz-history-check"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-repo-contract",
+]
+
+[[package]]
+name = "gwz-local-disposal"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-family-model",
+ "gwz-family-store-contract",
+ "gwz-repo-contract",
+ "gwz-work-detector",
+]
+
+[[package]]
+name = "gwz-local-import"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-family-model",
+ "gwz-repo-contract",
+]
+
+[[package]]
+name = "gwz-refcopy"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-copy-contract",
+ "libc",
+ "rustix",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "gwz-repo-contract"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+
+[[package]]
+name = "gwz-repo-factory"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-repo-contract",
+]
+
+[[package]]
+name = "gwz-repo-inspect"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "git2",
+ "gwz-repo-contract",
+]
+
+[[package]]
+name = "gwz-work-detector"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-repo-contract",
+]
+
+[[package]]
+name = "gwz-workspace-install"
+version = "0.1.0"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.0-rc.1#7b89a6deed9aa85b94885d038cbeb0bc8cec5030"
+dependencies = [
+ "gwz-copy-contract",
+ "gwz-family-model",
+ "gwz-family-store-contract",
+ "gwz-repo-contract",
 ]
 
 [[package]]
@@ -614,9 +736,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.14.1"
+version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07aa2048142242915a31d35844fb311e0e53fcca590c3a0a40dcf1b841fa09eb"
+checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
@@ -646,9 +768,9 @@ checksum = "2f0fb0570afe1fed943c5c3d4102d5358592d8625fda6a0007fdbe65a92fba96"
 
 [[package]]
 name = "ipnet"
-version = "2.12.1"
+version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a756c3fac73139e83f14c2d742155dd2b78d3ee56597b419a0579b7bdd6dd78"
+checksum = "791930b43c0d5973160d90a8f3894509f2b273430f5c5c73b668636d0287c5c0"
 
 [[package]]
 name = "is_terminal_polyfill"
@@ -705,9 +827,9 @@ dependencies = [
 
 [[package]]
 name = "libssh2-sys"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c04141a07bb0c0bc461cb657808764de571702a59bc5c726c400ac9a7625e3ab"
+checksum = "0f5eb74291e8691cab524a01274a1b1e7742b1a94f29d8b101d8aadc8372c1cd"
 dependencies = [
  "cc",
  "libc",

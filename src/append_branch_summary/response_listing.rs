@@ -4,12 +4,26 @@ use super::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ArtifactListing {
+    Identities(Vec<gwz_core::RemoteIdentityEntry>),
     Tags(Vec<gwz_core::TagInfo>),
     Snapshots(Vec<gwz_core::SnapshotInfo>),
     Members {
         entries: Vec<gwz_core::MemberEntry>,
         local: bool,
     },
+}
+
+/// A `LocalFamilyResponse` as the renderers need it: the op that was asked
+/// for, and the rows it answered with. Only `list` produces a listing (design
+/// §7), so the op is what tells a table from a mutation that carries none.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct LocalFamilyResponseView {
+    pub(crate) op: gwz_core::LocalFamilyOp,
+    pub(crate) members: Vec<gwz_core::LocalFamilyMemberEntry>,
+    /// The observed root the rows' `path`s are relative to (design §7 tag 3,
+    /// operator ruling 3 of 2026-09-06), present exactly when `members` is.
+    /// Carried verbatim: only the human table joins it with a row's `path`.
+    pub(crate) root_path: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,6 +35,12 @@ pub(crate) struct CliResponse {
     pub(crate) branch_repos: Option<Vec<gwz_core::BranchRepoSummary>>,
     pub(crate) merge_response: Option<gwz_core::MergeResponse>,
     pub(crate) stash_bundles: Option<Vec<gwz_core::StashBundle>>,
+    /// `gwz local list|dispose|disband`: the op and its
+    /// `LocalFamilyResponse.members`. `Some` for every family response, so a
+    /// consumer can tell "not a family response" from "a family response with
+    /// nothing to list" — a workspace that holds no family index lists no
+    /// members and is not an error.
+    pub(crate) local_family: Option<LocalFamilyResponseView>,
     /// forall's trailing summary — rendered verbatim (it already streamed member output live).
     pub(crate) summary: Option<String>,
 }
@@ -35,6 +55,7 @@ impl CliResponse {
             branch_repos: None,
             merge_response: None,
             stash_bundles: None,
+            local_family: None,
             summary: None,
         }
     }
@@ -48,6 +69,7 @@ impl CliResponse {
             branch_repos: response.repos,
             merge_response: None,
             stash_bundles: None,
+            local_family: None,
             summary: None,
         }
     }
@@ -61,6 +83,7 @@ impl CliResponse {
             branch_repos: None,
             merge_response: Some(response),
             stash_bundles: None,
+            local_family: None,
             summary: None,
         }
     }
@@ -74,6 +97,28 @@ impl CliResponse {
             branch_repos: None,
             merge_response: None,
             stash_bundles: response.bundles,
+            local_family: None,
+            summary: None,
+        }
+    }
+
+    pub(crate) fn local_family(
+        op: gwz_core::LocalFamilyOp,
+        response: gwz_core::LocalFamilyResponse,
+    ) -> Self {
+        Self {
+            envelope: response.response,
+            workspace_git_status: None,
+            status_mode: None,
+            listing: None,
+            branch_repos: None,
+            merge_response: None,
+            stash_bundles: None,
+            local_family: Some(LocalFamilyResponseView {
+                op,
+                members: response.members,
+                root_path: response.root_path,
+            }),
             summary: None,
         }
     }
@@ -87,6 +132,7 @@ impl CliResponse {
             branch_repos: None,
             merge_response: None,
             stash_bundles: None,
+            local_family: None,
             summary: None,
         }
     }
@@ -96,6 +142,18 @@ impl CliResponse {
 pub(crate) fn render_listing_text(listing: &ArtifactListing) -> String {
     let plural = |count: usize| if count == 1 { "" } else { "s" };
     match listing {
+        ArtifactListing::Identities(entries) => entries
+            .iter()
+            .map(|entry| {
+                format!(
+                    "{}\t{}\t{}",
+                    entry.member_id,
+                    entry.remote,
+                    entry.private_key_path.as_deref().unwrap_or("(unset)")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
         ArtifactListing::Tags(tags) => {
             if tags.is_empty() {
                 return "no tags".to_owned();
@@ -151,6 +209,9 @@ pub(crate) fn render_listing_text(listing: &ArtifactListing) -> String {
 pub(crate) fn listing_json(listing: &ArtifactListing) -> serde_json::Value {
     use serde_json::json;
     match listing {
+        ArtifactListing::Identities(entries) => {
+            json!({ "kind": "identities", "entries": entries.iter().map(|entry| json!({"member_id": entry.member_id, "member_path": entry.member_path, "remote": entry.remote, "private_key_path": entry.private_key_path})).collect::<Vec<_>>() })
+        }
         ArtifactListing::Tags(tags) => json!({
             "kind": "tags",
             "entries": tags
@@ -197,6 +258,14 @@ pub(crate) fn render_human_response(response: &CliResponse) -> String {
     }
     if let Some(bundles) = &response.stash_bundles {
         return render_stash_response(response, bundles);
+    }
+    // Only `local list` renders a listing. `dispose`/`disband` carry no rows
+    // (design §7), so they fall through to the ordinary envelope below rather
+    // than reporting an empty family.
+    if let Some(family) = &response.local_family
+        && family.op == gwz_core::LocalFamilyOp::List
+    {
+        return render_local_family_members(&family.members, family.root_path.as_deref());
     }
 
     let mut lines = vec![format!(
