@@ -9,7 +9,7 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
-## 1.0.0-rc.1: lane recovery release candidate
+## 1.0.0-rc.2: lane recovery release candidate
 
 This candidate makes the ordinary lane cycle work with one default merge:
 
