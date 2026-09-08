@@ -3,6 +3,7 @@ use crate::*;
 
 pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliError> {
     let backend = gwz_core::git::Git2Backend::new();
+    let services = backend.operation_services();
     let operation_id = new_operation_id();
     let start = invocation.start_dir.as_path();
     // --jsonl streams machine records to stdout; Human renders a live progress
@@ -213,16 +214,17 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             gwz_core::workspace_ops::handle_snapshot(&backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
-        CliRequest::Tag(request) => {
-            gwz_core::workspace_ops::handle_tag(&backend, start, request.clone(), operation_id).map(
-                |response| match response.tags {
-                    Some(tags) => {
-                        CliResponse::listing(response.response, ArtifactListing::Tags(tags))
-                    }
-                    None => CliResponse::envelope(response.response),
-                },
-            )
-        }
+        CliRequest::Tag(request) => gwz_core::workspace_ops::handle_tag_with_services(
+            &services,
+            &backend,
+            start,
+            request.clone(),
+            operation_id,
+        )
+        .map(|response| match response.tags {
+            Some(tags) => CliResponse::listing(response.response, ArtifactListing::Tags(tags)),
+            None => CliResponse::envelope(response.response),
+        }),
         CliRequest::Branch(request) => {
             gwz_core::workspace_ops::handle_branch(&backend, start, request.clone(), operation_id)
                 .map(CliResponse::branch)
