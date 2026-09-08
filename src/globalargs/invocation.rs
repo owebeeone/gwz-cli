@@ -31,6 +31,7 @@ pub(crate) fn invocation_from_cli(
     Ok(CliInvocation {
         request,
         output,
+        verbose: cli.global.verbose,
         start_dir: current_dir.to_path_buf(),
     })
 }

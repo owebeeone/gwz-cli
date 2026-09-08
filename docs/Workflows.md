@@ -34,14 +34,14 @@ cd ../demo-A
 gwz status
 # ... edit, gwz add, gwz commit ...
 cd ../demo
-gwz merge --remote A
-gwz --target @root merge --remote A
+gwz --target @all merge --remote A
 gwz local dispose A
 ```
 
-The second merge brings across the lane's root commits, which every
-`gwz commit` in the lane produces; without it `dispose` refuses, because that
-history is preserved nowhere else. To keep the tree and only forget the lane:
+The explicit `@all` selection brings across the lane's root and member commits
+together. To integrate several lanes, merge them serially into this root, then
+run one `gwz push`; see [Local Clones](LocalClones.md#integrating-several-lanes).
+To keep the tree and only forget the lane:
 
 ```sh
 gwz local dispose A --keep

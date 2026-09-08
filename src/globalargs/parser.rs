@@ -216,6 +216,14 @@ pub(crate) struct GlobalArgs {
     pub(crate) jsonl: bool,
 
     #[arg(
+        long,
+        global = true,
+        help = "Show transport authentication diagnostics",
+        long_help = "Show one transport diagnostic for every remote authentication attempt. These diagnostics are omitted from normal human output and remain available in --json and --jsonl output."
+    )]
+    pub(crate) verbose: bool,
+
+    #[arg(
         long = "ssh-timeout",
         global = true,
         value_name = "secs",

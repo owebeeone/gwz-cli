@@ -271,6 +271,28 @@ Three things to know about the selector:
   The mirror image also holds: a bare `gwz merge A` resolves the Git
   revision `A` in each receiving repository and never means the lane.
 
+### Integrating several lanes
+
+When several agents work in local clones, use the original workspace as the
+single integration point. Each agent commits its complete lane first. From the
+root workspace, merge lanes one at a time, and close each coordinated merge
+before starting the next one:
+
+```sh
+cd ~/work/demo
+gwz --target @all merge --remote A
+gwz --target @all merge --remote B
+gwz --target @all merge --remote C
+gwz merge --status       # use --continue or --abort if a merge is open
+gwz push                 # publish the integrated root once
+```
+
+`merge --remote A` brings work **into the workspace where it runs**. Running
+`gwz merge --remote root` inside lane `A` therefore updates `A` from root; it
+does not integrate `A` into root. Use that direction only after root has
+integrated the lanes, when a lane needs to catch up. `gwz push` publishes the
+configured Git remotes; it does not transfer work between local-family lanes.
+
 ### 4. Retire
 
 `gwz local dispose <name>` deletes the lane's directory — and refuses unless

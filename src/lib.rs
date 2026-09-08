@@ -183,7 +183,10 @@ pub fn run() {
                                 println!("{}", render_error_json(&error));
                             }
                             OutputMode::Human | OutputMode::Porcelain => {
-                                eprintln!("gwz: {}", error.human_message());
+                                eprintln!(
+                                    "gwz: {}",
+                                    error.human_message_with_transport(invocation.verbose)
+                                );
                             }
                         }
                         std::process::exit(1);
@@ -209,13 +212,20 @@ pub fn run() {
                                 match write_log_machine_error(&error, &mut stdout) {
                                     Ok(write_exit) => std::process::exit(write_exit.code),
                                     Err(write_error) => {
-                                        eprintln!("gwz: {}", write_error.human_message());
+                                        eprintln!(
+                                            "gwz: {}",
+                                            write_error
+                                                .human_message_with_transport(invocation.verbose)
+                                        );
                                         std::process::exit(1);
                                     }
                                 }
                             }
                             OutputMode::Human | OutputMode::Porcelain => {
-                                eprintln!("gwz: {}", error.human_message());
+                                eprintln!(
+                                    "gwz: {}",
+                                    error.human_message_with_transport(invocation.verbose)
+                                );
                             }
                         }
                         std::process::exit(exit);
@@ -224,7 +234,11 @@ pub fn run() {
             }
             match execute_invocation(&invocation) {
                 Ok(response) => {
-                    let rendered = render_response(&response, invocation.output);
+                    let rendered = render_response_with_transport(
+                        &response,
+                        invocation.output,
+                        invocation.verbose,
+                    );
                     if !rendered.is_empty() {
                         println!("{rendered}");
                     }
@@ -238,7 +252,10 @@ pub fn run() {
                             println!("{}", render_error_json(&error));
                         }
                         OutputMode::Human | OutputMode::Porcelain => {
-                            eprintln!("gwz: {}", error.human_message());
+                            eprintln!(
+                                "gwz: {}",
+                                error.human_message_with_transport(invocation.verbose)
+                            );
                         }
                     }
                     std::process::exit(1);
