@@ -605,11 +605,10 @@ fn transport_renderer_distinguishes_offer_from_authentication() {
         meta,
         ..Default::default()
     });
-    assert!(
-        render_response(&response, OutputMode::Human).contains(
-            "credential=file source=invocation_default offered=true authenticated=unknown"
-        )
-    );
+    assert!(!render_response(&response, OutputMode::Human).contains("credential=file"));
+    assert!(render_response_with_transport(&response, OutputMode::Human, true).contains(
+        "credential=file source=invocation_default offered=true authenticated=unknown"
+    ));
     let value: serde_json::Value =
         serde_json::from_str(&render_response(&response, OutputMode::Json)).unwrap();
     assert_eq!(

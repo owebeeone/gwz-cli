@@ -309,6 +309,7 @@ pub(crate) fn parses_global_selection_policy_and_output_flags() {
             "--jobs",
             "4",
             "--json",
+            "--verbose",
             "status",
         ]),
         "req_test",
@@ -317,6 +318,7 @@ pub(crate) fn parses_global_selection_policy_and_output_flags() {
     .unwrap();
 
     assert_eq!(invocation.output, OutputMode::Json);
+    assert!(invocation.verbose);
     let CliRequest::Status(request) = invocation.request else {
         panic!("expected status");
     };

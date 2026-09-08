@@ -8,6 +8,7 @@ pub(crate) const DEFAULT_PROGRESS_MIN_INTERVAL_MS: i64 = 100;
 pub(crate) struct CliInvocation {
     pub(crate) request: CliRequest,
     pub(crate) output: OutputMode,
+    pub(crate) verbose: bool,
     pub(crate) start_dir: std::path::PathBuf,
 }
 
@@ -157,14 +158,20 @@ impl CliError {
     /// Human rendering: prefix with the error code when present, matching
     /// gwz-core's `ModelError` Display.
     pub(crate) fn human_message(&self) -> String {
+        self.human_message_with_transport(false)
+    }
+
+    pub(crate) fn human_message_with_transport(&self, show_transport: bool) -> String {
         let mut message = match self.code {
             Some(code) => format!("{code:?}: {}", self.message),
             None => self.message.clone(),
         };
-        if let Some(meta) = &self.response_meta {
-            for line in transport_human_lines(meta.transport.as_deref().unwrap_or_default()) {
-                message.push('\n');
-                message.push_str(&line);
+        if show_transport {
+            if let Some(meta) = &self.response_meta {
+                for line in transport_human_lines(meta.transport.as_deref().unwrap_or_default()) {
+                    message.push('\n');
+                    message.push_str(&line);
+                }
             }
         }
         message

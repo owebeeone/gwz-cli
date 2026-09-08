@@ -1,8 +1,16 @@
 use crate::*;
 
 pub(crate) fn render_response(response: &CliResponse, output: OutputMode) -> String {
+    render_response_with_transport(response, output, false)
+}
+
+pub(crate) fn render_response_with_transport(
+    response: &CliResponse,
+    output: OutputMode,
+    show_transport: bool,
+) -> String {
     let mut rendered = render_response_inner(response, output);
-    if output == OutputMode::Human {
+    if show_transport && output == OutputMode::Human {
         for line in transport_human_lines(
             response
                 .envelope
