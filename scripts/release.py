@@ -349,8 +349,6 @@ def main():
         do_merge(worktree, args.main, args.release)
         merged = merge_head_exists(worktree)
         changed = reconcile_cargo_toml(worktree, core_tag, version)
-        checkout_gwz_core(core_url, core_tag, core_checkout)
-        core_sha = git_wt(core_checkout, ["rev-parse", "HEAD"], capture=True).stdout.strip()
         # Refresh even when the manifest already names this tag. A failed/provisional release may
         # have been removed and recreated at a corrected commit; Cargo otherwise trusts the stale
         # locked Git revision because the dependency spelling did not change.
@@ -363,9 +361,12 @@ def main():
         run(["cargo", "generate-lockfile"], cwd=worktree)
         changed = changed or bool(git_wt(worktree, ["status", "--porcelain"], capture=True).stdout)
         if merged or changed:
-            # The worktree lives outside the gwz-dev workspace, so cargo resolves gwz-core via
-            # git+tag: this refreshes Cargo.lock against the pinned release and verifies the build.
+            # Build before adding the sibling used by tests: packaging must work
+            # with only the CLI checkout and Cargo's pinned Git dependencies.
             run(["cargo", "build"], cwd=worktree)
+        checkout_gwz_core(core_url, core_tag, core_checkout)
+        core_sha = git_wt(core_checkout, ["rev-parse", "HEAD"], capture=True).stdout.strip()
+        if merged or changed:
             if not args.no_test:
                 run(["cargo", "test"], cwd=worktree)
             verify_locked_git_pin(worktree, core_tag, core_sha)
