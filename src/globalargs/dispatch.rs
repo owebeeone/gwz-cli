@@ -26,7 +26,8 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
     // authority — and `execute_forall` refuses to spawn.
     let _forall_guard = if let CliRequest::Forall { meta, .. } = &invocation.request {
         Some(
-            gwz_core::workspace_ops::acquire_workspace_mutation_guard(
+            gwz_core::workspace_ops::acquire_workspace_mutation_guard_with_services(
+                &services,
                 start,
                 meta.workspace.as_ref(),
                 gwz_core::operation::OpenMergeCommand::Forall,
