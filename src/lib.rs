@@ -144,6 +144,12 @@ pub(crate) use unique_suffix::*;
 pub use cli_reference::cli_reference_markdown;
 
 pub fn run() {
+    let mut args = std::env::args_os().skip(1);
+    if args.next().as_deref() == Some(std::ffi::OsStr::new("--build-info")) && args.next().is_none()
+    {
+        println!("gwz {}", build_info());
+        return;
+    }
     let cli = Cli::parse();
     // Bound stalled SSH/network reads (libssh2 has no timeout by default, so a missing
     // ssh-agent identity or unreachable host would hang forever). Set once, before any

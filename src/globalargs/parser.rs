@@ -4,7 +4,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::*;
 
-fn long_version() -> &'static str {
+pub(crate) fn build_info() -> &'static str {
     static VALUE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     VALUE
         .get_or_init(|| {
@@ -28,7 +28,6 @@ pub(crate) fn usage_text() -> String {
 #[command(
     name = "gwz",
     version,
-    long_version = long_version(),
     about = "Manage GWZ multi-repository workspaces",
     long_about = CLI_LONG,
     after_long_help = CLI_AFTER,

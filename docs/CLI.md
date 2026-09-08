@@ -146,6 +146,8 @@ Global Options:
           timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
           hang forever. 0 disables the timeout. Defaults to 3.
 
+Use --build-info for detailed CLI/core source identity.
+
 Examples:
   gwz init git@github.com:org/app.git git@github.com:org/lib.git
   gwz status

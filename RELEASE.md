@@ -36,3 +36,9 @@ dependency. As long as `main` never edits that dependency line, merging `main` â
 resolves it cleanly to release's form. The release-time job is to make sure the pinned
 gwz-core tag is the one that actually contains the gwz-core code this gwz-cli release uses
 (per step 1) â€” bump it every release.
+
+## Slow architecture tests
+
+The source-mutation/compiler suites live in gwz-core and are manual-only:
+`python ../gwz-core/scripts/run_compiler_tests.py`. They are not part of CLI
+release checks or automatic CI. See gwz-core's release documentation.
