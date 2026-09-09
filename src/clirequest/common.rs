@@ -179,19 +179,19 @@ impl CliError {
 }
 
 /// The workspace-relative logical cwd (AD10): the physical cwd expressed relative
-/// to the workspace root, so path operands resolve remote-safely. Returns `""`
-/// when cwd is the root (or cannot be expressed under it — the safe default).
+/// to the workspace root, so path operands resolve remote-safely. `None` means
+/// the caller is outside the workspace and must retain its absolute base.
 pub(crate) fn workspace_relative_cwd(
     workspace_root: &str,
     current_dir: &std::path::Path,
-) -> String {
+) -> Option<String> {
     let root = std::path::Path::new(workspace_root);
     // Canonicalize both sides where possible so `..`/symlinks compare correctly;
     // fall back to the raw paths if canonicalization fails (e.g. non-existent).
     let root_abs = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
     let cwd_abs = std::fs::canonicalize(current_dir).unwrap_or_else(|_| current_dir.to_path_buf());
     match cwd_abs.strip_prefix(&root_abs) {
-        Ok(rel) => rel.to_string_lossy().replace('\\', "/"),
-        Err(_) => String::new(),
+        Ok(rel) => Some(rel.to_string_lossy().replace('\\', "/")),
+        Err(_) => None,
     }
 }
