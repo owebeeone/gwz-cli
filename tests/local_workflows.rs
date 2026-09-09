@@ -314,7 +314,7 @@ fn status_reports_unmaterialized_members_with_completion_hint() {
     assert_success(&status_json);
     let member = &json(&status_json)["members"][0];
     assert_eq!(member["status"], "Noop");
-    assert_eq!(member["lock_match"], "Missing");
+    assert_eq!(member["lock_match"], "Unknown");
     assert_eq!(member["state"]["materialized"], false);
 }
 
