@@ -9,6 +9,7 @@ pub(crate) fn member_json(member: &gwz_core::MemberResponse) -> serde_json::Valu
         "state": member.state.as_ref().map(member_state_json),
         "git_status": member.git_status.as_ref().map(git_status_json),
         "lock_match": member.lock_match.map(|lock_match| format!("{:?}", lock_match)),
+        "lock_difference_reasons": member.lock_difference_reasons.as_ref().map(|reasons| reasons.iter().map(|reason| format!("{:?}", reason)).collect::<Vec<_>>()),
     })
 }
 
