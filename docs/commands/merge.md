@@ -496,7 +496,9 @@ because it never publishes its UUID to the kernel's VFS, kernels before 6.9
 have no such call at all, tmpfs and ramfs are refused as volatile because their
 contents do not survive power loss, and network mounts (NFS, SMB/CIFS, SSHFS
 and other FUSE mounts) are named as remote. On macOS the bar is a local APFS or
-HFS+ volume; on Windows, NTFS.
+HFS+ volume; on Windows, open-by-file-ID capability, a successful nonzero
+128-bit identity query, a local volume GUID and required case/handle probes.
+The Windows filesystem name is diagnostic only.
 
 ### Volumes without persistent file handles
 
@@ -519,7 +521,7 @@ that must **re-verify** one — a selected root's manifest and lock, a
 preservation bundle under `--preserve`, or the merge's published evidence —
 needs handles this volume does not have, and refuses. One escape works: copy the
 whole workspace onto a volume that proves handles (a local APFS or HFS+ volume
-on macOS; ext4, xfs or f2fs on Linux; NTFS on Windows) and run
+on macOS; ext4, xfs or f2fs on Linux; a Windows volume proving persistent file IDs) and run
 `gwz merge --abort` there, adding `--preserve` if that was the door that
 refused.
 

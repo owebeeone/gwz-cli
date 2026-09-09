@@ -529,3 +529,14 @@ and pointer beyond their names, the internal steps of a create and a
 disposal, the `--clean`, `--bare` and `--from` modes beyond the fact that
 they refuse, and any schedule for them. Every command shown was run against
 the build this page ships with; the sample paths and ids are illustrative.
+
+### Filesystem capabilities and recovery
+
+Windows recovery admission checks open-by-file-ID capability, a successful
+nonzero 128-bit identity query and a local volume GUID, along with required
+case-mode and handle probes. Filesystem names are diagnostic labels. An
+unavailable name does not disable otherwise supported recovery. Missing
+capabilities warn and allow ordinary `--no-ff` merges without crash recovery;
+`--filesystem-strict` refuses. CLI and Python use the same core decision.
+Successful block cloning proves a separate copy capability, not recovery
+support.

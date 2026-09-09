@@ -701,3 +701,14 @@ With the evidence above in hand, the parking procedure in
 [case D](#d-an-open-merge-no-command-can-close) is the general unblock: it is
 reversible, it destroys nothing, and it leaves every artifact available for a
 later decision.
+
+### Filesystem capabilities and recovery
+
+Windows recovery admission checks open-by-file-ID capability, a successful
+nonzero 128-bit identity query and a local volume GUID, along with required
+case-mode and handle probes. Filesystem names are diagnostic labels. An
+unavailable name does not disable otherwise supported recovery. Missing
+capabilities warn and allow ordinary `--no-ff` merges without crash recovery;
+`--filesystem-strict` refuses. CLI and Python use the same core decision.
+Successful block cloning proves a separate copy capability, not recovery
+support.
