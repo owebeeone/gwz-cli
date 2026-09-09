@@ -15,12 +15,49 @@ pub(crate) fn render_human_status_response(
         append_change_sections(&mut lines, &changes);
     }
     append_unmaterialized_notice(&mut lines, response);
+    append_lock_difference_reasons(&mut lines, response);
     append_status_issues(&mut lines, response);
     append_suppressed_dirty_summary(&mut lines, response, workspace_status);
     if lines.is_empty() {
         lines.push("nothing to commit, working tree clean".to_owned());
     }
     lines.join("\n")
+}
+
+fn append_lock_difference_reasons(lines: &mut Vec<String>, response: &CliResponse) {
+    let reasons = response
+        .envelope
+        .members
+        .iter()
+        .filter_map(|member| {
+            member.lock_difference_reasons.as_ref().map(|reasons| (member, reasons))
+        })
+        .filter(|(_, reasons)| !reasons.is_empty())
+        .collect::<Vec<_>>();
+    if reasons.is_empty() {
+        return;
+    }
+    push_blank(lines);
+    lines.push("Lock comparison:".to_owned());
+    for (member, reasons) in reasons {
+        let facts = reasons
+            .iter()
+            .map(|reason| match reason {
+                gwz_core::LockDifferenceReason::DirtyWorktree => {
+                    "uncommitted work differs from the locked commit"
+                }
+                gwz_core::LockDifferenceReason::Commit => "commit differs",
+                gwz_core::LockDifferenceReason::Branch => "branch differs",
+                gwz_core::LockDifferenceReason::Attachment => "attachment differs",
+                gwz_core::LockDifferenceReason::MissingLockEntry => "lock entry is missing",
+                gwz_core::LockDifferenceReason::UnavailableObservations => {
+                    "live state was not observed"
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        lines.push(format!("  {}: {facts}", member.member_path));
+    }
 }
 
 pub(crate) fn append_unmaterialized_notice(lines: &mut Vec<String>, response: &CliResponse) {
