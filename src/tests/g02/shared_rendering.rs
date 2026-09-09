@@ -291,7 +291,7 @@ pub(crate) fn sample_response(
             state: None,
             git_status: None,
             lock_match: None,
-        lock_difference_reasons: None,
+            lock_difference_reasons: None,
             target_kind: None,
         }],
         errors: Vec::new(),

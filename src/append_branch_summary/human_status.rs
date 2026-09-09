@@ -30,7 +30,10 @@ fn append_lock_difference_reasons(lines: &mut Vec<String>, response: &CliRespons
         .members
         .iter()
         .filter_map(|member| {
-            member.lock_difference_reasons.as_ref().map(|reasons| (member, reasons))
+            member
+                .lock_difference_reasons
+                .as_ref()
+                .map(|reasons| (member, reasons))
         })
         .filter(|(_, reasons)| !reasons.is_empty())
         .collect::<Vec<_>>();

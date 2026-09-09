@@ -43,12 +43,12 @@ impl Cli {
             .root
             .as_deref()
             .map(|root| {
-                gwz_core::workspace_ops::resolve_invocation_path(caller_cwd, root).map(
-                    |root| gwz_core::WorkspaceRef {
+                gwz_core::workspace_ops::resolve_invocation_path(caller_cwd, root).map(|root| {
+                    gwz_core::WorkspaceRef {
                         root: Some(root.to_string_lossy().into_owned()),
                         workspace_id: None,
-                    },
-                )
+                    }
+                })
             })
             .transpose()
             .map_err(CliError::from_model)?;

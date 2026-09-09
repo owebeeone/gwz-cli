@@ -18,11 +18,9 @@ pub(crate) fn invocation_from_cli(
 ) -> Result<CliInvocation, CliError> {
     cli.validate()?;
     let output = cli.output_mode();
-    let caller_start = gwz_core::workspace_ops::normalize_absolute_path(
-        current_dir,
-        "invocation caller_cwd",
-    )
-    .map_err(CliError::from_model)?;
+    let caller_start =
+        gwz_core::workspace_ops::normalize_absolute_path(current_dir, "invocation caller_cwd")
+            .map_err(CliError::from_model)?;
     let meta = cli.request_meta(request_id, &caller_start)?;
     let workspace_root = cli
         .global

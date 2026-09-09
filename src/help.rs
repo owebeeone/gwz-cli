@@ -109,7 +109,10 @@ fn argument(arg: &Arg) -> Value {
         clap::ArgAction::Version => "version",
         _ => "other",
     };
-    let repeatable = matches!(arg.get_action(), clap::ArgAction::Append | clap::ArgAction::Count);
+    let repeatable = matches!(
+        arg.get_action(),
+        clap::ArgAction::Append | clap::ArgAction::Count
+    );
     json!({
         "name": arg.get_id().as_str(),
         "short": arg.get_short().map(|value| value.to_string()),

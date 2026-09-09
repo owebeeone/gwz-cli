@@ -19,7 +19,9 @@ pub(crate) fn build_info() -> &'static str {
 
 #[cfg(test)]
 pub(crate) fn usage_text() -> String {
-    <Cli as clap::CommandFactory>::command().render_long_help().to_string()
+    <Cli as clap::CommandFactory>::command()
+        .render_long_help()
+        .to_string()
 }
 
 #[derive(Clone, Debug, Parser)]

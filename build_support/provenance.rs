@@ -139,4 +139,3 @@ pub fn emit() {
         source_digest(&root)
     );
 }
-
