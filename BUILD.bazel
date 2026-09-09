@@ -19,7 +19,7 @@ exports_files(["Cargo.toml"])  # the manifest @crates mirrors by hand (see MODUL
 # (see *_json.rs), never as a gwz_core type implementing @gwz_core_crates' serde::Serialize.
 rust_library(
     name = "gwz_lib",
-    version = "1.0.5",
+    version = "1.0.8",
     rustc_env_files = ["build.env"],
     stamp = 1,
     srcs = glob(["src/**/*.rs"], exclude = ["src/main.rs"]),
@@ -42,7 +42,7 @@ rust_library(
 # gwz — the GWZ CLI binary wrapper.
 rust_binary(
     name = "gwz",
-    version = "1.0.5",
+    version = "1.0.8",
     srcs = ["src/main.rs"],
     crate_root = "src/main.rs",
     edition = "2024",
