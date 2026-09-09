@@ -26,19 +26,21 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
     // authority — and `execute_forall` refuses to spawn.
     let _forall_guard = if let CliRequest::Forall { meta, .. } = &invocation.request {
         Some(
-            gwz_core::workspace_ops::acquire_workspace_mutation_guard_with_services(
+            gwz_core::workspace_ops::acquire_workspace_mutation_guard_for_request_with_services(
                 &services,
                 start,
-                meta.workspace.as_ref(),
+                meta,
                 gwz_core::operation::OpenMergeCommand::Forall,
                 meta.dry_run.unwrap_or(false),
             )
             .map_err(CliError::from_model)?,
         )
     } else {
-        if let Some((workspace, command)) = open_merge_gate_request(&invocation.request) {
-            gwz_core::workspace_ops::enforce_workspace_open_merge_gate(start, workspace, command)
-                .map_err(CliError::from_model)?;
+        if let Some((meta, command)) = open_merge_gate_request(&invocation.request) {
+            gwz_core::workspace_ops::enforce_workspace_open_merge_gate_for_request(
+                start, meta, command,
+            )
+            .map_err(CliError::from_model)?;
         }
         None
     };
@@ -56,7 +58,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             )
         }),
         CliRequest::CloneWorkspace { meta, url, target } => {
-            gwz_core::workspace_ops::handle_clone_workspace(
+            gwz_core::workspace_ops::handle_clone_workspace_at(
                 &backend,
                 start,
                 meta.clone(),
