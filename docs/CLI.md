@@ -77,11 +77,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -184,11 +187,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -302,11 +308,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -433,11 +442,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -541,11 +553,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -656,11 +671,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -775,11 +793,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -993,11 +1014,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1115,11 +1139,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1244,11 +1271,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1367,11 +1397,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1522,11 +1555,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1644,11 +1680,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1786,11 +1825,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1903,11 +1945,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2013,11 +2058,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2182,11 +2230,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2311,11 +2362,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2453,11 +2507,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2564,11 +2621,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2675,11 +2735,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2768,8 +2831,12 @@ Manage repository members inside a workspace.
 Repository commands bring member repositories into a workspace and manage their
 manifest metadata. Clone or create a new member, add an existing checkout,
 detach a designation from the current composition, attach an inactive
-designation, or sync metadata from local git config. Use top-level commands
-such as `gwz status`, `gwz pull`, and `gwz push` for workspace-wide operations.
+designation, or sync metadata from local git config. `--root` selects the
+workspace; it does not make relative repository operands relative to that root.
+Relative operands stay relative to the directory where `gwz` was invoked, and
+`--target` limits participating repositories without changing that path base.
+Use top-level commands such as `gwz status`, `gwz pull`, and `gwz push` for
+workspace-wide operations.
 
 Usage: gwz repo [OPTIONS] <COMMAND>
 
@@ -2794,11 +2861,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2889,7 +2959,11 @@ Add an existing local git repository to the workspace.
 
 Use this when a repository already exists on disk and should become a workspace
 member. GWZ records the repository as a member; it does not clone a new copy.
-Use `gwz repo create` instead when the member should be created from scratch.
+The repository path is resolved relative to the directory where `gwz` was
+invoked. `--root` selects the workspace and does not change that path base;
+`--target` selects participating repositories for workspace operations and does
+not change operand resolution. Use `gwz repo create` instead when the member
+should be created from scratch.
 
 Usage: gwz repo add [OPTIONS] <repo-path>
 
@@ -2915,11 +2989,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3038,11 +3115,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3157,11 +3237,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3270,11 +3353,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3383,11 +3469,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3475,7 +3564,11 @@ Refresh GWZ member metadata from local git config.
 
 `gwz repo sync` reads already-registered, materialized member repositories and
 updates the workspace manifest with their configured git remotes and current
-desired ref. It does not fetch, push, check out branches, or rewrite the lock.
+desired ref. A supplied `--root` selects the workspace and does not change the
+base for a relative member path; that path remains relative to the invocation
+directory. `--target` likewise selects participating repositories without
+changing operand path resolution. It does not fetch, push, check out branches,
+or rewrite the lock.
 
 Usage: gwz repo sync [OPTIONS] [member-path]
 
@@ -3501,11 +3594,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3626,11 +3722,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3748,11 +3847,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3866,11 +3968,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3968,11 +4073,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4071,11 +4179,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4174,11 +4285,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4277,11 +4391,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4396,11 +4513,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4534,11 +4654,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.

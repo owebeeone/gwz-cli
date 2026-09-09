@@ -28,6 +28,11 @@ gwz repo add repos/app
 
 The argument is a path to an existing local Git repository.
 
+The repository path is resolved relative to the directory where `gwz` was
+invoked. `--root` selects the workspace and does not change that path base;
+`--target` selects participating repositories without changing operand
+resolution.
+
 Use `--member-id` and `--source-id` to create a deliberate new designation. A
 bare add at a detached member's historical path reactivates that designation
 only when exactly one inactive row has non-empty historical commit evidence
@@ -95,8 +100,11 @@ and emits a warning because the designation was named directly.
 
 Refresh GWZ manifest metadata for already-registered, materialized members from
 their local Git config. This records local remotes and updates the desired ref
-from the current HEAD. It does not fetch, push, check out branches, or rewrite
-the lock.
+from the current HEAD. A supplied `--root` selects the workspace and does not
+change the base for a relative member path; that path remains relative to the
+directory where `gwz` was invoked. `--target` selects participating repositories
+without changing operand path resolution. It does not fetch, push, check out
+branches, or rewrite the lock.
 
 ```sh
 gwz repo sync gwz-py

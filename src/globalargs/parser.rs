@@ -58,8 +58,8 @@ pub(crate) struct GlobalArgs {
         long,
         global = true,
         value_name = "path",
-        help = "Workspace root",
-        long_help = "Workspace root. Defaults to the current directory when not supplied."
+        help = "Workspace root (does not change operand base)",
+        long_help = "Workspace root. Defaults to the current directory when not supplied. This selects the workspace for the operation; it does not change the base directory for relative operands. Relative paths remain relative to the directory where gwz was invoked."
     )]
     pub(crate) root: Option<String>,
 
@@ -67,8 +67,8 @@ pub(crate) struct GlobalArgs {
         long = "target",
         global = true,
         value_name = "selector",
-        help = "Select a workspace target",
-        long_help = "Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be supplied more than once."
+        help = "Select repositories (does not change operand base)",
+        long_help = "Select repositories such as `@root`, `@all`, a member id, or a member path. This limits which repositories participate; it does not change the base directory for relative operands. May be supplied more than once."
     )]
     pub(crate) targets: Vec<String>,
 
