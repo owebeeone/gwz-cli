@@ -150,7 +150,15 @@ pub fn run() {
         println!("gwz {}", build_info());
         return;
     }
-    let cli = help::parse_from(std::env::args_os()).unwrap_or_else(|error| error.exit());
+    let cli = match help::parse_from(std::env::args_os()) {
+        Ok(cli) => cli,
+        Err(error) if error.kind() == clap::error::ErrorKind::DisplayHelp => {
+            let rendered = error.render().to_string();
+            print!("{}", rendered.strip_prefix("error: ").unwrap_or(&rendered));
+            std::process::exit(error.exit_code());
+        }
+        Err(error) => error.exit(),
+    };
     // Bound stalled SSH/network reads (libssh2 has no timeout by default, so a missing
     // ssh-agent identity or unreachable host would hang forever). Set once, before any
     // operation spawns threads. `--ssh-timeout` is in seconds (0 disables); default 3s.

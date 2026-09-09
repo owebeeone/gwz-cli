@@ -82,6 +82,34 @@ where
 }
 
 fn argument(arg: &Arg) -> Value {
+    let range = arg.get_num_args();
+    let takes_values = arg.get_action().takes_values();
+    let value_range = if takes_values {
+        let range = range.unwrap_or_else(|| clap::builder::ValueRange::new(1));
+        Some(json!({
+            "min": range.min_values(),
+            "max": if range.max_values() == usize::MAX {
+                Value::Null
+            } else {
+                json!(range.max_values())
+            },
+        }))
+    } else {
+        None
+    };
+    let action = match arg.get_action() {
+        clap::ArgAction::Set => "set",
+        clap::ArgAction::Append => "append",
+        clap::ArgAction::SetTrue => "set_true",
+        clap::ArgAction::SetFalse => "set_false",
+        clap::ArgAction::Count => "count",
+        clap::ArgAction::Help => "help",
+        clap::ArgAction::HelpShort => "help_short",
+        clap::ArgAction::HelpLong => "help_long",
+        clap::ArgAction::Version => "version",
+        _ => "other",
+    };
+    let repeatable = matches!(arg.get_action(), clap::ArgAction::Append | clap::ArgAction::Count);
     json!({
         "name": arg.get_id().as_str(),
         "short": arg.get_short().map(|value| value.to_string()),
@@ -89,7 +117,11 @@ fn argument(arg: &Arg) -> Value {
         "description": arg.get_help().map(ToString::to_string),
         "required": arg.is_required_set(),
         "global": arg.is_global_set(),
-        "takes_values": arg.get_action().takes_values(),
+        "takes_values": takes_values,
+        "action": action,
+        "value_range": value_range,
+        "value_delimiter": arg.get_value_delimiter().map(|value| value.to_string()),
+        "repeatable": repeatable,
         "value_names": arg.get_value_names().map(|names| names.iter().map(|name| name.as_str()).collect::<Vec<_>>()),
         "defaults": arg.get_default_values().iter().map(|value| value.to_string_lossy()).collect::<Vec<_>>(),
         "choices": arg.get_value_parser().possible_values().map(|values| {
