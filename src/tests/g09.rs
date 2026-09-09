@@ -204,8 +204,11 @@ fn serialized_context_keeps_an_outside_caller_distinct_from_workspace_root() {
         caller.path(),
     );
 
-    let caller = std::fs::canonicalize(caller.path()).unwrap();
-    let workspace = std::fs::canonicalize(workspace.path()).unwrap();
+    // Caller context is absolute and normalized lexically; preserve the
+    // temporary directory's spelling rather than resolving macOS `/var` to
+    // `/private/var` in the expected value.
+    let caller = caller.path().to_owned();
+    let workspace = workspace.path().to_owned();
     assert_eq!(log.request.workspace_cwd, None);
     assert_eq!(
         log.request
