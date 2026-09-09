@@ -9,6 +9,26 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
+## 1.0.4: the 1.0 line ships
+
+1.0.4 (2026-09-08) is the first published release of the 1.0 series — the
+1.0.0 release candidates and 1.0.2/1.0.3 were pre-publication and packaging
+iterations from the same morning. If you are upgrading from 0.14 or earlier,
+read this section together with the lane-recovery notes below.
+
+The 1.0 series delivers the **local clone family** (`gwz local`): a verbatim,
+isolated second copy of the whole workspace — its own repositories, its own
+runtime state, its own merges — created with `gwz local clone NAME`, integrated
+back by name with `gwz merge --remote NAME`, and disposable only when its
+history provably survives elsewhere. See [Local Clones](LocalClones.md) for the
+lane workflow and [measured disk/speed data](LocalClones.md#disk-space-and-copy-speed)
+(on reflink filesystems, ten whole-workspace lanes cost ~20.5 MiB; on ext4 the
+same ten cost ~537 MiB as ordinary copies).
+
+Release verification for 1.0.4 (2026-09-08) covered install, workspace clone,
+local clone, detach, and delete on Linux ARM64 and Windows x86_64, alongside
+the release pipeline's own gates.
+
 ## 1.0.0: lane recovery
 
 This release makes the ordinary lane cycle work with one default merge:
@@ -150,7 +170,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 Windows PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (irm https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.ps1)"
 ```
 
 ## Install A Pinned Version

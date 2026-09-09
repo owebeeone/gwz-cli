@@ -21,138 +21,33 @@ Hosted docs: https://owebeeone.github.io/gwz-cli/
 ## Root Help
 
 ```text
-GWZ (Git Workspace Zone) manages a local workspace made from multiple git repositories.
-
-A workspace records its member repositories and exact revisions under the
-tracked `gwz.conf/` directory. Commands operate on the workspace as a whole,
-so a single request can initialize, inspect, snapshot, materialize, pull, or
-push a coordinated set of repositories.
-
-Documentation: https://owebeeone.github.io/gwz-cli/
+GWZ — manage a workspace of Git repositories
 
 Usage: gwz [OPTIONS] <COMMAND>
 
-Commands:
-  auth         Manage local SSH identity configuration
-  add          Stage file contents across workspace repos (multi-repo git add)
-  branch       Manage git branches across workspace members
-  capture      Record the live worktree state into the lock (no mutation)
-  clone        Clone a workspace from a URL and materialize its members
-  commit       Commit staged changes across the selected targets (root included only when selected;
-               default selection includes the root and every member)
-  diff         Show workspace changes as one unified diff (multi-repo git diff)
-  forall       Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c
-               <string>
-  init         Create a workspace or initialize one from source URLs
-  local        Create, inspect and retire the local clone family
-  ls           List workspace targets (id, path; absolute or --local)
-  log          Show unified commit history across workspace repositories
-  materialize  Materialize workspace members to a target
-  merge        Merge a source ref across selected workspace repositories
-  pull         Update workspace members to an explicit target
-  push         Push workspace target refs
-  repo         Manage workspace repository members
-  snapshot     Record the current workspace selection
-  stash        Manage coordinated git stashes across workspace members
-  status       Show workspace git status
-  tag          Manage git tags across workspace repos (create/list/delete)
-  help         Print this message or the help of the given subcommand(s)
+Inspect:    status  ls  diff  log
+Change:     add  commit  branch  tag  stash  merge  pull  push
+Workspace:  init  clone  snapshot  capture  materialize
+Members:    repo add|create|clone|detach|attach|sync
+Lanes:      local clone|list|dispose|disband
+Other:      auth  forall
 
-Options:
-  -h, --help
-          Print help (see a summary with '-h')
+Selection (default: root and every member):
+  --root PATH       Workspace to operate in (default: current directory)
+  --target TARGET   Repositories to include: @root, @all, member ID or path
+  --no-target TARGET  Repositories to exclude
+  --remote NAME     Git remote for network operations; local lane for merge
 
-  -V, --version
-          Print version
+Common options:
+  --json            Structured output; try gwz --json help [COMMAND...]
+  --verbose         Authentication diagnostics
+  --dry-run         Preview where supported; some commands refuse it
+  -h, --help        Show help
+  -V, --version     Show version; --build-info adds source identity
 
-Global Options:
-      --identity <PATH>
-          Use only this SSH private-key file; no agent fallback
-
-      --remote-identity <NAME=PATH>
-          Override SSH identity for this remote name across selected repositories; repeatable
-
-      --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
-
-      --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
-
-      --no-target <selector>
-          Exclude a workspace target after includes are expanded. May be supplied more than once.
-
-      --member <selector>
-          Compatibility alias for `--target`. Selects a workspace target by selector and may be
-          supplied more than once.
-
-      --no-member <selector>
-          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
-          more than once.
-
-      --member-path <member-path>
-          Compatibility path selector. Selects a workspace target by member path and may be supplied
-          more than once.
-
-      --no-member-path <member-path>
-          Compatibility path exclusion. Excludes a workspace target by member path and may be
-          supplied more than once.
-
-      --all
-          Select all workspace targets (`@all`). May be combined with target exclusions.
-
-      --dry-run
-          Plan the operation without mutating workspace metadata or member repositories.
-
-      --partial
-          Allow operations to complete for members that can proceed even when another selected
-          member fails.
-
-      --force
-          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
-          explicit.
-
-      --sync <mode>
-          Select workspace sync behavior. The default policy is fast-forward only.
-
-          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
-
-      --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
-
-      --jobs <n>
-          Global ceiling on the total number of member repositories processed concurrently across
-          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
-
-      --max-per-host <n>
-          Maximum concurrent network operations against a single remote host, so a host is not
-          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
-          --jobs. Defaults to 8.
-
-      --progress-interval <ms>
-          Minimum milliseconds between member progress events per repository. Coalesces
-          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
-
-      --json
-          Render one structured JSON response for the operation.
-
-      --jsonl
-          Render newline-delimited JSON records for streaming operation consumers.
-
-      --ssh-timeout <secs>
-          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
-          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
-          hang forever. 0 disables the timeout. Defaults to 3.
-
-Use --build-info for detailed CLI/core source identity.
-
-Examples:
-  gwz init git@github.com:org/app.git git@github.com:org/lib.git
-  gwz status
-  gwz snapshot before-refactor
-  gwz pull --head
+Details and all options: gwz help COMMAND [SUBCOMMAND]
+Example: gwz --root ROOT --target @all merge --remote LANE
+  Receive LANE's root and member histories into ROOT.
 
 Documentation: https://owebeeone.github.io/gwz-cli/
 ```
@@ -182,11 +77,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -249,6 +147,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -285,11 +187,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -352,6 +257,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -399,11 +308,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -466,6 +378,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -526,11 +442,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -593,6 +512,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -630,11 +553,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -697,6 +623,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -741,11 +671,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -808,6 +741,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -856,11 +793,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -923,6 +863,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -1070,11 +1014,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1137,6 +1084,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -1188,11 +1139,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1255,6 +1209,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -1313,11 +1271,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1380,6 +1341,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -1432,11 +1397,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1499,6 +1467,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -1583,11 +1555,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1650,6 +1625,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -1701,11 +1680,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1768,6 +1750,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -1839,11 +1825,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -1906,6 +1895,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -1952,11 +1945,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2019,6 +2015,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -2058,11 +2058,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2125,6 +2128,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -2223,11 +2230,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2290,6 +2300,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -2348,11 +2362,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2415,6 +2432,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -2486,11 +2507,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2553,6 +2577,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -2593,11 +2621,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2660,6 +2691,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -2700,11 +2735,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2768,6 +2806,10 @@ Global Options:
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
 
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
+
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
           timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
@@ -2789,8 +2831,12 @@ Manage repository members inside a workspace.
 Repository commands bring member repositories into a workspace and manage their
 manifest metadata. Clone or create a new member, add an existing checkout,
 detach a designation from the current composition, attach an inactive
-designation, or sync metadata from local git config. Use top-level commands
-such as `gwz status`, `gwz pull`, and `gwz push` for workspace-wide operations.
+designation, or sync metadata from local git config. `--root` selects the
+workspace; it does not make relative repository operands relative to that root.
+Relative operands stay relative to the directory where `gwz` was invoked, and
+`--target` limits participating repositories without changing that path base.
+Use top-level commands such as `gwz status`, `gwz pull`, and `gwz push` for
+workspace-wide operations.
 
 Usage: gwz repo [OPTIONS] <COMMAND>
 
@@ -2815,11 +2861,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2883,6 +2932,10 @@ Global Options:
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
 
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
+
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
           timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
@@ -2906,7 +2959,11 @@ Add an existing local git repository to the workspace.
 
 Use this when a repository already exists on disk and should become a workspace
 member. GWZ records the repository as a member; it does not clone a new copy.
-Use `gwz repo create` instead when the member should be created from scratch.
+The repository path is resolved relative to the directory where `gwz` was
+invoked. `--root` selects the workspace and does not change that path base;
+`--target` selects participating repositories for workspace operations and does
+not change operand resolution. Use `gwz repo create` instead when the member
+should be created from scratch.
 
 Usage: gwz repo add [OPTIONS] <repo-path>
 
@@ -2932,11 +2989,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -2999,6 +3059,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3051,11 +3115,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3118,6 +3185,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3166,11 +3237,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3233,6 +3307,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3275,11 +3353,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3342,6 +3423,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3384,11 +3469,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3451,6 +3539,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3472,7 +3564,11 @@ Refresh GWZ member metadata from local git config.
 
 `gwz repo sync` reads already-registered, materialized member repositories and
 updates the workspace manifest with their configured git remotes and current
-desired ref. It does not fetch, push, check out branches, or rewrite the lock.
+desired ref. A supplied `--root` selects the workspace and does not change the
+base for a relative member path; that path remains relative to the invocation
+directory. `--target` likewise selects participating repositories without
+changing operand path resolution. It does not fetch, push, check out branches,
+or rewrite the lock.
 
 Usage: gwz repo sync [OPTIONS] [member-path]
 
@@ -3481,6 +3577,12 @@ Arguments:
           Workspace-relative member path to sync
 
 Options:
+      --private
+          Quietly skip access refusals when cloning this member in a workspace
+
+      --public
+          Report clone access failures normally for this member
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -3492,11 +3594,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3559,6 +3664,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3613,11 +3722,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3680,6 +3792,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3731,11 +3847,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3798,6 +3917,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3845,11 +3968,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -3912,6 +4038,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -3943,11 +4073,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4010,6 +4143,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -4042,11 +4179,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4109,6 +4249,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -4141,11 +4285,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4208,6 +4355,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -4240,11 +4391,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4307,6 +4461,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -4355,11 +4513,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4422,6 +4583,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
@@ -4489,11 +4654,14 @@ Global Options:
           Override SSH identity for this remote name across selected repositories; repeatable
 
       --root <path>
-          Workspace root. Defaults to the current directory when not supplied.
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
 
       --target <selector>
-          Select a workspace target such as `@root`, `@all`, a member id, or a member path. May be
-          supplied more than once.
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
 
       --no-target <selector>
           Exclude a workspace target after includes are expanded. May be supplied more than once.
@@ -4556,6 +4724,10 @@ Global Options:
 
       --jsonl
           Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no

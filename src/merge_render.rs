@@ -101,6 +101,9 @@ pub(crate) fn render_merge_response(response: &gwz_core::MergeResponse) -> Strin
             line.push_str(&format!(" ({})", merge_analysis_label(predicted)));
         }
         lines.push(line);
+        if repo.state == gwz_core::MergeParticipantState::UpToDate {
+            lines.push("    no changes transferred".to_owned());
+        }
         lines.push(format!(
             "    source: {} @ {}",
             repo.source_ref, repo.source_commit

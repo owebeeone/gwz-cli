@@ -48,7 +48,7 @@ pub(crate) fn execute_forall(
     no_banner: bool,
     operation_id: String,
 ) -> Result<crate::CliResponse, gwz_core::model::ModelError> {
-    let root = gwz_core::workspace_ops::resolve_workspace_root(start, meta.workspace.as_ref())?;
+    let root = gwz_core::workspace_ops::resolve_request_workspace_root(start, meta)?;
     let mut target_meta = meta.clone();
     if !projects.is_empty() {
         let selection = target_meta.selection.get_or_insert_with(Default::default);

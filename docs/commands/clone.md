@@ -47,3 +47,24 @@ gwz materialize --lock
 - A second working copy of a workspace on the same machine is a different
   command: [`gwz local clone`](local.md). `gwz clone` takes a URL and nothing
   else.
+
+## Private members
+
+A member marked `private: true` is cloned when access is available. If the
+remote refuses access (including an authentication refusal or a remote not-found
+response), workspace clone silently skips that member. Other members still
+clone, and the private member's manifest and lock entries remain for a later
+`gwz materialize --lock` retry. Skipped clones produce no member progress,
+response row or transport diagnostic.
+
+Unmarked members retain normal failure behavior. A private marker does not hide
+local disk errors, corrupt repositories, checkout errors or workspace-root clone
+failures. It also does not change repository visibility: the member name and URL
+remain readable in the manifest.
+
+Set or clear the marker through [repo sync](repo.md#gwz-repo-sync):
+
+```sh
+gwz repo sync gwz-core-evidence --private
+gwz repo sync gwz-core-evidence --public
+```

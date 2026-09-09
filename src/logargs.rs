@@ -112,12 +112,12 @@ impl LogArgs {
     pub(crate) fn request(
         &self,
         meta: gwz_core::RequestMeta,
-        workspace_cwd: String,
+        workspace_cwd: Option<String>,
     ) -> Result<CliRequest, CliError> {
         Ok(CliRequest::Log(Box::new(LogInvocation {
             request: gwz_core::LogRequest {
                 meta,
-                workspace_cwd: Some(workspace_cwd),
+                workspace_cwd,
                 operands: self.operands.clone(),
                 explicit_pathspecs: self.pathspecs.clone(),
                 options: Some(gwz_core::LogOptions {

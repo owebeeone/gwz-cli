@@ -74,6 +74,15 @@ fn workspace(prefix: &str) -> TempDir {
     temp
 }
 
+fn commit_workspace_root(temp: &TempDir) {
+    dispatch_in(temp, &["--target", "@root", "add", "-A"]).unwrap();
+    dispatch_in(
+        temp,
+        &["--target", "@root", "commit", "-m", "initial workspace"],
+    )
+    .unwrap();
+}
+
 fn dispatch_in(temp: &TempDir, args: &[&str]) -> Result<CliResponse, CliError> {
     let mut owned = strings(["--root"]);
     owned.push(temp.path().to_string_lossy().into_owned());
@@ -805,6 +814,7 @@ fn local_family_dry_run_is_refused_by_core() {
 #[test]
 fn local_clone_dispatches_verbatim_and_refuses_the_unbuilt_modes_typed() {
     let temp = workspace("cli-local-clone");
+    commit_workspace_root(&temp);
     // A destination this test owns, so a served create never lands beside
     // the temporary directory in the system temp root.
     let lanes = TempDir::new("cli-local-clone-lanes");
@@ -1572,6 +1582,7 @@ fn a_source_layout_hazard_reaches_the_driver_as_unsupported_source_layout() {
         "op_setup",
     )
     .unwrap();
+    commit_workspace_root(&temp);
     let info = temp.path().join(".git/objects/info");
     std::fs::create_dir_all(&info).unwrap();
     std::fs::write(
@@ -1904,16 +1915,9 @@ fn long_help(path: &[&str]) -> String {
 fn local_and_clone_help_describe_the_family_surface() {
     let root = usage_text();
     assert!(root.contains("local"), "{root}");
-    // The `local` summary covers creation as well as inspection and
-    // retirement, and the `clone` summary implies no local form.
-    assert!(
-        root.contains("Create, inspect and retire the local clone family"),
-        "{root}"
-    );
-    assert!(
-        root.contains("Clone a workspace from a URL and materialize its members"),
-        "{root}"
-    );
+    // The compact root help groups the local family and URL clone commands.
+    assert!(root.contains("local clone|list|dispose|disband"), "{root}");
+    assert!(root.contains("clone"), "{root}");
 
     let local = long_help(&["local"]);
     for phrase in [

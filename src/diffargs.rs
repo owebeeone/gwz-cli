@@ -199,7 +199,7 @@ impl DiffArgs {
     pub(crate) fn request(
         &self,
         meta: gwz_core::RequestMeta,
-        workspace_cwd: String,
+        workspace_cwd: Option<String>,
     ) -> Result<CliRequest, CliError> {
         let format = self.output_format()?;
         let quiet = self.quiet;
@@ -243,7 +243,7 @@ impl DiffArgs {
         Ok(CliRequest::Diff(Box::new(DiffInvocation {
             request: gwz_core::DiffRequest {
                 meta,
-                workspace_cwd: Some(workspace_cwd),
+                workspace_cwd,
                 operands: self.operands.clone(),
                 explicit_pathspecs: self.pathspecs.clone(),
                 options: Some(options),

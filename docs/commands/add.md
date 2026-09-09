@@ -7,8 +7,10 @@ gwz add [OPTIONS] [pathspec]...
 ```
 
 `gwz add` is the multi-repository equivalent of `git add`. Each pathspec is
-resolved relative to the current directory, routed to the member or workspace
-root repository that owns it, and staged there.
+resolved relative to the directory where `gwz` was invoked, routed to the member
+or workspace root repository that owns it, and staged there. `--root` selects
+the workspace and does not change that path base. `--target` limits participating
+repositories and does not change path resolution.
 
 ## Arguments And Options
 

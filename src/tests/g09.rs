@@ -190,6 +190,45 @@ fn workspace_cwd_and_global_selection_policy_are_preserved() {
 }
 
 #[test]
+fn serialized_context_keeps_an_outside_caller_distinct_from_workspace_root() {
+    let workspace = TempDir::new("outside-context-workspace");
+    let caller = TempDir::new("outside-context-caller");
+    let log = log_invocation(
+        strings([
+            "--root",
+            workspace.path().to_str().unwrap(),
+            "log",
+            "--",
+            "README.md",
+        ]),
+        caller.path(),
+    );
+
+    // Caller context is absolute and normalized lexically; preserve the
+    // temporary directory's spelling rather than resolving macOS `/var` to
+    // `/private/var` in the expected value.
+    let caller = caller.path().to_owned();
+    let workspace = workspace.path().to_owned();
+    assert_eq!(log.request.workspace_cwd, None);
+    assert_eq!(
+        log.request
+            .meta
+            .invocation
+            .as_ref()
+            .map(|context| context.caller_cwd.as_str()),
+        Some(caller.to_str().unwrap())
+    );
+    assert_eq!(
+        log.request
+            .meta
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.root.as_deref()),
+        Some(workspace.to_str().unwrap())
+    );
+}
+
+#[test]
 fn clap_help_preserves_the_exact_s31_surface_and_strict_contract() {
     let mut command = Cli::command();
     let help = command

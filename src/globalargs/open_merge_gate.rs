@@ -3,7 +3,7 @@ use crate::*;
 pub(super) fn open_merge_gate_request(
     request: &CliRequest,
 ) -> Option<(
-    Option<&gwz_core::WorkspaceRef>,
+    &gwz_core::RequestMeta,
     gwz_core::operation::OpenMergeCommand,
 )> {
     use gwz_core::operation::OpenMergeCommand as Command;
@@ -70,5 +70,5 @@ pub(super) fn open_merge_gate_request(
         // has no Log row; it never passes through generic dispatch pre-gating.
         CliRequest::Log(_) => return None,
     };
-    Some((meta.workspace.as_ref(), command))
+    Some((meta, command))
 }
