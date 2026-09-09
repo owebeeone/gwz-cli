@@ -120,6 +120,20 @@ gwz commit -m "Record member origin"
 gwz --member mem_gwz_py push
 ```
 
+Mark a member as private, or restore ordinary access-failure behavior:
+
+```sh
+gwz repo sync gwz-core-evidence --private
+gwz repo sync gwz-core-evidence --public
+```
+
+These mutually exclusive flags set the manifest member's `private` policy.
+Ordinary sync preserves the existing setting. Omitted or false means normal
+error reporting. `private: true` permits workspace clone and lock materialization
+to quietly skip a missing member when its remote refuses access. It does not
+change hosting permissions or conceal the member in the manifest. `--dry-run`
+previews the update without writing it.
+
 ## Notes
 
 - Use `repo add` when the Git repository already exists on disk.

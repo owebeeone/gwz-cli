@@ -56,6 +56,7 @@ exclude_docs: |
 
 nav:
   - Home: README.md
+  - Why GWZ: WhyGwz.md
   - Quick Start: QuickStart.md
   - Install: Install.md
   - Guides:

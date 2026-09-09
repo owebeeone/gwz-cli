@@ -1,4 +1,3 @@
-use clap::Parser;
 
 mod add_after;
 mod add_long;
@@ -21,6 +20,7 @@ mod forall;
 mod git_status_json;
 mod git_transfer_progress_json;
 mod globalargs;
+mod help;
 mod impl_from_syncarg_for_gwz_core_syncbehavior;
 mod init_after;
 mod init_long;
@@ -150,7 +150,7 @@ pub fn run() {
         println!("gwz {}", build_info());
         return;
     }
-    let cli = Cli::parse();
+    let cli = help::parse_from(std::env::args_os()).unwrap_or_else(|error| error.exit());
     // Bound stalled SSH/network reads (libssh2 has no timeout by default, so a missing
     // ssh-agent identity or unreachable host would hang forever). Set once, before any
     // operation spawns threads. `--ssh-timeout` is in seconds (0 disables); default 3s.

@@ -46,8 +46,10 @@ Nothing on this page promises when a refused form starts working.
 ## Disk Space and Copy Speed
 
 Source and destination must share a reflink-capable filesystem to benefit from
-copy-on-write cloning. Without that support, GWZ makes ordinary independent
-copies. Later edits remain private in either case.
+copy-on-write cloning. Reflink-capable filesystems include APFS, XFS, and btrfs,
+and — since v1.0.8 — ReFS on a Windows Dev Drive. ext4 and NTFS have no
+block-clone primitive, so there GWZ makes ordinary independent copies. Later
+edits remain private in either case.
 
 A Raspberry Pi test with a roughly 54 MiB, eight-repository workspace measured
 one clone at **2.10 MiB of additional XFS space versus 53.72 MiB on ext4**,
@@ -55,6 +57,11 @@ repeated twice on fresh images. Clone times overlapped at 1.2–1.4 seconds.
 Ten retained clones used about 20.5 MiB additional XFS space versus 537.2 MiB
 on ext4. These are incremental filesystem measurements excluding the source,
 not per-directory `du` totals that can double-count shared extents.
+
+On Windows, a ReFS Dev Drive is reflink-capable: the same eight-repository
+workspace cloned with every file block-cloned through ReFS (the clone reports
+`3107 natively, 0 ordinarily`) on v1.0.8. NTFS has no block-clone primitive and
+takes an ordinary copy.
 
 The test used 10 GiB loop images on ext4 host storage, a development build,
 and normal caches on a shared ARM64 machine. Larger workspaces, build output,

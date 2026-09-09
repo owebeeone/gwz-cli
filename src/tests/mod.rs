@@ -1,3 +1,4 @@
+pub(crate) use clap::Parser;
 pub(crate) use super::*;
 
 mod g00;

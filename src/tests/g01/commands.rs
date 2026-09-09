@@ -524,3 +524,23 @@ impl Drop for TempDir {
         let _ = fs::remove_dir_all(&self.path);
     }
 }
+
+#[test]
+fn repo_sync_private_policy_is_explicit_and_mutually_exclusive() {
+    for (args, expected) in [
+        (vec!["repo", "sync", "repos/app", "--private"], Some(true)),
+        (vec!["repo", "sync", "repos/app", "--public"], Some(false)),
+        (vec!["repo", "sync", "repos/app"], None),
+    ] {
+        let CliRequest::RepoSync(request) =
+            parse(args.into_iter().map(str::to_owned).collect()).request
+        else {
+            panic!("expected repo sync");
+        };
+        assert_eq!(request.private, expected);
+        assert_eq!(request.meta.selection.unwrap().targets, vec!["repos/app"]);
+    }
+    assert!(
+        Cli::try_parse_from(["gwz", "repo", "sync", "repos/app", "--private", "--public"]).is_err()
+    );
+}

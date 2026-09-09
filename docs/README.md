@@ -4,6 +4,11 @@ GWZ (Git Workspace Zone) coordinates multiple ordinary Git repositories as one
 reproducible, inspectable workspace. The workspace root records composition and
 exact state; member repositories remain normal Git repositories.
 
+New in the 1.0 series: [local clones](LocalClones.md) — an isolated second copy
+of the whole workspace (a lane) with its own repositories and state, integrated
+back by name with `gwz merge --remote NAME`. On reflink filesystems a lane is
+seconds and megabytes, not minutes and gigabytes.
+
 [Start with the Quick Start](QuickStart.md) to install `gwz`, create or clone a
 workspace, make a cross-repository change, and learn the repository lifecycle.
 
@@ -12,7 +17,7 @@ workspace, make a cross-repository change, and learn the repository lifecycle.
 | I want to… | Read… |
 | --- | --- |
 | Install and use GWZ for the first time | [Quick Start](QuickStart.md) |
-| Understand what GWZ adds to Git | [Why GWZ](https://github.com/owebeeone/gwz-core/blob/main/docs/WhyGwz.md) |
+| Understand what GWZ adds to Git | [Why GWZ](WhyGwz.md) |
 | Add, create, detach, attach, or replace a member | [Repository Member Lifecycle](RepoLifecycle.md) |
 | Build or change GWZ itself | [Root Workspaces](RootWorkspace.md) |
 | Embed the engine or build a remote client | [gwz-core documentation](https://github.com/owebeeone/gwz-core/tree/main/docs) |

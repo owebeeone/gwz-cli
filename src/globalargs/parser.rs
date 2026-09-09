@@ -1,5 +1,3 @@
-#[cfg(test)]
-use clap::CommandFactory;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::*;
@@ -21,7 +19,7 @@ pub(crate) fn build_info() -> &'static str {
 
 #[cfg(test)]
 pub(crate) fn usage_text() -> String {
-    Cli::command().render_long_help().to_string()
+    <Cli as clap::CommandFactory>::command().render_long_help().to_string()
 }
 
 #[derive(Clone, Debug, Parser)]
@@ -31,6 +29,7 @@ pub(crate) fn usage_text() -> String {
     about = "Manage GWZ multi-repository workspaces",
     long_about = CLI_LONG,
     after_long_help = CLI_AFTER,
+    override_help = crate::help::ROOT_HELP,
     arg_required_else_help = true,
     subcommand_required = true
 )]

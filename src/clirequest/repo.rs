@@ -122,6 +122,18 @@ pub(crate) struct RepoAttachArgs {
 #[derive(Clone, Debug, Default, Args)]
 pub(crate) struct RepoSyncArgs {
     #[arg(
+        long,
+        conflicts_with = "public",
+        help = "Quietly skip access refusals when cloning this member in a workspace"
+    )]
+    pub(crate) private: bool,
+    #[arg(
+        long,
+        conflicts_with = "private",
+        help = "Report clone access failures normally for this member"
+    )]
+    pub(crate) public: bool,
+    #[arg(
         value_name = "member-path",
         help = "Workspace-relative member path to sync"
     )]
@@ -286,7 +298,16 @@ impl RepoSyncArgs {
                 ..Default::default()
             });
         }
-        Ok(CliRequest::RepoSync(gwz_core::RepoSyncRequest { meta }))
+        Ok(CliRequest::RepoSync(gwz_core::RepoSyncRequest {
+            meta,
+            private: if self.private {
+                Some(true)
+            } else if self.public {
+                Some(false)
+            } else {
+                None
+            },
+        }))
     }
 }
 
