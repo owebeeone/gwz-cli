@@ -10,8 +10,13 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 Install the latest GitHub Release on Windows PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (irm https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.ps1)"
 ```
+
+Keep `-NoProfile` to skip PowerShell startup customizations and the
+parentheses around `irm` to pass the downloaded script to `iex` as one
+argument. If the previous `irm ... | iex` command reports an empty command
+or a missing `#>` terminator, use the command above.
 
 The `latest` release URL resolves to the newest non-prerelease GitHub Release.
 For pinned installs, replace `latest` with a concrete tag:
