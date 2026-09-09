@@ -33,18 +33,29 @@ impl Cli {
         }
     }
 
-    pub(crate) fn request_meta(&self, request_id: &str) -> gwz_core::RequestMeta {
-        gwz_core::RequestMeta {
+    pub(crate) fn request_meta(
+        &self,
+        request_id: &str,
+        caller_cwd: &std::path::Path,
+    ) -> Result<gwz_core::RequestMeta, CliError> {
+        let workspace = self
+            .global
+            .root
+            .as_deref()
+            .map(|root| {
+                gwz_core::workspace_ops::resolve_invocation_path(caller_cwd, root).map(
+                    |root| gwz_core::WorkspaceRef {
+                        root: Some(root.to_string_lossy().into_owned()),
+                        workspace_id: None,
+                    },
+                )
+            })
+            .transpose()
+            .map_err(CliError::from_model)?;
+        Ok(gwz_core::RequestMeta {
             request_id: request_id.to_owned(),
             schema_version: "gwz.protocol/v0".to_owned(),
-            workspace: self
-                .global
-                .root
-                .as_ref()
-                .map(|root| gwz_core::WorkspaceRef {
-                    root: Some(root.clone()),
-                    workspace_id: None,
-                }),
+            workspace,
             selection: self.selection(),
             policy: self.policy(),
             dry_run: self.global.dry_run.then_some(true),
@@ -54,8 +65,11 @@ impl Cli {
                 default_identity: self.global.identity.clone(),
                 remote_identities: self.global.remote_identities.clone(),
             }),
+            invocation: Some(gwz_core::InvocationContext {
+                caller_cwd: caller_cwd.to_string_lossy().into_owned(),
+            }),
             ..Default::default()
-        }
+        })
     }
 
     pub(crate) fn selection(&self) -> Option<gwz_core::Selection> {

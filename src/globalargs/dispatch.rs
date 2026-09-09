@@ -58,6 +58,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         CliRequest::CloneWorkspace { meta, url, target } => {
             gwz_core::workspace_ops::handle_clone_workspace(
                 &backend,
+                start,
                 meta.clone(),
                 url,
                 target,
