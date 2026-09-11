@@ -128,6 +128,13 @@ gwz commit -m "Record member origin"
 gwz --member mem_gwz_py push
 ```
 
+A remote whose configured URL differs from the manifest only by URL scheme on
+github.com, gitlab.com or bitbucket.org (`https://github.com/org/repo.git`
+where the manifest records `git@github.com:org/repo.git`) is the mark of a
+`--url-scheme` clone, not a different repository. `repo sync` keeps the
+recorded URL, reports the difference in the member's `url_resolution`, and says
+so in its message; pass `--force` to record the configured form.
+
 Mark a member as private, or restore ordinary access-failure behavior:
 
 ```sh
