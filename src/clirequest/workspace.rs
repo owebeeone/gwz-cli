@@ -41,7 +41,10 @@ impl InitArgs {
             if !self.path_prefix.trim().is_empty() {
                 return Err(CliError::new("--update cannot be combined with --path"));
             }
-            Ok(CliRequest::UpdateBootstrap { meta })
+            Ok(CliRequest::UpdateBootstrap {
+                meta,
+                commit: self.commit,
+            })
         } else if self.urls.is_empty() {
             Ok(CliRequest::CreateWorkspace(
                 gwz_core::CreateWorkspaceRequest {

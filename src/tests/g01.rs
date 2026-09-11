@@ -6,6 +6,20 @@ use super::*;
 
 mod commands;
 
+#[test]
+fn init_update_accepts_commit_and_requires_update() {
+    parse_args_with_request_id(
+        strings(["init", "--update", "--force", "--commit"]),
+        "recover",
+        Path::new("/cwd"),
+    )
+    .unwrap();
+    assert!(
+        parse_args_with_request_id(strings(["init", "--commit"]), "bad", Path::new("/cwd"))
+            .is_err()
+    );
+}
+
 pub(crate) use commands::*;
 
 #[test]
@@ -69,7 +83,7 @@ pub(crate) fn parses_init_update_bootstrap_with_root() {
     .unwrap();
 
     assert_eq!(invocation.output, OutputMode::Human);
-    let CliRequest::UpdateBootstrap { meta } = invocation.request else {
+    let CliRequest::UpdateBootstrap { meta, .. } = invocation.request else {
         panic!("expected update bootstrap");
     };
     assert_eq!(meta.request_id, "req_test");

@@ -1242,6 +1242,15 @@ points agents to it. Existing `AGENTS.md` instructions are preserved. Managed
 files are overwritten only when their digest header still matches their body;
 use global `--force` to replace a locally edited bootstrap file.
 
+To deliberately accept edited configuration and commit the recovery together,
+run `gwz init --update --force --commit`. Both configuration documents must
+parse; this accepts their bytes but does not repair incorrect paths or topology.
+The commit includes the manifest, existing lock, integrity marker, managed
+instructions and agent-reference/settings files changed by this update.
+Unrelated staged work is preserved. `--commit` requires `--update`; omit
+`--force` when no hand edit needs acceptance. Unchanged updates make no empty
+commit, and `--dry-run` changes nothing. Output names the commit and paths.
+
 Usage: gwz init [OPTIONS] [url]...
 
 Arguments:
@@ -1253,6 +1262,10 @@ Options:
           Refresh GWZ-managed root bootstrap files in the current workspace root, including
           AGENTS_GWZ.md, and ensure AGENTS.md points agents to it. Existing AGENTS.md instructions
           are preserved. Refuses locally edited managed files unless global --force is supplied.
+
+      --commit
+          Commit accepted configuration and updated bootstrap files, preserving unrelated staged
+          work
 
       --path <path-prefix>
           Workspace-relative prefix for initialized source repositories. Defaults to an empty

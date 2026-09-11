@@ -418,7 +418,10 @@ evidence in this order:
 1. `git:@root/<commit>` for the checked root evidence commit;
 2. `gwz.conf/markers/<id>.yaml` for the merge marker;
 3. `gwz.conf/gwz.lock.yml` for the accepted lock; and
-4. `.git/info/exclude` for the local workspace boundary.
+4. `.git/info/exclude` for the local workspace boundary;
+5. `gwz.conf/markers/conf-integrity.yml` when the composition includes the
+   configuration integrity marker. Older saved candidates retain the original
+   four-artifact sequence.
 
 These events describe verified publication. Recovery may report them again
 when it re-verifies a publication whose prior process stopped before terminal
