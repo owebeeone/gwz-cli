@@ -130,6 +130,18 @@ Network operations are bounded by `--jobs <n>` across the whole operation and
 `--max-per-host <n>` per remote host. `--ssh-timeout <secs>` bounds stalled
 SSH/network reads; `0` disables the timeout.
 
+On `clone` and `materialize`, `--url-scheme <manifest|ssh|https>` chooses the
+URL form used for repositories this operation clones on the known hosts
+github.com, gitlab.com, and bitbucket.org; `GWZ_URL_SCHEME` sets the same
+choice. The manifest is never rewritten, and a member that is already checked
+out keeps its remotes.
+
+The flag wins over `GWZ_URL_SCHEME`, which wins over the preference an earlier
+`ssh` or `https` run recorded in `<workspace>/.gwz/url-scheme.yml`; `manifest`
+applies when none of them is set. An explicit `--url-scheme manifest` clears
+that record. The file is local runtime state: it is not part of `gwz.conf/`,
+not in the manifest, and not committed.
+
 On `gwz merge`, `--remote <name>` does not name a Git remote at all: it names
 a member of the local clone family, described next.
 

@@ -97,6 +97,32 @@ gwz status
 gwz ls --local
 ```
 
+Manifests record member remotes as URLs, often in the SSH form
+`git@github.com:org/repo.git`. That form needs an SSH key. If you have no SSH
+keys and the repositories are public, ask GWZ for the HTTPS form instead:
+
+```sh
+gwz clone --url-scheme https git@github.com:org/workspace.git work/workspace
+```
+
+The environment variable does the same thing:
+
+```sh
+GWZ_URL_SCHEME=https gwz clone git@github.com:org/workspace.git work/workspace
+```
+
+GWZ converts URLs on github.com, gitlab.com, and bitbucket.org. URLs on any
+other host, and local paths, are used exactly as written. `--url-scheme ssh`
+asks for the SSH form the same way. The workspace remembers an `ssh` or `https`
+choice in `.gwz/url-scheme.yml`, so a later `gwz materialize` in that workspace
+needs no flag.
+
+Contributors with SSH keys need nothing here. The default is `manifest`, which
+uses every URL exactly as the manifest records it. A manifest may record either
+form, and GWZ clones with the form you ask for. A member marked `private: true`
+in the manifest that you cannot reach is skipped quietly, whatever scheme is in
+use, and `gwz status` then lists it as not materialized.
+
 If the root was cloned with plain `git clone`, finish it with:
 
 ```sh
