@@ -24,6 +24,15 @@ pub(crate) struct CloneArgs {
         long_help = "Target directory for the cloned workspace. Defaults to a directory named after the workspace repository."
     )]
     pub(crate) dir: Option<String>,
+
+    #[arg(
+        long = "url-scheme",
+        value_name = "scheme",
+        value_enum,
+        help = URL_SCHEME_HELP,
+        long_help = URL_SCHEME_LONG_HELP
+    )]
+    pub(crate) url_scheme: Option<UrlSchemeArg>,
 }
 
 impl InitArgs {
@@ -85,6 +94,8 @@ impl InitArgs {
 
 impl CloneArgs {
     pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        let mut meta = meta;
+        apply_url_scheme(&mut meta, self.url_scheme)?;
         let url = self.url.clone();
         let target = match &self.dir {
             Some(dir) => dir.clone(),

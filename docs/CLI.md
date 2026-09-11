@@ -649,6 +649,14 @@ cloned and checked out at the commits recorded in `gwz.conf/gwz.lock.yml`.
 
 If the target directory is omitted, it is derived from the URL.
 
+Manifests may record member remotes in the ssh form (`git@github.com:...`) or
+the https form. `--url-scheme https` (or `GWZ_URL_SCHEME=https`) clones every
+github.com, gitlab.com and bitbucket.org repository over https instead, for a
+reader without SSH keys; `--url-scheme ssh` asks for the ssh form. The default,
+`manifest`, uses each URL as written, so a contributor with SSH keys needs
+nothing. The choice is remembered in `.gwz/url-scheme.yml` for later
+`gwz materialize` runs in that workspace.
+
 Usage: gwz clone <url> [directory]
 
 Arguments:
@@ -660,6 +668,17 @@ Arguments:
           workspace repository.
 
 Options:
+      --url-scheme <scheme>
+          URL form used for every repository this run clones on github.com, gitlab.com or
+          bitbucket.org. `manifest` (the default) uses each URL exactly as the manifest records it;
+          `https` and `ssh` convert known-host URLs to that form before cloning. URLs on other hosts
+          and local paths are used as written, and a member that is already checked out keeps its
+          remotes. The environment variable GWZ_URL_SCHEME is an alternative to the flag; the flag
+          wins. An `ssh` or `https` choice is remembered in <workspace>/.gwz/url-scheme.yml, so a
+          later `gwz materialize` needs no flag; an explicit `manifest` clears it.
+
+          [possible values: manifest, ssh, https]
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -754,6 +773,8 @@ Global Options:
 Examples:
   gwz clone git@github.com:org/workspace.git
   gwz clone git@github.com:org/workspace.git work/demo
+  gwz clone --url-scheme https git@github.com:org/workspace.git
+  GWZ_URL_SCHEME=https gwz clone https://github.com/org/workspace.git
 
 If you already ran a plain `git clone` on a workspace root, run
 `gwz materialize --lock` inside it to complete the clone instead.
@@ -2346,6 +2367,11 @@ target across members. With no target flag, `gwz materialize` uses the workspace
 lock. Use `--head`, `--snapshot`, `--tag`, or `--switch` for a different
 target.
 
+`--url-scheme <manifest|ssh|https>` (or `GWZ_URL_SCHEME`) chooses the URL form
+for known-host repositories this run clones; members already checked out keep
+their remotes. Without it, a preference recorded by an earlier run in
+`.gwz/url-scheme.yml` applies, then the manifest as written.
+
 Usage: gwz materialize [OPTIONS]
 
 Options:
@@ -2363,6 +2389,17 @@ Options:
 
       --switch <branch>
           Switch workspace members to a branch
+
+      --url-scheme <scheme>
+          URL form used for every repository this run clones on github.com, gitlab.com or
+          bitbucket.org. `manifest` (the default) uses each URL exactly as the manifest records it;
+          `https` and `ssh` convert known-host URLs to that form before cloning. URLs on other hosts
+          and local paths are used as written, and a member that is already checked out keeps its
+          remotes. The environment variable GWZ_URL_SCHEME is an alternative to the flag; the flag
+          wins. An `ssh` or `https` choice is remembered in <workspace>/.gwz/url-scheme.yml, so a
+          later `gwz materialize` needs no flag; an explicit `manifest` clears it.
+
+          [possible values: manifest, ssh, https]
 
   -h, --help
           Print help (see a summary with '-h')
@@ -2458,6 +2495,7 @@ Global Options:
 Examples:
   gwz materialize
   gwz materialize --lock
+  gwz materialize --lock --url-scheme https
   gwz materialize --snapshot before-refactor
   gwz --force materialize --tag release-2026-06
   gwz materialize --switch feature/login

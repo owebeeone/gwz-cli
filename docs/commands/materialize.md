@@ -21,6 +21,12 @@ no target flag, GWZ uses the workspace lock.
 
 Only one target flag may be supplied.
 
+## Options
+
+| Option | Meaning |
+| --- | --- |
+| `--url-scheme <manifest\|ssh\|https>` | URL form for members this run clones on github.com, gitlab.com or bitbucket.org; members already checked out keep their remotes. Without it, a preference recorded in `.gwz/url-scheme.yml` by an earlier `ssh` or `https` run applies, then `manifest`. `GWZ_URL_SCHEME` is the environment equivalent; an explicit `manifest` clears the record. |
+
 ## Examples
 
 Materialize the lock:

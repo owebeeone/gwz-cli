@@ -11,6 +11,10 @@ pub(crate) fn render_response_with_transport(
 ) -> String {
     let mut rendered = render_response_inner(response, output);
     if show_transport && output == OutputMode::Human {
+        for line in url_resolution_human_lines(&response.envelope.members) {
+            rendered.push('\n');
+            rendered.push_str(&line);
+        }
         for line in transport_human_lines(
             response
                 .envelope

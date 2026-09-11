@@ -1,6 +1,7 @@
 use super::*;
 
 mod shared_rendering;
+mod url_scheme_rendering;
 
 pub(crate) use shared_rendering::*;
 

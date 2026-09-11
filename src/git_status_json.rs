@@ -1,3 +1,5 @@
+use crate::url_resolution_json;
+
 pub(crate) fn member_json(member: &gwz_core::MemberResponse) -> serde_json::Value {
     serde_json::json!({
         "member_id": member.member_id,
@@ -10,6 +12,7 @@ pub(crate) fn member_json(member: &gwz_core::MemberResponse) -> serde_json::Valu
         "git_status": member.git_status.as_ref().map(git_status_json),
         "lock_match": member.lock_match.map(|lock_match| format!("{:?}", lock_match)),
         "lock_difference_reasons": member.lock_difference_reasons.as_ref().map(|reasons| reasons.iter().map(|reason| format!("{:?}", reason)).collect::<Vec<_>>()),
+        "url_resolution": member.url_resolution.as_ref().map(url_resolution_json),
     })
 }
 
