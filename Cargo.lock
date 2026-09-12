@@ -90,9 +90,9 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "bitflags"
-version = "2.13.1"
+version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
+checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 
 [[package]]
 name = "block-buffer"
@@ -229,9 +229,9 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "console"
-version = "0.16.4"
+version = "0.16.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fe5f465a4f6fee88fad41b85d990f84c835335e85b5d9e6e63e0d06d28cba7c"
+checksum = "e96a4956774c13c126a8b5af4daa79384f4d826534c95a02d76afb39e2ab64e3"
 dependencies = [
  "encode_unicode",
  "libc",
@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "1.0.10"
+version = "1.0.11"
 dependencies = [
  "clap",
  "console",
@@ -432,12 +432,12 @@ dependencies = [
 [[package]]
 name = "gwz-copy-contract"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 
 [[package]]
 name = "gwz-core"
-version = "1.0.10"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+version = "1.0.11"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
@@ -476,12 +476,12 @@ dependencies = [
 [[package]]
 name = "gwz-family-model"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 
 [[package]]
 name = "gwz-family-store"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -492,7 +492,7 @@ dependencies = [
 [[package]]
 name = "gwz-family-store-contract"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-family-model",
 ]
@@ -500,7 +500,7 @@ dependencies = [
 [[package]]
 name = "gwz-history-check"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-repo-contract",
 ]
@@ -508,7 +508,7 @@ dependencies = [
 [[package]]
 name = "gwz-local-disposal"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -519,7 +519,7 @@ dependencies = [
 [[package]]
 name = "gwz-local-import"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-family-model",
  "gwz-repo-contract",
@@ -528,7 +528,7 @@ dependencies = [
 [[package]]
 name = "gwz-refcopy"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-copy-contract",
  "libc",
@@ -539,12 +539,12 @@ dependencies = [
 [[package]]
 name = "gwz-repo-contract"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 
 [[package]]
 name = "gwz-repo-factory"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-repo-contract",
 ]
@@ -552,7 +552,7 @@ dependencies = [
 [[package]]
 name = "gwz-repo-inspect"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "git2",
  "gwz-repo-contract",
@@ -561,7 +561,7 @@ dependencies = [
 [[package]]
 name = "gwz-work-detector"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-repo-contract",
 ]
@@ -569,7 +569,7 @@ dependencies = [
 [[package]]
 name = "gwz-workspace-install"
 version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.10#ca0f20cc788d706924b00e2b9e438428f69e44a6"
+source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
 dependencies = [
  "gwz-copy-contract",
  "gwz-family-model",
@@ -1134,9 +1134,9 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "smallvec"
-version = "1.16.0"
+version = "1.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9be42f50aa861c555654aa3a37f52f4b1074bacf4e48fe0ef7fa584e80f1f0f"
+checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
 name = "stable_deref_trait"

@@ -385,6 +385,13 @@ pub(crate) struct InitArgs {
     pub(crate) update: bool,
 
     #[arg(
+        long,
+        requires = "update",
+        help = "Commit accepted configuration and updated bootstrap files, preserving unrelated staged work"
+    )]
+    pub(crate) commit: bool,
+
+    #[arg(
         long = "path",
         default_value = "",
         value_name = "path-prefix",

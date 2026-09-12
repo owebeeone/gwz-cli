@@ -1645,3 +1645,132 @@ fn global_all_commit_does_not_stage_tracked_modifications_but_dash_a_does() {
     );
     assert_ne!(repo_head(&member), head_before, "`-a` did not commit");
 }
+
+#[test]
+fn url_scheme_option_is_documented_and_bad_values_are_refused_before_any_workspace() {
+    let temp = TempDir::new("url-scheme-args");
+    for command in ["clone", "materialize"] {
+        let help = gwz(temp.path()).args([command, "--help"]).output().unwrap();
+        assert_success(&help);
+        let stdout = normalized_stdout(&help);
+        assert!(
+            stdout.contains("--url-scheme <scheme>"),
+            "{command}: {stdout}"
+        );
+        assert!(stdout.contains("GWZ_URL_SCHEME"), "{command}: {stdout}");
+    }
+    let bad_flag = gwz(temp.path())
+        .args(["clone", "--url-scheme", "auto", "nowhere", "target"])
+        .output()
+        .unwrap();
+    assert!(!bad_flag.status.success());
+    let stderr = String::from_utf8_lossy(&bad_flag.stderr);
+    assert!(
+        stderr.contains("possible values: manifest, ssh, https"),
+        "{stderr}"
+    );
+    assert!(!temp.path().join("target").exists());
+
+    let bad_env = gwz(temp.path())
+        .env("GWZ_URL_SCHEME", "auto")
+        .args(["materialize", "--lock"])
+        .output()
+        .unwrap();
+    assert!(!bad_env.status.success());
+    let stderr = String::from_utf8_lossy(&bad_env.stderr);
+    assert!(
+        stderr.contains("GWZ_URL_SCHEME must be manifest, ssh or https"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn clone_with_url_scheme_reports_the_resolution_and_the_workspace_remembers_it() {
+    let temp = TempDir::new("url-scheme-clone");
+    let remote = RemoteFixture::new("url-scheme-clone-source");
+    remote.commit_and_push("README.md", "one", "initial");
+    let origin = temp.path().join("origin");
+    fs::create_dir_all(&origin).unwrap();
+    assert_success(
+        &gwz(temp.path())
+            .args([
+                "--root",
+                origin.to_str().unwrap(),
+                "init",
+                "--path",
+                "repos",
+                remote.url(),
+            ])
+            .output()
+            .unwrap(),
+    );
+    commit_workspace_root(&origin);
+
+    // A local origin is an unknown host: passed through, reported, remembered.
+    let target = temp.path().join("target");
+    let clone = gwz(temp.path())
+        .args([
+            "--json",
+            "clone",
+            "--url-scheme",
+            "https",
+            origin.to_str().unwrap(),
+            target.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_success(&clone);
+    let document = json(&clone);
+    let member = &document["members"][0];
+    let resolution = &member["url_resolution"];
+    assert_eq!(resolution["scheme"], "https", "{document}");
+    assert_eq!(resolution["source"], "request", "{document}");
+    assert_eq!(resolution["derived"], false, "{document}");
+    assert_eq!(resolution["host_known"], false, "{document}");
+    assert_eq!(resolution["manifest_url"], resolution["effective_url"]);
+    assert!(target.join("repos/remote/README.md").is_file());
+    let recorded = fs::read_to_string(target.join(".gwz/url-scheme.yml")).unwrap();
+    assert!(recorded.contains("scheme: https"), "{recorded}");
+
+    // A member already checked out is not cloned and carries no resolution.
+    let again = gwz(&target)
+        .args(["--json", "materialize", "--lock"])
+        .output()
+        .unwrap();
+    assert_success(&again);
+    assert!(json(&again)["members"][0]["url_resolution"].is_null());
+
+    // With the member gone, the remembered preference applies and is reported.
+    fs::remove_dir_all(target.join("repos/remote")).unwrap();
+    let remembered = gwz(&target)
+        .args(["--json", "materialize", "--lock"])
+        .output()
+        .unwrap();
+    assert_success(&remembered);
+    let resolution = &json(&remembered)["members"][0]["url_resolution"];
+    assert_eq!(resolution["scheme"], "https");
+    assert_eq!(resolution["source"], "workspace");
+
+    // Human output names the scheme and where it came from.
+    fs::remove_dir_all(target.join("repos/remote")).unwrap();
+    let human = gwz(&target)
+        .env("GWZ_URL_SCHEME", "ssh")
+        .args(["materialize", "--lock"])
+        .output()
+        .unwrap();
+    assert_success(&human);
+    let stdout = normalized_stdout(&human);
+    assert!(
+        stdout.contains("url scheme: ssh (from GWZ_URL_SCHEME)"),
+        "{stdout}"
+    );
+
+    // An explicit `manifest` clears the record even when nothing is cloned.
+    let cleared = gwz(&target)
+        .args(["materialize", "--lock", "--url-scheme", "manifest"])
+        .output()
+        .unwrap();
+    assert_success(&cleared);
+    assert!(!target.join(".gwz/url-scheme.yml").exists());
+    assert!(!normalized_stdout(&cleared).contains("url scheme:"));
+}

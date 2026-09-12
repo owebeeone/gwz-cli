@@ -1,6 +1,7 @@
 use super::*;
 
 mod shared_rendering;
+mod url_scheme_rendering;
 
 pub(crate) use shared_rendering::*;
 
@@ -590,17 +591,19 @@ fn merge_repo(path: &str, state: gwz_core::MergeParticipantState) -> gwz_core::M
 
 #[test]
 fn transport_renderer_distinguishes_offer_from_authentication() {
-    let mut meta = gwz_core::ResponseMeta::default();
-    meta.transport = Some(vec![gwz_core::TransportObservation {
-        repository_path: "repos/app".into(),
-        remote: "origin".into(),
-        operation: gwz_core::TransportOperation::Push,
-        credential_method: gwz_core::TransportCredentialMethod::File,
-        selection_source: gwz_core::TransportSelectionSource::InvocationDefault,
-        credential_offered: true,
-        authenticated: None,
-        public_key_fingerprint: None,
-    }]);
+    let meta = gwz_core::ResponseMeta {
+        transport: Some(vec![gwz_core::TransportObservation {
+            repository_path: "repos/app".into(),
+            remote: "origin".into(),
+            operation: gwz_core::TransportOperation::Push,
+            credential_method: gwz_core::TransportCredentialMethod::File,
+            selection_source: gwz_core::TransportSelectionSource::InvocationDefault,
+            credential_offered: true,
+            authenticated: None,
+            public_key_fingerprint: None,
+        }]),
+        ..Default::default()
+    };
     let response = CliResponse::envelope(gwz_core::ResponseEnvelope {
         meta,
         ..Default::default()

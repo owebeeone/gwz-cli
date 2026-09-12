@@ -18,6 +18,7 @@ pub(crate) enum CliRequest {
     CreateWorkspace(gwz_core::CreateWorkspaceRequest),
     UpdateBootstrap {
         meta: gwz_core::RequestMeta,
+        commit: bool,
     },
     CloneWorkspace {
         meta: gwz_core::RequestMeta,
@@ -166,12 +167,10 @@ impl CliError {
             Some(code) => format!("{code:?}: {}", self.message),
             None => self.message.clone(),
         };
-        if show_transport {
-            if let Some(meta) = &self.response_meta {
-                for line in transport_human_lines(meta.transport.as_deref().unwrap_or_default()) {
-                    message.push('\n');
-                    message.push_str(&line);
-                }
+        if show_transport && let Some(meta) = &self.response_meta {
+            for line in transport_human_lines(meta.transport.as_deref().unwrap_or_default()) {
+                message.push('\n');
+                message.push_str(&line);
             }
         }
         message

@@ -61,6 +61,7 @@ pub(crate) fn branch_switch_reports_observed_dirty_state() {
         git_status: None,
         lock_match: Some(gwz_core::LockMatch::Matches),
         lock_difference_reasons: None,
+        url_resolution: None,
         target_kind: Some(gwz_core::TargetKind::Member),
     });
     let mut repo = branch_repo("mem_app", "app", "feature", "feature");
@@ -292,6 +293,7 @@ pub(crate) fn sample_response(
             git_status: None,
             lock_match: None,
             lock_difference_reasons: None,
+            url_resolution: None,
             target_kind: None,
         }],
         errors: Vec::new(),

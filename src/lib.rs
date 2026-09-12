@@ -72,6 +72,7 @@ mod tag_long;
 #[cfg(test)]
 mod tests;
 mod unique_suffix;
+mod url_scheme_arg;
 
 pub(crate) use add_after::*;
 pub(crate) use add_long::*;
@@ -139,6 +140,7 @@ pub(crate) use statusargs::*;
 pub(crate) use tag_after::*;
 pub(crate) use tag_long::*;
 pub(crate) use unique_suffix::*;
+pub(crate) use url_scheme_arg::*;
 
 pub use cli_reference::cli_reference_markdown;
 

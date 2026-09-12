@@ -13,6 +13,18 @@ are root-only: GWZ does not write them into member repositories.
 Hosted docs URL for bootstrap files:
 https://owebeeone.github.io/gwz-cli/
 
+## Agent Skill
+
+A ready-made skill for agents that drive GWZ lives in the repository at
+[`skills/gwz/SKILL.md`](https://github.com/owebeeone/gwz-cli/blob/main/skills/gwz/SKILL.md).
+It covers selecting targets, staging and committing across the set, member
+lifecycle, and local lanes, with the verification steps an agent should take
+before reporting success.
+
+For Claude Code, copy it to `~/.claude/skills/gwz/SKILL.md` (or the project's
+`.claude/skills/gwz/`). Other agent runtimes can load the same file as a system
+or tool instruction.
+
 ## Intended File Scope
 
 An `AGENTS_GWZ.md` file belongs at the workspace root repository. It is not a

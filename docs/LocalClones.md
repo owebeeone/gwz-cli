@@ -136,6 +136,11 @@ Staged, edited or uncertain marker state still blocks deletion. Source marker
 work is preserved; if it cannot verify the copied configuration, creation refuses
 before allocating a lane so it cannot silently overwrite that work.
 
+A valid staged or unstaged integrity marker does not block creation: the clone
+preserves both its worktree bytes and index state. The source root must still
+have a committed manifest and lock. To accept intentional configuration edits
+and commit the recovery, use `gwz init --update --force --commit`.
+
 **Keep the source quiet for the whole copy.** GWZ takes its family lock,
 which serializes family commands, but nothing stops an editor, a build, or a
 raw `git` command from writing into the source while it is being copied.

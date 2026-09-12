@@ -91,11 +91,12 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             gwz_core::workspace_ops::handle_create_workspace(request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
-        CliRequest::UpdateBootstrap { meta } => {
-            gwz_core::workspace_ops::handle_update_workspace_bootstrap(
+        CliRequest::UpdateBootstrap { meta, commit } => {
+            gwz_core::workspace_ops::handle_update_workspace_bootstrap_with_commit(
                 &backend,
                 start,
                 meta.clone(),
+                *commit,
                 operation_id,
             )
             .map(CliResponse::envelope)

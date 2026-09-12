@@ -146,6 +146,26 @@ Recovery:
 - Confirm SSH agent keys or HTTPS credentials.
 - Increase `--ssh-timeout <secs>` for slow networks.
 - Use `--jobs` and `--max-per-host` to reduce concurrency against a host.
+- For public repositories on github.com, gitlab.com, or bitbucket.org, clone or
+  materialize over HTTPS instead: `gwz clone --url-scheme https <url>`, or
+  `GWZ_URL_SCHEME=https gwz materialize --lock`. This changes only the URLs used
+  for repositories this run clones; members already checked out keep their
+  remotes, and the manifest is not rewritten.
+
+Two messages point at that remedy:
+
+- No usable SSH identity on a known host; the message ends with
+  `; for public repositories, retry with --url-scheme https or set GWZ_URL_SCHEME=https`.
+- `invalid or unknown remote ssh hostkey`; the message ends with
+  `; run ssh -T git@<host> once to record the host key, or retry with --url-scheme https`.
+
+A URL on a known host that cannot be converted, such as one with a nonstandard
+port, an `http://` URL, or an empty path, is refused with
+`UrlSchemeUnavailable` before anything is fetched. Use `--url-scheme manifest`
+for that run, or record a remote in the form you want and run
+`gwz repo sync <member-path>`. `--remote-identity NAME=PATH` names an SSH
+identity, so combining it with `--url-scheme https` for the same remote is
+refused before any network access.
 
 ## Sync Rejected
 

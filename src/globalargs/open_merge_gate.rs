@@ -17,7 +17,7 @@ pub(super) fn open_merge_gate_request(
         // pre-deletion checks) belongs to the family handlers. A driver
         // pre-gate here would answer for the wrong workspace.
         CliRequest::CloneLocalWorkspace(_) | CliRequest::LocalFamily(_) => return None,
-        CliRequest::UpdateBootstrap { meta } => (meta, Command::InitUpdate),
+        CliRequest::UpdateBootstrap { meta, .. } => (meta, Command::InitUpdate),
         CliRequest::InitFromSources(request) => (&request.meta, Command::InitExistingPlan),
         CliRequest::AddExistingRepo(request) => (&request.meta, Command::RepoMutate),
         CliRequest::CreateRepo(request) => (&request.meta, Command::RepoMutate),

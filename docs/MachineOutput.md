@@ -47,6 +47,9 @@ Member entries include:
 }
 ```
 
+Member entries from `clone` and `materialize` also carry `url_resolution`,
+described below.
+
 Errors use:
 
 ```json
@@ -65,6 +68,61 @@ Top-level CLI errors in `--json` or `--jsonl` mode keep the same response shape,
 with `meta: null`, no members, and one error entry. Per-member failures retain
 `member_id`, `member_path`, and `target_kind: "Member"` even when preflight
 rejects the whole operation before a normal response exists.
+
+### `url_resolution`
+
+Every member entry that `clone` or `materialize` cloned carries
+`url_resolution`:
+
+```json
+{
+  "url_resolution": {
+    "manifest_url": "git@github.com:owner/repo.git",
+    "effective_url": "https://github.com/owner/repo.git",
+    "scheme": "https",
+    "source": "request",
+    "derived": true,
+    "host_known": true
+  }
+}
+```
+
+- `scheme`: `manifest`, `ssh`, or `https`.
+- `source`: `request` for `--url-scheme` or `GWZ_URL_SCHEME`, `workspace` for
+  the workspace's remembered preference in `.gwz/url-scheme.yml`, `default`
+  otherwise.
+- `derived`: true only when `effective_url` differs from `manifest_url`.
+- `host_known`: true for github.com, gitlab.com, and bitbucket.org.
+
+Members that were only checked out, not cloned, have `url_resolution: null`.
+
+Human output prints one summary line when the scheme is not `manifest`:
+
+```text
+url scheme: https (from --url-scheme)
+```
+
+The parenthesis reports `from --url-scheme`, `from GWZ_URL_SCHEME`, or
+`from .gwz/url-scheme.yml`. With `--verbose`, each converted member also gets
+one `manifest-url -> effective-url` line.
+
+### `meta.transport`
+
+`meta.transport` is an optional list of rows, one per remote authentication
+attempt. Each row has:
+
+- `repository_path`: the repository that made the attempt.
+- `remote`: the remote name used.
+- `operation`: `clone`, `fetch`, `push`, or `read_advertisement`.
+- `credential_method`: `unknown`, `file`, `agent`, or `helper`.
+- `selection_source`: `ambient`, `invocation_remote`, `invocation_default`, or
+  `local_configuration`.
+- `credential_offered`: boolean.
+- `authenticated`: true, false, or null when no credential decision was
+  observed.
+- `public_key_fingerprint`: string or null.
+
+`--verbose` prints these rows as human lines.
 
 ## Commit Log Output
 
@@ -418,7 +476,10 @@ evidence in this order:
 1. `git:@root/<commit>` for the checked root evidence commit;
 2. `gwz.conf/markers/<id>.yaml` for the merge marker;
 3. `gwz.conf/gwz.lock.yml` for the accepted lock; and
-4. `.git/info/exclude` for the local workspace boundary.
+4. `.git/info/exclude` for the local workspace boundary;
+5. `gwz.conf/markers/conf-integrity.yml` when the composition includes the
+   configuration integrity marker. Older saved candidates retain the original
+   four-artifact sequence.
 
 These events describe verified publication. Recovery may report them again
 when it re-verifies a publication whose prior process stopped before terminal

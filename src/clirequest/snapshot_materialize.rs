@@ -28,6 +28,15 @@ pub(crate) struct MaterializeArgs {
         help = "Switch workspace members to a branch"
     )]
     pub(crate) switch: Option<String>,
+
+    #[arg(
+        long = "url-scheme",
+        value_name = "scheme",
+        value_enum,
+        help = URL_SCHEME_HELP,
+        long_help = URL_SCHEME_LONG_HELP
+    )]
+    pub(crate) url_scheme: Option<UrlSchemeArg>,
 }
 
 #[derive(Clone, Debug, Default, Args)]
@@ -45,6 +54,8 @@ pub(crate) struct PullArgs {
 
 impl MaterializeArgs {
     pub(crate) fn request(&self, meta: gwz_core::RequestMeta) -> Result<CliRequest, CliError> {
+        let mut meta = meta;
+        apply_url_scheme(&mut meta, self.url_scheme)?;
         Ok(CliRequest::Materialize(gwz_core::MaterializeRequest {
             meta,
             target: self.target()?,

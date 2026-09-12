@@ -17,12 +17,24 @@ tracked `gwz.conf/` directory.
 | `<url>` | Git URL of the workspace root repository. |
 | `[directory]` | Target directory. Defaults to a directory name derived from the URL. |
 
+## Options
+
+| Option | Meaning |
+| --- | --- |
+| `--url-scheme <manifest\|ssh\|https>` | URL form for the root and for every member this clone fetches on github.com, gitlab.com or bitbucket.org. `manifest` (default) uses each URL as written; `https` and `ssh` convert known-host URLs to that form. Other hosts and local paths are used as written. `GWZ_URL_SCHEME` is the environment equivalent; the flag wins. An `ssh` or `https` choice is remembered in `.gwz/url-scheme.yml` for later `gwz materialize` runs. |
+
 ## Examples
 
 Clone into a derived directory:
 
 ```sh
 gwz clone git@github.com:org/workspace.git
+```
+
+Clone over https without SSH keys (public repositories):
+
+```sh
+gwz clone --url-scheme https git@github.com:org/workspace.git
 ```
 
 Clone into an explicit directory:

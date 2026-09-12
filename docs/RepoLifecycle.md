@@ -65,7 +65,9 @@ gwz repo sync services/api
 ```
 
 `repo sync` changes manifest metadata only. It does not fetch, push, check out
-a branch, or rewrite the lock. The current implementation also does not stage
+a branch, or rewrite the lock. A remote that differs from the manifest only by
+URL scheme on a known host (a `--url-scheme` clone) keeps the recorded URL and
+is reported instead; `--force` records the configured form. The current implementation also does not stage
 the rewritten manifest, so include `gwz.conf` when staging the initial change:
 
 ```sh

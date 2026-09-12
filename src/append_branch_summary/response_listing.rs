@@ -275,6 +275,15 @@ pub(crate) fn render_human_response(response: &CliResponse) -> String {
     if let Some(message) = &response.envelope.meta.message {
         lines.push(message.clone());
     }
+    if matches!(
+        response.envelope.meta.action,
+        gwz_core::ActionKind::CloneWorkspace
+            | gwz_core::ActionKind::Materialize
+            | gwz_core::ActionKind::PullSnapshot
+    ) && let Some(summary) = url_scheme_summary(&response.envelope.members)
+    {
+        lines.push(summary);
+    }
     for member in &response.envelope.members {
         let mut line = format!(
             "{} {} {:?}",
