@@ -58,7 +58,6 @@ mod repo_long;
 mod repo_sync_after;
 mod repo_sync_long;
 mod response_meta_json;
-mod url_scheme_arg;
 mod snapshot_after;
 mod snapshot_long;
 mod stage_after;
@@ -73,6 +72,7 @@ mod tag_long;
 #[cfg(test)]
 mod tests;
 mod unique_suffix;
+mod url_scheme_arg;
 
 pub(crate) use add_after::*;
 pub(crate) use add_long::*;
@@ -128,7 +128,6 @@ pub(crate) use repo_long::*;
 pub(crate) use repo_sync_after::*;
 pub(crate) use repo_sync_long::*;
 pub(crate) use response_meta_json::*;
-pub(crate) use url_scheme_arg::*;
 pub(crate) use snapshot_after::*;
 pub(crate) use snapshot_long::*;
 pub(crate) use stage_after::*;
@@ -141,6 +140,7 @@ pub(crate) use statusargs::*;
 pub(crate) use tag_after::*;
 pub(crate) use tag_long::*;
 pub(crate) use unique_suffix::*;
+pub(crate) use url_scheme_arg::*;
 
 pub use cli_reference::cli_reference_markdown;
 

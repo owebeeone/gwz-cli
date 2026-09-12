@@ -26,8 +26,7 @@ impl From<UrlSchemeArg> for gwz_core::UrlScheme {
 /// Environment fallback for `--url-scheme`; the flag wins when both are set.
 pub(crate) const URL_SCHEME_ENV: &str = "GWZ_URL_SCHEME";
 
-pub(crate) const URL_SCHEME_HELP: &str =
-    "URL form for known-host repositories this run clones: manifest (as written, default), ssh, or https";
+pub(crate) const URL_SCHEME_HELP: &str = "URL form for known-host repositories this run clones: manifest (as written, default), ssh, or https";
 
 pub(crate) const URL_SCHEME_LONG_HELP: &str = "\
 URL form used for every repository this run clones on github.com, gitlab.com \
@@ -154,9 +153,7 @@ pub(crate) fn url_resolution_human_lines(members: &[gwz_core::MemberResponse]) -
 }
 
 /// The JSON form of one member's resolution, for the response object.
-pub(crate) fn url_resolution_json(
-    resolution: &gwz_core::MemberUrlResolution,
-) -> serde_json::Value {
+pub(crate) fn url_resolution_json(resolution: &gwz_core::MemberUrlResolution) -> serde_json::Value {
     serde_json::json!({
         "manifest_url": resolution.manifest_url,
         "effective_url": resolution.effective_url,

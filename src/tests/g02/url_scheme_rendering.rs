@@ -87,7 +87,10 @@ pub(crate) fn workspace_preference_and_manifest_default_render_as_specified() {
         "{rendered}"
     );
     let verbose = render_response_with_transport(&remembered, OutputMode::Human, true);
-    assert!(!verbose.contains(" -> "), "an unchanged URL lists no rewrite: {verbose}");
+    assert!(
+        !verbose.contains(" -> "),
+        "an unchanged URL lists no rewrite: {verbose}"
+    );
 
     let plain = CliResponse::envelope(envelope_with(member(Some(resolution(
         gwz_core::UrlScheme::Manifest,
@@ -107,8 +110,14 @@ pub(crate) fn json_member_entries_carry_url_resolution() {
         gwz_core::UrlSchemeSource::Workspace,
         true,
     ))));
-    assert_eq!(value["url_resolution"]["manifest_url"], "git@github.com:o/r.git");
-    assert_eq!(value["url_resolution"]["effective_url"], "https://github.com/o/r.git");
+    assert_eq!(
+        value["url_resolution"]["manifest_url"],
+        "git@github.com:o/r.git"
+    );
+    assert_eq!(
+        value["url_resolution"]["effective_url"],
+        "https://github.com/o/r.git"
+    );
     assert_eq!(value["url_resolution"]["scheme"], "https");
     assert_eq!(value["url_resolution"]["source"], "workspace");
     assert_eq!(value["url_resolution"]["derived"], true);

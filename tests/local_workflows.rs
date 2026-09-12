@@ -1653,7 +1653,10 @@ fn url_scheme_option_is_documented_and_bad_values_are_refused_before_any_workspa
         let help = gwz(temp.path()).args([command, "--help"]).output().unwrap();
         assert_success(&help);
         let stdout = normalized_stdout(&help);
-        assert!(stdout.contains("--url-scheme <scheme>"), "{command}: {stdout}");
+        assert!(
+            stdout.contains("--url-scheme <scheme>"),
+            "{command}: {stdout}"
+        );
         assert!(stdout.contains("GWZ_URL_SCHEME"), "{command}: {stdout}");
     }
     let bad_flag = gwz(temp.path())
@@ -1662,7 +1665,10 @@ fn url_scheme_option_is_documented_and_bad_values_are_refused_before_any_workspa
         .unwrap();
     assert!(!bad_flag.status.success());
     let stderr = String::from_utf8_lossy(&bad_flag.stderr);
-    assert!(stderr.contains("possible values: manifest, ssh, https"), "{stderr}");
+    assert!(
+        stderr.contains("possible values: manifest, ssh, https"),
+        "{stderr}"
+    );
     assert!(!temp.path().join("target").exists());
 
     let bad_env = gwz(temp.path())
@@ -1727,13 +1733,19 @@ fn clone_with_url_scheme_reports_the_resolution_and_the_workspace_remembers_it()
     assert!(recorded.contains("scheme: https"), "{recorded}");
 
     // A member already checked out is not cloned and carries no resolution.
-    let again = gwz(&target).args(["--json", "materialize", "--lock"]).output().unwrap();
+    let again = gwz(&target)
+        .args(["--json", "materialize", "--lock"])
+        .output()
+        .unwrap();
     assert_success(&again);
     assert!(json(&again)["members"][0]["url_resolution"].is_null());
 
     // With the member gone, the remembered preference applies and is reported.
     fs::remove_dir_all(target.join("repos/remote")).unwrap();
-    let remembered = gwz(&target).args(["--json", "materialize", "--lock"]).output().unwrap();
+    let remembered = gwz(&target)
+        .args(["--json", "materialize", "--lock"])
+        .output()
+        .unwrap();
     assert_success(&remembered);
     let resolution = &json(&remembered)["members"][0]["url_resolution"];
     assert_eq!(resolution["scheme"], "https");
@@ -1748,7 +1760,10 @@ fn clone_with_url_scheme_reports_the_resolution_and_the_workspace_remembers_it()
         .unwrap();
     assert_success(&human);
     let stdout = normalized_stdout(&human);
-    assert!(stdout.contains("url scheme: ssh (from GWZ_URL_SCHEME)"), "{stdout}");
+    assert!(
+        stdout.contains("url scheme: ssh (from GWZ_URL_SCHEME)"),
+        "{stdout}"
+    );
 
     // An explicit `manifest` clears the record even when nothing is cloned.
     let cleared = gwz(&target)
