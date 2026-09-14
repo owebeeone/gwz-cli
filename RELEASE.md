@@ -28,7 +28,9 @@ thing that differs between branches:
    refresh `Cargo.lock` (gwz-core and its internal `gwz-*` crates must come from
    `registry+https://github.com/rust-lang/crates.io-index`), then `cargo test` and
    `cargo package --locked`, which builds the packaged `gwz` against crates.io alone.
-5. Commit and tag **off `release`**: `git tag gwz-cli-vA.B.C`. Push `release` and the tag.
+5. Commit and tag **off `release`**: `git tag vX.Y.Z`, the same tag as gwz-core's unless only
+   the CLI advances (`--core-tag` below). Push `release` and the tag, then publish the GitHub
+   release for the tag, which builds the binaries and publishes the crate (see below).
 6. **The release is not done until PyPI moves too.** Release gwz-py at the same
    `vX.Y.Z` (see [gwz-py/RELEASE.md](../gwz-py/RELEASE.md) — same
    `scripts/release.py` interface), then publish its GitHub release for the tag,
@@ -45,6 +47,21 @@ gwz-core's crates.io publish job is still going therefore carries on once the ve
 and one started before the core is published at all fails without touching `release`. The
 commit it writes reads `chore(release): gwz-cli X.Y.Z (pins gwz-core X.Y.Z from crates.io)`.
 `python scripts/test_release.py` runs the unit tests of its helpers.
+
+## Publishing the gwz crate
+
+Publishing the GitHub release for `vX.Y.Z` runs the dist-generated `.github/workflows/release.yml`.
+After its `host` job has put the binaries on the GitHub release, dist's `custom-publish-crate` job
+runs `.github/workflows/publish-crate.yml` (listed as `publish-jobs = ["./publish-crate"]` in
+`dist-workspace.toml`). That job waits for gwz-core `X.Y.Z` on crates.io, skips a `gwz` version
+crates.io already holds, and otherwise runs `cargo publish -p gwz --locked`, authenticated only by
+Trusted Publishing. Prereleases skip the crate publish. If the job fails, re-run that job in the
+Release run; a version already on crates.io is skipped.
+
+One-time requirement: crates.io needs a trusted publisher for `gwz` with owner `owebeeone`,
+repository `gwz-cli`, workflow `release.yml` and environment `crates-io`. The workflow is
+`release.yml` rather than `publish-crate.yml` because crates.io takes it from the calling workflow
+named in the GitHub OIDC token.
 
 ## The merge gotcha
 
