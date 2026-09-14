@@ -1,0 +1,148 @@
+# Publish the `gwz` crate to crates.io.
+#
+# Authority: gwz-core dev-docs/GwzCratesIoPlan.md (ADOPTED 2026-09-13), decision
+# D5 (publishing runs in CI, never from a laptop) and step S3.2, which adds this
+# file. dist-workspace.toml lists it as `publish-jobs = ["./publish-crate"]`, so
+# dist's `custom-publish-crate` job in release.yml calls it with dist's plan once
+# `host` has put the binaries on the GitHub release. It has no trigger of its own.
+#
+# Authentication is crates.io Trusted Publishing only, with no token secret and
+# no fallback: the job's GitHub OIDC token is exchanged for a short-lived
+# crates.io token, and if that exchange fails the job fails. No token is ever
+# needed here because the `gwz` name already exists on crates.io
+# (0.0.0-bootstrap.1); only the first publication of a new name needs one.
+#
+# crates.io reads the workflow file from the OIDC `workflow_ref` claim, which
+# names the calling workflow. The trusted publisher for `gwz` is therefore owner
+# `owebeeone`, repository `gwz-cli`, workflow `release.yml` (not this file) and
+# environment `crates-io`.
+#
+# Re-running is safe: a version crates.io already holds is skipped. Retry a
+# failed publish by re-running the failed job of its Release run.
+name: Publish the gwz crate
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: "dist's plan manifest (JSON), passed by release.yml"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Publish gwz to crates.io
+    runs-on: ubuntu-24.04
+    environment: crates-io
+    permissions:
+      contents: read
+      # Trusted Publishing exchanges this OIDC token for a crates.io token.
+      id-token: write
+    timeout-minutes: 60
+    # Two runs must never interleave: the skip below makes a re-run safe, not
+    # concurrent runs.
+    concurrency:
+      group: crates-io-publish
+      cancel-in-progress: false
+    env:
+      # The release tag dist announced, e.g. v1.0.12.
+      TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+      # rust-toolchain.toml's channel, which is gwz's rust-version.
+      RUST_TOOLCHAIN: "1.95.0"
+      # crates.io asks API clients for a User-Agent that names them.
+      USER_AGENT: "gwz-cli-publish-crate (.github/workflows/publish-crate.yml; https://github.com/owebeeone/gwz-cli)"
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ fromJson(inputs.plan).announcement_tag }}
+          persist-credentials: false
+      - name: Install Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+          rustc --version
+      - id: manifest
+        name: Read the gwz version and the gwz-core pin
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import tomllib
+
+          def refuse(message):
+              print(f"::error::{message}")
+              raise SystemExit(1)
+
+          with open("Cargo.toml", "rb") as handle:
+              manifest = tomllib.load(handle)
+          version = manifest["package"]["version"]
+          tag = os.environ["TAG"]
+          if tag != f"v{version}":
+              refuse(f"Cargo.toml at the release tag declares gwz {version}, but the tag is '{tag}'")
+          pin = manifest.get("dependencies", {}).get("gwz-core")
+          exact = re.fullmatch(r"=([0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?)", pin) if isinstance(pin, str) else None
+          if exact is None:
+              refuse(f'the release branch must pin gwz-core exactly from crates.io, as gwz-core = "=X.Y.Z" (plan D6); found {pin!r}')
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+              output.write(f"core={exact.group(1)}\n")
+          print(f"gwz {version} pins gwz-core {exact.group(1)} from crates.io")
+          PY
+      - name: Wait for gwz-core on crates.io
+        shell: bash
+        env:
+          CORE_VERSION: ${{ steps.manifest.outputs.core }}
+        run: |
+          # gwz-core's own release workflow publishes it; give that 15 minutes.
+          url="https://crates.io/api/v1/crates/gwz-core/$CORE_VERSION"
+          deadline=$((SECONDS + 900))
+          while true; do
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --user-agent "$USER_AGENT" "$url" || true)"
+            if [ "$status" = "200" ]; then
+              echo "gwz-core $CORE_VERSION is on crates.io"
+              break
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::gwz-core $CORE_VERSION is still not on crates.io after 15 minutes (last answer: HTTP $status); finish gwz-core's release and its publish job, then re-run this job"
+              exit 1
+            fi
+            echo "gwz-core $CORE_VERSION is not on crates.io yet (HTTP $status); checking again in 15 seconds"
+            sleep 15
+          done
+      - id: present
+        name: Skip a version crates.io already holds
+        shell: bash
+        env:
+          VERSION: ${{ steps.manifest.outputs.version }}
+        run: |
+          url="https://crates.io/api/v1/crates/gwz/$VERSION"
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --user-agent "$USER_AGENT" "$url" || true)"
+          case "$status" in
+            200)
+              echo "gwz $VERSION is already on crates.io; nothing to publish"
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              echo "gwz $VERSION is not on crates.io yet; publishing it"
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::crates.io answered HTTP $status for $url; only 200 (published) and 404 (absent) decide whether to publish, so the job stops rather than guess"
+              exit 1
+              ;;
+          esac
+      - name: Authenticate to crates.io by Trusted Publishing
+        id: auth
+        if: steps.present.outputs.publish == 'true'
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish gwz
+        if: steps.present.outputs.publish == 'true'
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        # cargo's verification build stays on: it builds the packaged crate
+        # against crates.io alone, as `cargo install gwz` will.
+        run: cargo publish -p gwz --locked

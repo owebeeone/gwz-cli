@@ -293,3 +293,17 @@ jobs:
 
           gh release edit "${{ needs.plan.outputs.tag }}" --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt"
           gh release upload "${{ needs.plan.outputs.tag }}" artifacts/* --clobber
+
+  custom-publish-crate:
+    needs:
+      - plan
+      - host
+    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
+    uses: ./.github/workflows/publish-crate.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit
+    # publish jobs get escalated permissions
+    permissions:
+      "contents": "read"
+      "id-token": "write"
