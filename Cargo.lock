@@ -153,9 +153,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.4.5"
+version = "1.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "005ec2760ca554fae18df7a11195552ec576cd665632a881bc011d5bb2fd4d80"
+checksum = "a3eb0f42d6c360dc3f8a821f6bf2fdea7f72bfd36b3076eb0e6d1e9e0752fff4"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "1.0.11"
+version = "1.0.12"
 dependencies = [
  "clap",
  "console",
@@ -431,13 +431,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-copy-contract"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6349b3f918939c5d1f2020df8746fb1bf492ba030410ea8323ce6298e86ed9d4"
 
 [[package]]
 name = "gwz-core"
-version = "1.0.11"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eff8ea3816b2ae70169b6b306684e9b85fa7d4b58e9d597025abb8b4ed6eb8bb"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
@@ -475,13 +477,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-family-model"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6028fd45c66c6bbdb54d5eecc9f7d9c67a27353222dadfef21d528cab0691189"
 
 [[package]]
 name = "gwz-family-store"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa2d5a802be30fd88aa61177e8e9d2b641b3b6d10060a369ab1531cbb3833045"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -491,24 +495,27 @@ dependencies = [
 
 [[package]]
 name = "gwz-family-store-contract"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9edab04bb5a827671cc04e6b6f481c6e59da9a5687e911c77450d82451b360b0"
 dependencies = [
  "gwz-family-model",
 ]
 
 [[package]]
 name = "gwz-history-check"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37565872b4e206fefd0a5adfafc26c6726a5593ba9626808571e36fdedfb5b2b"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-local-disposal"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e75222c6d428c07652afdcb3868be860b78face5a8225955472f074167961c9"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -518,8 +525,9 @@ dependencies = [
 
 [[package]]
 name = "gwz-local-import"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6aa48a2de56d9eacdc5a421731cd51206305c00890f2b09ba24770a2a137861b"
 dependencies = [
  "gwz-family-model",
  "gwz-repo-contract",
@@ -527,8 +535,9 @@ dependencies = [
 
 [[package]]
 name = "gwz-refcopy"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc3cb7f185f2eec5fc047c8932775c5e9ca1478c4e58a35d5cee0ed8cedf5292"
 dependencies = [
  "gwz-copy-contract",
  "libc",
@@ -538,21 +547,24 @@ dependencies = [
 
 [[package]]
 name = "gwz-repo-contract"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbb12e6b08083fdafa0082cb9655dba3a545af27372cf52b587461bf8659a5e0"
 
 [[package]]
 name = "gwz-repo-factory"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87316810620209a54fc385f17fddca7a88f795842eb1d0445d4775bdcef0d0df"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-repo-inspect"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96a917e07590153bc3ce9ce74f4b03a76aa1e97371dff173cfd8d5870f2b1778"
 dependencies = [
  "git2",
  "gwz-repo-contract",
@@ -560,16 +572,18 @@ dependencies = [
 
 [[package]]
 name = "gwz-work-detector"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7baab42ce5da9d8b7a07b65991f59b4046ec328ecd48a715f3d3d60a1cbc1495"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-workspace-install"
-version = "0.1.0"
-source = "git+https://github.com/owebeeone/gwz-core?tag=v1.0.11#a11dce4a9163505412723fbf391e55ee7b24d82b"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d204d13210bb3c3806354e3068475fc1222702041af8aba80a5e5995b328b78"
 dependencies = [
  "gwz-copy-contract",
  "gwz-family-model",
@@ -1185,8 +1199,9 @@ dependencies = [
 
 [[package]]
 name = "taut-shape"
-version = "0.0.0"
-source = "git+https://github.com/owebeeone/taut-shape-rs?rev=7fd171b737f25cb6c356845eb68164d35326ffb0#7fd171b737f25cb6c356845eb68164d35326ffb0"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "949405182f907bfd541b34550040e2e80dd87881bfdb88d5ed96ae09c8927d79"
 
 [[package]]
 name = "tempfile"
@@ -1223,18 +1238,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.13.2"
+version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cf0ded5c4e56918d8f8a339e1bb67d038d3bc6d144ac407904015ba2e4cde9b"
-dependencies = [
- "tinyvec_macros",
-]
-
-[[package]]
-name = "tinyvec_macros"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "typenum"

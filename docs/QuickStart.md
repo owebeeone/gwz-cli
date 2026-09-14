@@ -24,6 +24,13 @@ On Windows PowerShell:
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (irm https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.ps1)"
 ```
 
+From 1.0.12 you can instead build it from crates.io with Rust 1.95 or newer; on macOS and
+Linux that also needs the OpenSSL development files:
+
+```sh
+cargo install gwz
+```
+
 Confirm the installation:
 
 ```sh

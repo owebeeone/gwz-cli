@@ -21,3 +21,19 @@ jobs:
       workspace_sha: ${{ vars.GWZ_WORKSPACE_REVISION }}
       candidate_member: gwz-cli
       candidate_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+  release-script:
+    # scripts/release.py's unit tests (gwz-core dev-docs/GwzCratesIoPlan.md
+    # S3.1), wired in by S3.2. The workspace run above tests the Rust driver but
+    # none of this repository's Python modules; these need only this checkout
+    # and Python, set up as that run sets it up. Name each new test module here.
+    name: Release script unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Release script unit tests
+        run: python -m unittest scripts/test_release.py -v

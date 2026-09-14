@@ -28,11 +28,21 @@ https://github.com/owebeeone/gwz-cli/releases/download/v0.9.0/gwz-installer.ps1
 
 ## Install From Source
 
-Users with Rust can install from the repository:
+From 1.0.12, users with Rust can build and install the released CLI from crates.io:
+
+```sh
+cargo install gwz
+```
+
+Or install from the repository:
 
 ```sh
 cargo install --git https://github.com/owebeeone/gwz-cli
 ```
+
+Both compile from source, so they need Rust 1.95 or newer, a C compiler and, on macOS and
+Linux, the OpenSSL development files (Homebrew `openssl@3`, or `libssl-dev` and `pkg-config`
+on Debian and Ubuntu).
 
 For local development inside the source workspace, run the package directly:
 

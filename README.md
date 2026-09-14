@@ -24,6 +24,16 @@ Install the latest release on Windows PowerShell:
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (irm https://github.com/owebeeone/gwz-cli/releases/latest/download/gwz-installer.ps1)"
 ```
 
+From 1.0.12 you can also build and install it from crates.io:
+
+```sh
+cargo install gwz
+```
+
+That compiles from source, so it needs Rust 1.95 or newer, a C compiler and, on macOS and
+Linux, the OpenSSL development files (Homebrew `openssl@3`, or `libssl-dev` and `pkg-config`
+on Debian and Ubuntu).
+
 Then follow the [Quick Start](https://owebeeone.github.io/gwz-cli/QuickStart/).
 The [full user documentation](https://owebeeone.github.io/gwz-cli/) covers
 workflows, member lifecycle, troubleshooting, and generated command reference.
