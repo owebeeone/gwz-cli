@@ -255,6 +255,7 @@ impl Cli {
                 Ok(CliRequest::Push(gwz_core::PushRequest {
                     remote: self.global.remote.clone(),
                     refspec: None,
+                    remote_check: None,
                     meta,
                 }))
             }
