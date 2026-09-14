@@ -1,14 +1,14 @@
 <!-- Canonical location of this page (docs site). gwz-core/docs/WhyGwz.md should point here. -->
 # Why GWZ
 
-Git is excellent at managing one repository. A product assembled from many
-repositories creates a different problem: developers must know which
-repositories belong together, where each one should be checked out, which
-revisions form a working set, and how to inspect or change that set without
-losing track of partial failures.
+GWZ is the high-level API to your multi-repo Git workspace. Commands like
+`commit`, `status`, `branch`, `merge`, `log` and `stash` operate on all the
+member repositories in one operation, and `local clone` copies the whole
+workspace as it sits. A small root repository records which members belong
+together and at which revisions. Every member stays an ordinary Git
+repository.
 
-GWZ (Git Workspace Zone) turns that collection into a reproducible workspace
-while leaving every member as an ordinary Git repository.
+GWZ is to repos what compilers are to assemblers.
 
 ## The Problem GWZ Solves
 
