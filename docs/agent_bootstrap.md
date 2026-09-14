@@ -15,7 +15,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 Or install from source:
 
 ```sh
-cargo install --git https://github.com/owebeeone/gwz-cli
+cargo install gwz
 ```
 
 If the workspace is not cloned yet:
