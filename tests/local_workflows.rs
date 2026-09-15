@@ -1774,3 +1774,320 @@ fn clone_with_url_scheme_reports_the_resolution_and_the_workspace_remembers_it()
     assert!(!target.join(".gwz/url-scheme.yml").exists());
     assert!(!normalized_stdout(&cleared).contains("url scheme:"));
 }
+
+// --- Push plan steps 3.5 and 3.7 (`dev-docs/GwzUrlSchemePushPlan.md` §3.5 and
+// --- §3.6): JSON goldens of rows, aggregate and reasons for pushes against local
+// --- bare remotes, each with its human output and summary line.
+
+const PUSH_UP_TO_DATE: &str = "up to date with origin/main as of the last fetch or push";
+const PUSH_ON_ORIGIN: &str = "already on origin";
+
+/// Step 3.5 (§3.5 rule 2, §3.6): with nothing changed since the last fetch or
+/// push, a default push contacts no remote. Every row and the aggregate are
+/// `Noop`, each row carries its reason, and the exit code is 0. The human output
+/// counts the three repositories that were not checked.
+#[test]
+fn push_of_an_unchanged_workspace_reports_noop_rows_without_contacting_a_remote() {
+    let workspace = PublishedWorkspace::new("push-unchanged");
+
+    let machine = workspace.run(&["--json", "push"]);
+    let human = workspace.run(&["push"]);
+
+    assert_exit_code(&machine, 0);
+    let document = json(&machine);
+    assert_eq!(document["meta"]["aggregate_status"], "Noop", "{document}");
+    assert!(document["meta"]["transport"].is_null(), "{document}");
+    assert_eq!(document["errors"], serde_json::json!([]), "{document}");
+    assert_eq!(
+        document["members"],
+        serde_json::json!([
+            workspace.noop_row("mem_app", "repos/app", PUSH_UP_TO_DATE),
+            workspace.noop_row("mem_lib", "repos/lib", PUSH_UP_TO_DATE),
+            workspace.noop_row("@root", ".", PUSH_UP_TO_DATE),
+        ])
+    );
+    assert_exit_code(&human, 0);
+    assert_eq!(
+        normalized_stdout(&human),
+        "status: Noop\n\
+         mem_app repos/app Noop\n\
+         mem_lib repos/lib Noop\n\
+         @root . Noop\n\
+         3 repositories unchanged since the last fetch or push were not checked for changes; --check-remotes to verify\n"
+    );
+}
+
+/// Step 3.7 (§3.5 rule 3): `--check-remotes` reads each of the three unchanged
+/// repositories once, finds each already on origin and pushes nothing. Those
+/// rows were checked, so the human output has no summary line.
+#[test]
+fn push_check_remotes_reads_each_unchanged_repository_once_and_pushes_nothing() {
+    let workspace = PublishedWorkspace::new("push-check-remotes");
+
+    let machine = workspace.run(&["--json", "push", "--check-remotes"]);
+    let human = workspace.run(&["push", "--check-remotes"]);
+
+    assert_exit_code(&machine, 0);
+    let document = json(&machine);
+    assert_eq!(document["meta"]["aggregate_status"], "Noop", "{document}");
+    assert_eq!(document["errors"], serde_json::json!([]), "{document}");
+    assert_eq!(
+        document["members"],
+        serde_json::json!([
+            workspace.noop_row("mem_app", "repos/app", PUSH_ON_ORIGIN),
+            workspace.noop_row("mem_lib", "repos/lib", PUSH_ON_ORIGIN),
+            workspace.noop_row("@root", ".", PUSH_ON_ORIGIN),
+        ])
+    );
+    let transport = transport_rows(&document);
+    assert!(
+        transport
+            .iter()
+            .all(|(operation, _)| operation == "read_advertisement"),
+        "{document}"
+    );
+    let destinations: std::collections::BTreeSet<_> =
+        transport.iter().map(|(_, repository)| repository).collect();
+    assert_eq!((transport.len(), destinations.len()), (3, 3), "{document}");
+    assert_eq!(workspace.remote_heads(), workspace.heads());
+    assert_exit_code(&human, 0);
+    assert_eq!(
+        normalized_stdout(&human),
+        "status: Noop\nmem_app repos/app Noop\nmem_lib repos/lib Noop\n@root . Noop\n"
+    );
+}
+
+/// Step 3.5 (§3.5 rules 1 and 2, D10): after a commit in `app` that the root
+/// records, a default push reads and pushes those two, and reads `lib` once, as
+/// the root's dependency. `lib` stays `Noop` with its reason, and the human
+/// output counts it as the one repository not checked. Each output gets its own
+/// workspace, because the push publishes.
+#[test]
+fn push_after_one_member_and_the_root_changed_publishes_those_two_and_leaves_the_other_noop() {
+    for machine in [true, false] {
+        let workspace = PublishedWorkspace::new(if machine {
+            "push-changed-json"
+        } else {
+            "push-changed-human"
+        });
+        workspace.commit_a_change_in_app();
+        assert_ne!(workspace.remote_heads(), workspace.heads());
+        let args: &[&str] = if machine {
+            &["--json", "push"]
+        } else {
+            &["push"]
+        };
+
+        let output = workspace.run(args);
+
+        assert_exit_code(&output, 0);
+        assert_eq!(workspace.remote_heads(), workspace.heads());
+        if machine {
+            let document = json(&output);
+            assert_eq!(document["meta"]["aggregate_status"], "Ok", "{document}");
+            assert_eq!(document["errors"], serde_json::json!([]), "{document}");
+            assert_eq!(
+                document["members"],
+                serde_json::json!([
+                    pushed_row("mem_app", "repos/app"),
+                    workspace.noop_row("mem_lib", "repos/lib", PUSH_UP_TO_DATE),
+                    pushed_row("@root", "."),
+                ])
+            );
+            let operations: Vec<String> = transport_rows(&document)
+                .into_iter()
+                .map(|(operation, _)| operation)
+                .collect();
+            assert_eq!(
+                operations,
+                [
+                    "push",
+                    "push",
+                    "read_advertisement",
+                    "read_advertisement",
+                    "read_advertisement"
+                ],
+                "{document}"
+            );
+        } else {
+            assert_eq!(
+                normalized_stdout(&output),
+                "status: Ok\n\
+                 mem_app repos/app Ok\n\
+                 mem_lib repos/lib Noop\n\
+                 @root . Ok\n\
+                 1 repository unchanged since the last fetch or push was not checked for changes; --check-remotes to verify\n"
+            );
+        }
+    }
+}
+
+/// A workspace with members `app` and `lib` and a root, each with a local bare
+/// remote, after one `gwz push` published the root. Every repository then has a
+/// last-known ref (push plan §3.5): the members from `gwz init`'s clones, the
+/// root from that push.
+struct PublishedWorkspace {
+    root: TempDir,
+    app: RemoteFixture,
+    lib: RemoteFixture,
+    root_remote: TempDir,
+}
+
+impl PublishedWorkspace {
+    fn new(prefix: &str) -> Self {
+        let app = RemoteFixture::new_named(&format!("{prefix}-app"), "app");
+        let lib = RemoteFixture::new_named(&format!("{prefix}-lib"), "lib");
+        app.commit_and_push("README.md", "app\n", "initial");
+        lib.commit_and_push("README.md", "lib\n", "initial");
+        let workspace = Self {
+            root: TempDir::new(prefix),
+            app,
+            lib,
+            root_remote: TempDir::new(&format!("{prefix}-root-remote")),
+        };
+        init_bare_main(&workspace.root_remote_path());
+        assert_success(&workspace.run(&[
+            "init",
+            "--path",
+            "repos",
+            workspace.app.url(),
+            workspace.lib.url(),
+        ]));
+        for path in [".", "repos/app", "repos/lib"] {
+            set_test_identity(&workspace.root.path().join(path));
+        }
+        git2::Repository::open(workspace.root.path())
+            .unwrap()
+            .remote("origin", workspace.root_remote_path().to_str().unwrap())
+            .unwrap();
+        commit_workspace_root(workspace.root.path());
+        assert_success(&workspace.run(&["push"]));
+        assert_eq!(workspace.remote_heads(), workspace.heads());
+        workspace
+    }
+
+    /// `gwz --root <workspace>` with `args`, run from the workspace root.
+    fn run(&self, args: &[&str]) -> Output {
+        gwz(self.root.path())
+            .args(["--root", self.root.path_str()])
+            .args(args)
+            .output()
+            .unwrap()
+    }
+
+    fn root_remote_path(&self) -> PathBuf {
+        self.root_remote.path().join("root.git")
+    }
+
+    fn head(&self, path: &str) -> String {
+        repo_head(&self.root.path().join(path)).unwrap()
+    }
+
+    /// The head of `app`, `lib` and the root, in that order.
+    fn heads(&self) -> [Option<String>; 3] {
+        ["repos/app", "repos/lib", "."].map(|path| repo_head(&self.root.path().join(path)))
+    }
+
+    /// What the bare remotes of `app`, `lib` and the root hold on `main`.
+    fn remote_heads(&self) -> [Option<String>; 3] {
+        [
+            PathBuf::from(self.app.url()),
+            PathBuf::from(self.lib.url()),
+            self.root_remote_path(),
+        ]
+        .map(|remote| repo_ref(&remote, "refs/heads/main"))
+    }
+
+    /// Commit a new file in `app` through gwz, which records the commit in the
+    /// root lock and commits the root. The file is staged through workspace
+    /// discovery: an operand resolves from the canonical caller directory, which
+    /// a `--root` spelled through a symlink (macOS's temporary directory) does
+    /// not contain.
+    fn commit_a_change_in_app(&self) {
+        fs::write(self.root.path().join("repos/app/CHANGE.md"), "change\n").unwrap();
+        assert_success(
+            &gwz(self.root.path())
+                .args(["add", "repos/app/CHANGE.md"])
+                .output()
+                .unwrap(),
+        );
+        assert_success(&self.run(&["commit", "-m", "change app"]));
+    }
+
+    /// A push row that pushes nothing, with its reason, as `--json` renders it.
+    fn noop_row(&self, member_id: &str, member_path: &str, reason: &str) -> Value {
+        serde_json::json!({
+            "error": null,
+            "git_status": null,
+            "lock_difference_reasons": null,
+            "lock_match": null,
+            "member_id": member_id,
+            "member_path": member_path,
+            "planned": {
+                "action": "Noop",
+                "from_ref": self.head(member_path),
+                "message": reason,
+                "to_ref": "refs/heads/main:refs/heads/main",
+            },
+            "source_kind": "Git",
+            "state": null,
+            "status": "Noop",
+            "url_resolution": null,
+        })
+    }
+}
+
+/// A push row that published its repository, as `--json` renders it.
+fn pushed_row(member_id: &str, member_path: &str) -> Value {
+    serde_json::json!({
+        "error": null,
+        "git_status": null,
+        "lock_difference_reasons": null,
+        "lock_match": null,
+        "member_id": member_id,
+        "member_path": member_path,
+        "planned": null,
+        "source_kind": "Git",
+        "state": null,
+        "status": "Ok",
+        "url_resolution": null,
+    })
+}
+
+/// Each transport observation's operation and repository, sorted: reads run
+/// concurrently and are reported in arrival order.
+fn transport_rows(document: &Value) -> Vec<(String, String)> {
+    let mut rows: Vec<(String, String)> = document["meta"]["transport"]
+        .as_array()
+        .map(|observations| {
+            observations
+                .iter()
+                .map(|observation| {
+                    (
+                        observation["operation"].as_str().unwrap().to_owned(),
+                        observation["repository_path"].as_str().unwrap().to_owned(),
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    rows.sort();
+    rows
+}
+
+fn set_test_identity(repo_path: &Path) {
+    let repo = git2::Repository::open(repo_path).unwrap();
+    let mut config = repo.config().unwrap();
+    config.set_str("user.name", "GWZ Test").unwrap();
+    config.set_str("user.email", "gwz@example.invalid").unwrap();
+}
+
+fn assert_exit_code(output: &Output, code: i32) {
+    assert_eq!(
+        output.status.code(),
+        Some(code),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
