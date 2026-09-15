@@ -124,6 +124,12 @@ asks for the SSH form the same way. The workspace remembers an `ssh` or `https`
 choice in `.gwz/url-scheme.yml`, so a later `gwz materialize` in that workspace
 needs no flag.
 
+A workspace cloned over HTTPS also publishes over HTTPS: `gwz push` pushes to
+the HTTPS remotes and reads the root's member dependencies over HTTPS, with
+credentials from your Git credential helper. See
+[Publication](Concepts.md#publication) for what a push checks and how to switch
+a workspace cloned over SSH.
+
 Contributors with SSH keys need nothing here. The default is `manifest`, which
 uses every URL exactly as the manifest records it. A manifest may record either
 form, and GWZ clones with the form you ask for. A member marked `private: true`

@@ -143,7 +143,69 @@ that record. The file is local runtime state: it is not part of `gwz.conf/`,
 not in the manifest, and not committed.
 
 On `gwz merge`, `--remote <name>` does not name a Git remote at all: it names
-a member of the local clone family, described next.
+a member of the local clone family, described below.
+
+## Publication
+
+`gwz push` sends each selected repository to its own configured remote. A push
+that contacts the root proves, before the root transfer, that every member
+commit the committed lock names is available, from this operation's own reads of
+the member remotes or its accepted pushes of branches that contain the commit,
+never from remote-tracking refs. It reads every dependency; like its transfers,
+its reads run in parallel within `--jobs` and `--max-per-host`.
+
+The proof reads each dependency at the push URL, else the fetch URL, of the
+member's remote (the one the manifest names, usually `origin`) when that URL is
+the committed URL or the same URL in the other scheme on github.com, gitlab.com
+or bitbucket.org; at the committed URL in the scheme `.gwz/url-scheme.yml`
+records when the member is not checked out; and at the committed URL otherwise.
+A workspace cloned with `gwz clone --url-scheme https` therefore publishes over
+HTTPS end to end, with credentials from your Git credential helper.
+
+To switch a workspace cloned over SSH, clone it again with `--url-scheme https`,
+or point the root (`.`) and each member at HTTPS yourself:
+
+```sh
+git -C <path> remote set-url origin https://github.com/<owner>/<repo>.git
+```
+
+Push takes no `--url-scheme` and does not read `GWZ_URL_SCHEME`. A workspace
+switched by hand has no `.gwz/url-scheme.yml`, so members that are not checked
+out are still read at their committed URLs until a `--url-scheme https` clone or
+materialize records one. The manifest keeps its URLs: `gwz repo sync` keeps the
+manifest URL for a remote that differs from it only by scheme, unless run with
+`--force`.
+
+By default a push contacts only repositories that changed since the last fetch
+or push. It compares each branch with its remote-tracking ref, such as
+`origin/main`, not with the branch's upstream, and neither checks for changes
+nor pushes a repository whose branch equals that ref or is behind it. A
+repository without a usable remote-tracking ref (a branch never fetched or
+pushed, a single-branch or shallow clone, or a push URL that names another
+repository) is always contacted. Each repository left alone reports `Noop` with
+a reason that names the remote and branch:
+
+- `already on origin`: this push read the remote, and its branch already points
+  at the local commit;
+- `up to date with origin/main as of the last fetch or push`: the branch equals
+  its remote-tracking ref, so the remote was not contacted;
+- `behind origin/main as of the last fetch or push`: the remote-tracking ref is
+  ahead of the branch, so there is nothing to publish and the remote was not
+  contacted.
+
+When repositories were not contacted, human output ends with a line such as the
+following, and `--verbose` adds each row's reason:
+
+```text
+7 repositories unchanged since the last fetch or push were not checked for changes; --check-remotes to verify
+```
+
+`gwz push --check-remotes` skips that comparison: it reads every selected remote
+and every root dependency, pushes repositories whose remote lacks their branch's
+commit, and proves a selected root even when it has nothing to push. Use it when
+someone else may have rewound a remote, before a release, or to check that an
+unchanged root is still sound. Remote-tracking refs can go stale; see
+[Troubleshooting](Troubleshooting.md#push-skips-a-member-whose-remote-changed).
 
 ## Local Clone Family
 

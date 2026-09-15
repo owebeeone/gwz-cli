@@ -560,6 +560,48 @@ Read-only listing commands render listing objects with `--json` or `--jsonl`.
 `local_family_root_path`; see the
 [`gwz local` command page](commands/local.md#machine-output).
 
+## Push JSON
+
+`gwz --json push` renders one member entry per selected repository, the root
+included. A repository with nothing to push has status `Noop`, `planned.action`
+`Noop` and its reason in `planned.message`; a dry run reports the repositories
+it would not contact the same way. Abbreviated to those fields:
+
+```json
+{
+  "member_id": "@root",
+  "member_path": ".",
+  "status": "Noop",
+  "planned": {
+    "action": "Noop",
+    "from_ref": "abc123",
+    "to_ref": "refs/heads/main:refs/heads/main",
+    "message": "up to date with origin/main as of the last fetch or push"
+  }
+}
+```
+
+The reason names the remote and branch:
+
+- `already on <remote>`: this push read the remote, and its branch was already
+  at the local commit.
+- `up to date with <remote>/<branch> as of the last fetch or push`: the branch
+  equals its remote-tracking ref; the remote was not contacted.
+- `behind <remote>/<branch> as of the last fetch or push`: the branch is behind
+  its remote-tracking ref; the remote was not contacted.
+
+The aggregate is `Noop` when nothing was pushed and nothing was refused, and a
+`Noop` aggregate exits `0`. A push that contacted no remote has no
+`meta.transport`. JSON tells a checked `Noop` from an assumed one only by the
+reason text: only `already on <remote>` was read in this operation. A script
+that needs every result checked against its remote runs
+`gwz --json push --check-remotes`, which gives no `as of the last fetch or push`
+reasons.
+
+This changed after gwz 1.0.12, which reported every row of a push with nothing
+to publish, and its aggregate, as `Ok`. A script that treats only `Ok` as
+success must also accept `Noop`.
+
 ## Status JSON
 
 `gwz --json status` includes `workspace_git_status`:
