@@ -74,7 +74,20 @@ fn workspace(prefix: &str) -> TempDir {
     temp
 }
 
+/// Pin an author identity on the repository itself. The commit below runs
+/// through the production Git backend, which would otherwise borrow the
+/// developer's global config -- and hosted CI runners have none.
+fn set_local_identity(root: &Path) {
+    let repo = git2::Repository::open(root).expect("open the fixture repository");
+    let mut config = repo.config().expect("read the repository config");
+    config.set_str("user.name", "GWZ Fixture").unwrap();
+    config
+        .set_str("user.email", "fixture@example.invalid")
+        .unwrap();
+}
+
 fn commit_workspace_root(temp: &TempDir) {
+    set_local_identity(temp.path());
     dispatch_in(temp, &["--target", "@root", "add", "-A"]).unwrap();
     dispatch_in(
         temp,

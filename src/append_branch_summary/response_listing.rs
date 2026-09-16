@@ -246,7 +246,7 @@ pub(crate) fn listing_json(listing: &ArtifactListing) -> serde_json::Value {
     }
 }
 
-pub(crate) fn render_human_response(response: &CliResponse) -> String {
+pub(crate) fn render_human_response(response: &CliResponse, verbose: bool) -> String {
     if let Some(merge) = &response.merge_response {
         return render_merge_response(merge);
     }
@@ -284,6 +284,9 @@ pub(crate) fn render_human_response(response: &CliResponse) -> String {
     {
         lines.push(summary);
     }
+    // A push `Noop` row's message is its reason (push plan §3.6). `--verbose`
+    // shows it; otherwise the summary line below stands in for the reasons.
+    let push = response.envelope.meta.action == gwz_core::ActionKind::Push;
     for member in &response.envelope.members {
         let mut line = format!(
             "{} {} {:?}",
@@ -292,10 +295,12 @@ pub(crate) fn render_human_response(response: &CliResponse) -> String {
         if let Some(error) = &member.error {
             line.push_str(&format!(" {:?}: {}", error.code, error.message));
         }
-        if let Some(message) = member
-            .planned
-            .as_ref()
-            .and_then(|planned| planned.message.as_ref())
+        let hidden_reason = push && member.status == gwz_core::MemberStatus::Noop && !verbose;
+        if !hidden_reason
+            && let Some(message) = member
+                .planned
+                .as_ref()
+                .and_then(|planned| planned.message.as_ref())
         {
             line.push_str(&format!(" {message}"));
         }
@@ -303,6 +308,9 @@ pub(crate) fn render_human_response(response: &CliResponse) -> String {
     }
     for error in &response.envelope.errors {
         lines.push(format!("{:?}: {}", error.code, error.message));
+    }
+    if push && let Some(summary) = unchecked_push_summary(&response.envelope.members) {
+        lines.push(summary);
     }
     lines.join("\n")
 }

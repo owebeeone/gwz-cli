@@ -34,11 +34,16 @@ From 1.0.12, users with Rust can build and install the released CLI from crates.
 cargo install gwz
 ```
 
-Or install from the repository:
+Or install a release tag from the repository:
 
 ```sh
-cargo install --git https://github.com/owebeeone/gwz-cli
+cargo install --git https://github.com/owebeeone/gwz-cli --tag v1.0.12 --locked
 ```
+
+Replace `v1.0.12` with the release you want, but always name a tag: the `main` branch
+depends on a sibling `gwz-core` checkout and builds only inside the
+[`gwz-dev`](https://github.com/owebeeone/gwz-dev) workspace. `--locked` builds with the
+tag's `Cargo.lock`.
 
 Both compile from source, so they need Rust 1.95 or newer, a C compiler and, on macOS and
 Linux, the OpenSSL development files (Homebrew `openssl@3`, or `libssl-dev` and `pkg-config`

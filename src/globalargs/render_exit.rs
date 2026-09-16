@@ -9,7 +9,7 @@ pub(crate) fn render_response_with_transport(
     output: OutputMode,
     show_transport: bool,
 ) -> String {
-    let mut rendered = render_response_inner(response, output);
+    let mut rendered = render_response_inner(response, output, show_transport);
     if show_transport && output == OutputMode::Human {
         for line in url_resolution_human_lines(&response.envelope.members) {
             rendered.push('\n');
@@ -30,7 +30,7 @@ pub(crate) fn render_response_with_transport(
     rendered
 }
 
-fn render_response_inner(response: &CliResponse, output: OutputMode) -> String {
+fn render_response_inner(response: &CliResponse, output: OutputMode, verbose: bool) -> String {
     // forall already streamed member output live; render only its trailing summary.
     if let Some(summary) = &response.summary {
         return summary.clone();
@@ -72,7 +72,7 @@ fn render_response_inner(response: &CliResponse, output: OutputMode) -> String {
         };
     }
     match output {
-        OutputMode::Human => render_human_response(response),
+        OutputMode::Human => render_human_response(response, verbose),
         OutputMode::Json => response_json(response).to_string(),
         OutputMode::Jsonl => render_jsonl_stream(response, &[], None),
         OutputMode::Porcelain => render_porcelain_response(response),

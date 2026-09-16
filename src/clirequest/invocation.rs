@@ -247,7 +247,7 @@ impl Cli {
             // the same bytes. Core reads the request field first and still
             // honours a policy-only token from an older caller, so this
             // decides what is sent, not what core binds.
-            CommandArgs::Push => {
+            CommandArgs::Push(args) => {
                 let mut meta = meta;
                 if let Some(policy) = &mut meta.policy {
                     policy.remote = None;
@@ -255,6 +255,7 @@ impl Cli {
                 Ok(CliRequest::Push(gwz_core::PushRequest {
                     remote: self.global.remote.clone(),
                     refspec: None,
+                    remote_check: args.remote_check(),
                     meta,
                 }))
             }

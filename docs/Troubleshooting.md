@@ -146,6 +146,8 @@ Recovery:
 - Confirm SSH agent keys or HTTPS credentials.
 - Increase `--ssh-timeout <secs>` for slow networks.
 - Use `--jobs` and `--max-per-host` to reduce concurrency against a host.
+- To publish over HTTPS from a workspace cloned over SSH, switch its remotes as
+  [Publication](Concepts.md#publication) describes.
 - For public repositories on github.com, gitlab.com, or bitbucket.org, clone or
   materialize over HTTPS instead: `gwz clone --url-scheme https <url>`, or
   `GWZ_URL_SCHEME=https gwz materialize --lock`. This changes only the URLs used
@@ -164,8 +166,65 @@ port, an `http://` URL, or an empty path, is refused with
 `UrlSchemeUnavailable` before anything is fetched. Use `--url-scheme manifest`
 for that run, or record a remote in the form you want and run
 `gwz repo sync <member-path>`. `--remote-identity NAME=PATH` names an SSH
-identity, so combining it with `--url-scheme https` for the same remote is
-refused before any network access.
+identity, so a clone, fetch, push or tag that would reach that remote over
+HTTPS refuses it before any network access, including a push whose root proof
+reads a dependency through that remote. The message ends with
+`; use --identity PATH, which non-SSH destinations ignore, or no override for that remote`.
+
+## Push Refuses Root Publication
+
+Symptoms:
+
+- `gwz push` rejects the root with
+  `root publication blocked: cannot prove member <id> commit <commit> is available at its committed fetch remote <remote>`,
+  followed by `(read through <url>)` when the proof read another URL.
+- A push that needs the URL scheme for a lock member that is not checked out
+  refuses with `workspace URL-scheme preference <path> is unreadable: <detail>; delete or repair the file`.
+
+Meaning:
+
+- A push that contacts the root proves every member commit the committed lock
+  names before the root transfer. Member pushes that already succeeded stay
+  published, and the root remote is unchanged.
+
+Recovery:
+
+- Publish the member by pushing a branch that contains the commit.
+- If someone else pushed to that member since your last fetch, fetch it (for
+  example `git -C <member-path> fetch`) and retry, so GWZ can see that the
+  remote's newer history contains the commit.
+- Run `gwz push --check-remotes`, which re-checks the members and pushes those
+  whose remote lacks their branch's commit.
+- Repair `.gwz/url-scheme.yml` to keep the workspace's URL scheme, or delete it;
+  members that are not checked out are then read, and later cloned, at their
+  manifest URLs.
+
+## Push Skips A Member Whose Remote Changed
+
+Symptoms:
+
+- `gwz push` reports a member `Noop` with
+  `up to date with origin/<branch> as of the last fetch or push`, but its
+  remote branch was rewound or deleted.
+
+Meaning:
+
+- By default a push decides from the member's remote-tracking ref, which
+  records what the last fetch or push saw. A fetch repairs a rewound branch.
+  GWZ does not prune, so unless `fetch.prune` is set, a branch deleted on the
+  remote keeps its tracking ref, and its member stays up to date, through
+  `gwz pull` and plain `git fetch`.
+- A root that needs that member's commit is still refused when it is published,
+  because its proof reads the remote.
+
+Recovery:
+
+- Run `gwz push --check-remotes`, which reads every remote and pushes what is
+  missing.
+- Drop the stale ref with `git -C <member-path> fetch --prune`, or set
+  `fetch.prune`.
+- Recreate the branch with a push outside the default check, for example
+  `git -C <member-path> push origin <branch>`.
 
 ## Sync Rejected
 

@@ -329,7 +329,7 @@ pub(crate) enum CommandArgs {
         long_about = PUSH_LONG,
         after_long_help = PUSH_AFTER
     )]
-    Push,
+    Push(PushArgs),
     #[command(
         about = "Manage workspace repository members",
         long_about = REPO_LONG,
