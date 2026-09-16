@@ -1,7 +1,8 @@
 # GWZ and Claude Code Integration Plan
 
-Status: **DRAFT 2026-09-12, round-1 review folded.** Written by Fable at the
-operator's request after the 1.0.11 release; reviewed the same day
+Status: **DRAFT 2026-09-12, round-1 review folded; updated 2026-09-17 for the
+lane disposal clean-up requirements.** Written by Fable at the operator's
+request after the 1.0.11 release; reviewed the same day
 (`GwzClaudeIntegration-S0.1-Review.md`: GO-WITH-CONDITIONS, 4 P1, 8 P2,
 6 P3) and every finding folded below (trail in section 7). Not adopted; no
 code, settings or scripts have changed. Implementation is chartered for
@@ -112,6 +113,19 @@ GWZ, from `gwz local --help`, `gwz local clone --help` and
   preserved"; a dirty lane is a hazard in its own right; `--force <hazard,...>`
   waives named hazards; `--keep` "removes only the pointer and the index row"
   and retains every file. The root is never disposed.
+- Every verbatim lane of gwz-dev has refused disposal so far: three on
+  2026-09-10, and all 15 lanes merged on 2026-09-15 and 2026-09-16, each after
+  its merge, with gwz 1.0.12 (gwz-dev `dev-docs/GwzLaneIssues.md`, L1). Each
+  reported `dirty` and `unpreserved-history`; from the second round on, the
+  same 112 entries every time, all inherited by the copy: build and cache
+  directories, `__pycache__`, stash entries and commits only a reflog still
+  reaches. Retiring such a lane takes the operator's own comparison against
+  the family, then `gwz local dispose NAME --force dirty,unpreserved-history`.
+  Dispose has no check-only mode.
+- The gwz-core requirements that would let an integrated lane dispose in one
+  command, and make `--clean` work, are drafted in gwz-core
+  `dev-docs/GwzLaneCleanFixes.md` (R0 to R19). None is implemented; this plan
+  cites them by number.
 - The gwz-dev workspace is 65 GB on disk, most of it cargo target trees. On
   APFS the verbatim copy is a copy-on-write clone, cheap until a lane builds;
   a full build in a lane then writes its own tens of gigabytes (the 2026-09-11
@@ -143,7 +157,8 @@ integration is documented for other users.
 - U5. What the desktop app's "Worktree location" and branch-prefix settings do
   once a hook owns creation.
 - U6. How the dispose refusal reads when Claude reports it, and whether the
-  message names the remedy.
+  message names the remedy. GwzLaneCleanFixes R9 and R10 set what it should
+  say.
 - U7. Whether a hook-created git worktree under `.claude/worktrees/<name>`
   behaves identically to one Claude Code creates itself: the docs say the
   automatic sweep skips hook-created worktrees, and the `.worktreeinclude`
@@ -186,11 +201,17 @@ integration is documented for other users.
   softer.** The remove hook never passes `--force` or `--keep`. A refusal
   (unpreserved history, or dirt) makes the hook exit non-zero, which keeps the
   lane and the session. That is the safe outcome and is documented as such.
-  Retiring a refused lane is a terminal procedure (S3.4). Subagent worktree
-  isolation is not used in GWZ workspaces until clean lanes exist (D7): each
-  subagent that changes anything would otherwise leave a lane behind. The
-  hook cannot enforce that rule unless U9 finds a signal, so it is a
-  documented rule for agent briefs and the skill.
+  With gwz 1.0.12 it is also the only outcome for a verbatim lane, merged or
+  not (section 1), so every Claude-created lane is retired through the
+  terminal procedure (S3.4) until GwzLaneCleanFixes R0 lands. After that, a
+  refusal means the lane holds something the family does not, and the hook
+  still waives nothing: the narrower waiver names of R11 remain the
+  operator's choice. Subagent worktree isolation is not used in GWZ
+  workspaces until an integrated lane disposes in one command
+  (GwzLaneCleanFixes R0, reached through verbatim-lane fixes or clean lanes;
+  D7, S3.5): each subagent would otherwise leave a lane behind. The hook
+  cannot enforce that rule unless U9 finds a signal, so it is a documented
+  rule for agent briefs and the skill.
 - D4. **No automatic merge-back.** Integration remains the operator's
   `gwz merge --remote NAME` from the receiving workspace. A helper the
   operator runs by hand may come later; hooks never integrate.
@@ -208,8 +229,11 @@ integration is documented for other users.
   machine at that time; S3.2 raises it with build numbers and states what a
   building lane costs. The guard is not a substitute for S3.4.
 - D7. **Verbatim lanes for now.** Clean lanes (`--clean`) are a GWZ product
-  feature with its own plan; this plan measures the verbatim cost first
-  (S3.2) and records whether clean lanes are needed for Claude use.
+  feature. Their requirements (R14 to R16), with those that let a verbatim
+  lane dispose without a waiver (R1 to R8), are in gwz-core
+  `dev-docs/GwzLaneCleanFixes.md`. This plan consumes them and implements
+  neither: it measures the verbatim cost first (S3.2), and records at S3.3
+  which route Claude use waits on.
 - D8. **Fall back to a git worktree only when GWZ is provably not in play.**
   The create hook resolves the workspace root by walking up from
   `CLAUDE_PROJECT_DIR` to the nearest directory holding `gwz.conf/gwz.lock.yml`
@@ -275,13 +299,16 @@ targets, not limits.
   D11 and the unconfirmed list. Output: this file's status line updated with
   a dated adoption note.
 
-### Phase 1: hook scripts and the CLI path (milestone: `claude --worktree NAME` in gwz-dev lands in a GWZ lane, and exiting with removal disposes it)
+### Phase 1: hook scripts and the CLI path (milestone: `claude --worktree NAME` in gwz-dev lands in a GWZ lane, and exiting with removal runs dispose, keeping the lane whenever dispose refuses)
 
 - **S1.0: creation cost, measured once** *(evidence; independent of S1.1;
   ~30 minutes)*. From the gwz-dev root, `gwz local clone probe-cost`, timed,
-  with `df` before and after and `du -sh` of the lane; then dispose it. The
-  numbers set D6's default and the creation timeout in S1.1 (sized for two
-  copies back to back, since two creations serialize on the family lock).
+  with `df` before and after and `du -sh` of the lane; then retire it. With
+  gwz 1.0.12 the dispose is refused for the hazards the copy inherited, so
+  follow the L1 remedy in gwz-dev `dev-docs/GwzLaneIssues.md` and keep the
+  refusal text as early evidence for U6. The numbers set D6's default and the
+  creation timeout in S1.1 (sized for two copies back to back, since two
+  creations serialize on the family lock).
 - **S1.1: the scripts** *(gwz-cli, `integrations/claude-code/`; ~160 lines
   of POSIX sh plus ~200 lines of test)*. `gwz-lane-create.sh` reads `name`
   (`jq`, else `python3`), validates it (D2), resolves the workspace root as
@@ -326,9 +353,12 @@ targets, not limits.
   an edit plus `gwz add` and `gwz commit` in the lane; exit with removal,
   expecting the dispose refusal to keep the lane, and the exact refusal text
   (U6); then `gwz merge --remote probe-YYYYMMDD` from the main workspace and
-  a second removal that succeeds. Repeat creation while `cargo build` runs in
-  the source and record whether it completes and whether the lane's target
-  directory is usable (D10). Repeat creation with one plain git worktree
+  a second removal. With gwz 1.0.12 the second removal is refused too, for
+  the hazards the copy inherited (section 1): record its text, retire the
+  lane through S3.4, and leave the removal that succeeds to S3.5. Repeat
+  creation while `cargo build` runs in the source and record whether it
+  completes and whether the lane's target directory is usable (D10). Repeat
+  creation with one plain git worktree
   present under `<root>/.claude/worktrees/` and record what the lane contains
   and what Claude makes of it (D2). Start a session inside `gwz-core` and
   create a lane from there, confirming the member path inside the lane is
@@ -359,13 +389,15 @@ targets, not limits.
   and that deleting the session calls the remove hook with the dispose
   refusal semantics from S1.3, leaving the session listed.
 - **S2.3: the subagent rule** *(decision plus one probe)*. D3 already sets
-  the default: no subagent worktree isolation in GWZ workspaces until clean
-  lanes exist. The probe launches one subagent with `isolation: "worktree"`
-  from a gwz-dev session to record creation time, whether anything in the
-  hook input identifies it (U9), and what its finished-with-changes lane
-  looks like. If U9 finds a signal, the hook refuses subagent creations in
-  workspaces with a message naming the rule; if not, the rule lives in S4.1,
-  S4.2 and agent briefs.
+  the default: no subagent worktree isolation in GWZ workspaces until an
+  integrated lane disposes in one command (GwzLaneCleanFixes R0). The probe
+  launches one subagent with `isolation: "worktree"` from a gwz-dev session
+  to record creation time, whether anything in the hook input identifies it
+  (U9), and what its finished-with-changes lane looks like. A second subagent
+  that changes nothing records what the remove hook does when it finishes:
+  with gwz 1.0.12 dispose refuses and the lane stays. If U9 finds a signal,
+  the hook refuses subagent creations in workspaces with a message naming the
+  rule; if not, the rule lives in S4.1, S4.2 and agent briefs.
 
 ### Phase 3: lifecycle and cost (milestone: Claude-created lanes are cheap enough to make routinely and safe to retire)
 
@@ -374,27 +406,42 @@ targets, not limits.
   hook that exits zero and leaves the directory, and record whether Claude
   forgets the path. Make sure the refusal text a user sees through Claude
   names the remedy (`gwz merge --remote NAME` from the main workspace; U6). If
-  the message lacks the remedy, that is a gwz-core message change with its
-  own test.
+  the message lacks the remedy, record the gap against GwzLaneCleanFixes R9
+  and R10, which already require hazards reported by category and the exact
+  waiver command, rather than opening a separate gwz-core change.
 - **S3.2: cost measurement** *(evidence; ~60 lines in the probe note)*. On
   the gwz-dev volume, measure: lane creation wall time (S1.0 repeated under
   load); apparent and actual disk use of a fresh lane (`du` versus `df`
   deltas, since APFS clones share blocks); growth after `cargo build -p gwz`
   and after the gwz-core suite in the lane. Set the D6 default from the
   numbers, and state in the docs what a building lane costs.
-- **S3.3: clean lanes decision** *(decision only)*. From S3.2 and S2.3,
-  decide whether Claude use needs `gwz local clone --clean` (a lane without
-  build outputs and dirt). If yes, open a separate plan in gwz-core; this
-  plan does not implement it.
+- **S3.3: disposal route decision** *(decision only)*. From S3.2 and S2.3,
+  decide which GwzLaneCleanFixes route Claude use waits on: verbatim lanes
+  that dispose once integrated (R1 to R8), clean lanes from
+  `gwz local clone --clean` (R14 to R16, which start with cold builds), or
+  both. Record the choice here and in that document. The gwz-core work is
+  planned there, not here.
 - **S3.4: inventory and retirement** *(gwz-cli docs; ~60 lines)*. The
   procedure for lanes Claude cannot retire: chips and background sessions
   whose removal was refused, headless runs that never call the hook, crashed
   sessions, and `creating/incomplete` rows. `gwz local list` is the
   inventory; the order is `gwz merge --remote NAME` from the main workspace,
   then `gwz local dispose NAME`, with `--force <hazard>` or `--keep` as the
-  operator's explicit choices, never the hook's. A weekly look at
-  `gwz local list` is the recommended habit until a Claude-side listing
-  exists.
+  operator's explicit choices, never the hook's. Until GwzLaneCleanFixes R0
+  lands, dispose refuses every verbatim lane even after the merge, so the
+  procedure includes the L1 check from gwz-dev `dev-docs/GwzLaneIssues.md`
+  before `--force dirty,unpreserved-history`. After R0, a refusal means the
+  lane holds unique work. Once the check-only mode of R12 exists, it is the
+  inventory's report for each lane. A weekly look at `gwz local list` is the
+  recommended habit until a Claude-side listing exists.
+- **S3.5: adopt the disposal fixes** *(evidence, then doc edits; waits on an
+  installed gwz that meets GwzLaneCleanFixes R0; ~40 lines in the probe
+  note)*. Repeat S1.3's removal sequence and S2.3's subagent probes. Confirm
+  that an unintegrated lane still refuses, that an integrated lane disposes
+  through the remove hook in one step, and that a subagent lane finishing
+  without changes is removed. Record whether sessions write Claude state
+  inside their lanes (O5). If every check passes, lift D3's subagent rule
+  and update S3.4, S4.1 and S4.2 to match.
 
 ### Phase 4: documentation and the skill (milestone: any GWZ user can adopt the integration from the docs)
 
@@ -404,8 +451,8 @@ targets, not limits.
   the copy step (D1), prerequisites (`jq` or `python3`; POSIX hosts, D11),
   the lane lifecycle from Claude's point of view, the snapshot policy (D10),
   branch semantics (D9), the isolation behaviour observed in S1.3 and S2.x,
-  the cost numbers from S3.2, the retirement procedure (S3.4), the subagent
-  rule (D3), the caveats (launch from the main root, headless runs never
+  the cost numbers from S3.2, the retirement procedure (S3.4, before and
+  after GwzLaneCleanFixes R0), the subagent rule (D3), the caveats (launch from the main root, headless runs never
   remove, hooks never merge, keep `.claude/worktrees/` empty in a root that
   uses lanes, `baseRef` parity for the fallback), how to switch the hooks off
   quickly (delete the block; `worktree.bgIsolation: "none"` for background
@@ -415,7 +462,7 @@ targets, not limits.
   in a lane created by Claude Code, how to identify the source workspace, that
   integration happens from the receiving workspace, that it must not dispose
   the lane it is working in, and that it must not ask for subagent worktree
-  isolation in a GWZ workspace (D3).
+  isolation in a GWZ workspace until S3.5 lifts that rule (D3).
 - **S4.3: pointers** *(gwz-dev `README.md` and `AGENTS_GWZ.md`; ~10 lines)*.
   One paragraph each pointing at the docs page, next to the existing install
   and clone instructions.
@@ -432,11 +479,14 @@ targets, not limits.
 ```
 S0.1 -> { S1.0, S1.1 } -> S1.2 -> S1.3 -> S1.4
 S1.3 -> { S2.1, S2.2, S2.3, S3.1, S3.2, S3.4 } -> S3.3 -> { S4.1, S4.2, S4.3 } -> S5.1
+{ S2.3, S3.3, GwzLaneCleanFixes R0 in an installed gwz } -> S3.5 -> revisions of S3.4, S4.1, S4.2
 ```
 
 S1.0 and S1.1 are independent of each other. S2.x, S3.1, S3.2 and S3.4 are
 independent of each other and can be picked up by different agents; S4.x
-waits for their evidence so the docs describe measured behaviour.
+waits for their evidence so the docs describe measured behaviour. S3.5 waits
+on gwz-core work outside this plan; nothing else waits on S3.5, and its
+revisions follow whenever it lands.
 
 ## 6. Open items
 
@@ -453,6 +503,12 @@ waits for their evidence so the docs describe measured behaviour.
   "invalid gitfile format" for any directory under `$HOME` that is not inside
   a repository. D2 handles the script's own check; S1.3 confirms Claude
   Code's outside-any-repository check is not confused by it either.
+- O5. A session may write Claude state inside its lane, for example under
+  `.claude/`. Under GwzLaneCleanFixes R8 that is changed ignored data, so the
+  lane would still refuse after integration. That document leaves open
+  whether such state is user work or tool state (its section 6). S3.5 records
+  whether sessions write it, and the answer decides whether Claude lanes can
+  dispose in one command.
 
 ## 7. Adoption trail
 
@@ -468,3 +524,9 @@ waits for their evidence so the docs describe measured behaviour.
   and F17 into S4.1 and section 1; F18 into D2. Old O1 and O2 are resolved
   by D5 and S3.4; the open items were renumbered. Awaiting the operator's
   adoption.
+- 2026-09-17: updated at the operator's request for the lane disposal
+  clean-up requirements, gwz-core `dev-docs/GwzLaneCleanFixes.md` (R0 to
+  R19). Section 1 records that every verbatim lane has refused disposal, even
+  after its merge. U6, D3, D7, S1.0, S1.3, S2.3, S3.1, S3.3, S3.4, S4.1, S4.2
+  and the dependency sketch now cite those requirements; S3.5 and O5 are new.
+  Not reviewed; still awaiting the operator's adoption.
