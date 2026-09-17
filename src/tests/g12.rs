@@ -421,12 +421,89 @@ fn local_list_and_disband_carry_only_the_op() {
     assert_eq!(list.name, None);
     assert_eq!(list.keep, None);
     assert!(list.force_hazards.is_empty());
+    assert_eq!(list.wait_seconds, None);
 
     let disband = local_family(&["local", "disband"]);
     assert_eq!(disband.op, gwz_core::LocalFamilyOp::Disband);
     assert_eq!(disband.name, None);
     assert_eq!(disband.keep, None);
     assert!(disband.force_hazards.is_empty());
+    assert_eq!(disband.wait_seconds, None);
+}
+
+/// GwzLaneCleanFixes R20/R21: `--owner <token>` and `--wait <secs>` travel on
+/// the create, and `--wait` on every other family verb. Absent means absent:
+/// a create with neither is byte-for-byte the request this CLI always sent.
+#[test]
+fn local_owner_and_wait_travel_on_every_family_verb() {
+    let plain = clone_local(&["local", "clone", "A"]);
+    assert_eq!(plain.owner, None);
+    assert_eq!(plain.wait_seconds, None);
+
+    let owned = clone_local(&[
+        "local",
+        "clone",
+        "A",
+        "--owner",
+        "claude-code:session_7",
+        "--wait",
+        "120",
+    ]);
+    assert_eq!(owned.owner.as_deref(), Some("claude-code:session_7"));
+    assert_eq!(owned.wait_seconds, Some(120));
+
+    // `--wait 0` is not "no wait": it is one attempt, and it must reach core
+    // as a value rather than as absence.
+    assert_eq!(
+        clone_local(&["local", "clone", "A", "--wait", "0"]).wait_seconds,
+        Some(0)
+    );
+
+    for args in [
+        &["local", "list", "--wait", "30"][..],
+        &["local", "disband", "--wait", "30"][..],
+        &["local", "dispose", "C", "--wait", "30"][..],
+        &["local", "dispose", "C", "--keep", "--wait", "30"][..],
+    ] {
+        assert_eq!(
+            local_family(args).wait_seconds,
+            Some(30),
+            "{}",
+            args.join(" ")
+        );
+    }
+    assert_eq!(local_family(&["local", "list"]).wait_seconds, None);
+}
+
+/// R20/R21: the shapes that would be misread refuse at parse. The owner
+/// alphabet is `gwz_family_model::OwnerToken`'s, checked here as the earlier
+/// answer and again by core.
+#[test]
+fn local_owner_and_wait_refuse_shapes_the_model_does_not_admit() {
+    for args in [
+        &["local", "clone", "A", "--owner", ""][..],
+        &["local", "clone", "A", "--owner", "lane one"][..],
+        &["local", "clone", "A", "--owner", "lane/one"][..],
+        &["local", "clone", "A", "--owner", "café"][..],
+    ] {
+        assert!(parse(args).is_err(), "{}", args.join(" "));
+    }
+    let long = "a".repeat(129);
+    assert!(parse(&["local", "clone", "A", "--owner", &long]).is_err());
+    assert!(
+        clone_local(&["local", "clone", "A", "--owner", &"a".repeat(128)])
+            .owner
+            .is_some()
+    );
+
+    for args in [
+        &["local", "clone", "A", "--wait", "-1"][..],
+        &["local", "clone", "A", "--wait", "soon"][..],
+        &["local", "list", "--wait", "-1"][..],
+        &["local", "dispose", "C", "--wait", "1.5"][..],
+    ] {
+        assert!(parse(args).is_err(), "{}", args.join(" "));
+    }
 }
 
 /// The four dispose rows of the §7 table, field for field.
@@ -962,6 +1039,7 @@ fn entry(
         observed_state: observed,
         path: path.to_owned(),
         last_error: last_error.map(ToOwned::to_owned),
+        owner: None,
     }
 }
 
@@ -1051,6 +1129,51 @@ C     checkout  ready  ../gwz-dev-C
 D     checkout  ready  ../gwz-dev-D
 hub   bare      ready  ../gwz-dev-hub"
     );
+}
+
+/// GwzLaneCleanFixes R20: the `owner` column exists only when some member
+/// records a token, so design §8.1's four columns above are unchanged for
+/// every family that predates owned lanes. One owned row adds the column for
+/// every row, and a row without a token shows `-`.
+#[test]
+fn local_list_shows_the_owner_column_only_when_some_member_records_one() {
+    let owned = |name: &str, path: &str, owner: Option<&str>| {
+        let mut row = ready(name, gwz_core::LocalMemberKind::Checkout, path);
+        row.owner = owner.map(ToOwned::to_owned);
+        row
+    };
+    let response = list_response(vec![
+        owned("root", ".", None),
+        owned("A", "../gwz-dev-A", Some("claude-code:session_7")),
+        owned("C", "../gwz-dev-C", None),
+    ]);
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "\
+root  checkout  ready  -                      .
+A     checkout  ready  claude-code:session_7  ../gwz-dev-A
+C     checkout  ready  -                      ../gwz-dev-C"
+    );
+
+    // Not one member records a token: the four columns of §8.1, unchanged.
+    let unowned = list_response(vec![
+        owned("root", ".", None),
+        owned("A", "../gwz-dev-A", None),
+    ]);
+    assert_eq!(
+        render_response(&unowned, OutputMode::Human),
+        "\
+root  checkout  ready  .
+A     checkout  ready  ../gwz-dev-A"
+    );
+
+    // And the token reaches machine output verbatim, `null` where absent.
+    let json: serde_json::Value =
+        serde_json::from_str(&render_response(&response, OutputMode::Json)).unwrap();
+    let members = json["local_family_members"].as_array().unwrap();
+    assert_eq!(members[0]["owner"], serde_json::Value::Null);
+    assert_eq!(members[1]["owner"], "claude-code:session_7");
+    assert_eq!(members[2]["owner"], serde_json::Value::Null);
 }
 
 /// Design §8.1's absolute paths are literal, not the driver's guess: the
@@ -1210,6 +1333,7 @@ fn local_list_json_carries_every_field_of_every_entry() {
             "observed_state": "ready",
             "path": ".",
             "last_error": null,
+            "owner": null,
         })
     );
     assert_eq!(
@@ -1221,6 +1345,7 @@ fn local_list_json_carries_every_field_of_every_entry() {
             "observed_state": "incomplete",
             "path": "../ws-B",
             "last_error": "copy interrupted at src/",
+            "owner": null,
         })
     );
     // The machine spelling is the human column's word, not a second mapping:

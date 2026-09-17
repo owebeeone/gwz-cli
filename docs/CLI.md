@@ -1537,7 +1537,16 @@ dirt and build directories included. The parser accepts --clean, --bare,
 -b and --from, but this build refuses those forms before copying.
 Keep the source quiet for the whole invocation.
 
-Usage: gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]
+A tool that makes lanes unattended has two options of its own. --owner
+<token> records an opaque caller token on the new member row, written by the
+same index write that reserves the row, reported by `gwz local list`, never
+changed afterwards and never interpreted by GWZ. --wait <secs> keeps
+retrying a busy family lock until the deadline, so two invocations fired for
+one request queue instead of refusing each other; the one that waits rereads
+the family before acting, so it is answered by the lane the other one
+made.
+
+Usage: gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>] [--owner <token>] [--wait <secs>]
 
 Arguments:
   <name>
@@ -1577,6 +1586,26 @@ Options:
           or path instead of the current workspace. Accepts a family name recorded in the index or a
           filesystem path. Core resolves the token, and refuses one that names no readable source.
           The new clone is registered on the workspace root whichever member it was copied from.
+
+      --owner <token>
+          Record this opaque token on the new member's row, in the same index write that reserves
+          the row. Up to 128 bytes of `[A-Za-z0-9._:-]`. It is the caller's own identity for the
+          caller's own reuse decisions: GWZ stores it, reports it in `gwz local list` (a column, and
+          an `owner` field under --json), and never interprets, matches or acts on it. A row created
+          without --owner records none, and no later command ever sets, changes or clears a row's
+          token. Recording one makes the family index format 2, which gwz 1.0.14 and later read; an
+          older gwz refuses the whole index and says so.
+
+      --wait <secs>
+          Seconds to keep retrying a busy family lock before reporting it busy. The family lock is
+          held for the whole of a create, a dispose or a disband, so two unattended invocations
+          fired for one request would otherwise refuse each other outright. GWZ retries the try-lock
+          at a short fixed interval until the deadline; there is no blocking acquisition, so the
+          wait stays portable and is bounded by the number you give. Omit it and a busy lock refuses
+          immediately, exactly as before. A wait that wins the lock rereads the index before acting,
+          so a create that waited behind another create of the same name is answered by the family
+          that create left, not by a stale view. `gwz local list` takes no lock and accepts this
+          option without effect.
 
   -h, --help
           Print help (see a summary with '-h')
@@ -1671,11 +1700,17 @@ Global Options:
 
 Examples:
   gwz local clone A ../gwz-dev-A
+  gwz local clone A --owner claude-code:session_7 --wait 120
 
 `root`, `origin` and Git's reserved ref names are refused as member names, and
 so is a name already recorded in the family. A verbatim copy is refused while
 the source has an open coordinated merge: finish or abort it first.
 --clean, --bare, -b and --from are reserved and unsupported in this build.
+
+--owner <token> takes up to 128 bytes of [A-Za-z0-9._:-] and is recorded on
+the row, reported, and never interpreted. --wait <secs> retries a busy family
+lock until the deadline. The first index write by a gwz that supports --owner
+makes the family index format 2, which gwz 1.0.14 and later read.
 ```
 
 ### `gwz local list`
@@ -1697,12 +1732,23 @@ unobserved). They are shown as one word while they agree and as
 interrupted disposal is visible without a second command. Any diagnostic the
 index recorded for a member is shown beside its row.
 
+An `owner` column appears when any member records the opaque token a
+`gwz local clone --owner <token>` wrote; rows without one show `-`. A family
+in which nobody recorded a token renders the four columns above unchanged.
+
 The listing performs no repair and takes no lock; --json and --jsonl carry
-every field of every row.
+every field of every row, `owner` included (null when the row records
+none). --wait is accepted here and ignored, since there is no lock to wait
+for.
 
 Usage: gwz local list [OPTIONS]
 
 Options:
+      --wait <secs>
+          Accepted and ignored. `gwz local list` is observation-only and takes no family lock, so
+          there is nothing to wait for; the option exists here so a wrapper may pass --wait to every
+          family verb uniformly.
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -1798,7 +1844,8 @@ Example:
   gwz local list
   gwz local list --json
 
-Output columns: name, kind, state, path. The state column is one word while
+Output columns: name, kind, state, path, plus owner when any member records
+one and last_error when any member carries one. The state column is one word while
 the recorded row and the directory agree, and `recorded/observed` when they do
 not — `creating/incomplete` for an interrupted create, for instance. A member
 that recorded a diagnostic gets a fifth column carrying it.
@@ -1825,11 +1872,14 @@ incomplete or interrupted member is retained rather than force-deleted.
 the index row, so the tree, its open merge and its history stay on disk and
 remain usable as an ordinary workspace.
 
+`--wait <secs>` keeps retrying a busy family lock until the deadline instead
+of refusing at once.
+
 The workspace root is never disposed, and neither is the member you are
 standing in.
 
-Usage: gwz local dispose <name> [--keep]
-       gwz local dispose <name> --force <hazard,...>
+Usage: gwz local dispose <name> [--keep] [--wait <secs>]
+       gwz local dispose <name> --force <hazard,...> [--wait <secs>]
 
 Arguments:
   <name>
@@ -1847,6 +1897,17 @@ Options:
           Detach only: remove the pointer and the index row. The member's entire tree, its open
           merge and its history stay on disk and remain usable as an ordinary workspace. Mutually
           exclusive with --force.
+
+      --wait <secs>
+          Seconds to keep retrying a busy family lock before reporting it busy. The family lock is
+          held for the whole of a create, a dispose or a disband, so two unattended invocations
+          fired for one request would otherwise refuse each other outright. GWZ retries the try-lock
+          at a short fixed interval until the deadline; there is no blocking acquisition, so the
+          wait stays portable and is bounded by the number you give. Omit it and a busy lock refuses
+          immediately, exactly as before. A wait that wins the lock rereads the index before acting,
+          so a create that waited behind another create of the same name is answered by the family
+          that create left, not by a stale view. `gwz local list` takes no lock and accepts this
+          option without effect.
 
   -h, --help
           Print help (see a summary with '-h')
@@ -1942,6 +2003,7 @@ Global Options:
 Examples:
   gwz local dispose C
   gwz local dispose C --keep
+  gwz local dispose C --keep --wait 60
   gwz local dispose C --force unpreserved-history
   gwz local dispose C --force open-merge,dirty,unpreserved-history
 
@@ -1963,11 +2025,23 @@ resolving afterwards, so `--remote <name>` on pull, push and merge falls back
 to ordinary Git remote resolution.
 
 Disband may be repeated after an error; it never routes a remaining row through
-directory deletion.
+directory deletion. `--wait <secs>` keeps retrying a busy family lock until
+the deadline instead of refusing at once.
 
 Usage: gwz local disband [OPTIONS]
 
 Options:
+      --wait <secs>
+          Seconds to keep retrying a busy family lock before reporting it busy. The family lock is
+          held for the whole of a create, a dispose or a disband, so two unattended invocations
+          fired for one request would otherwise refuse each other outright. GWZ retries the try-lock
+          at a short fixed interval until the deadline; there is no blocking acquisition, so the
+          wait stays portable and is bounded by the number you give. Omit it and a busy lock refuses
+          immediately, exactly as before. A wait that wins the lock rereads the index before acting,
+          so a create that waited behind another create of the same name is answered by the family
+          that create left, not by a stale view. `gwz local list` takes no lock and accepts this
+          option without effect.
+
   -h, --help
           Print help (see a summary with '-h')
 

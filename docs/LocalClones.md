@@ -201,6 +201,20 @@ that is in no family answers `no local clone family members`, which is an
 answer, not an error. The state column is explained on the
 [command page](commands/local.md#the-state-column).
 
+A lane made by a tool can carry that tool's own token, recorded with
+`gwz local clone --owner <token>` and reported here in an extra column that
+appears only when some member has one:
+
+```text
+root  checkout  ready  -                      /Users/you/work/demo
+A     checkout  ready  claude-code:session_7  /Users/you/work/demo-A
+```
+
+gwz stores and reports the token and never interprets it; the
+[command page](commands/local.md#lanes-made-by-a-tool) covers it, together
+with `--wait <secs>`, which makes a busy family lock queue instead of
+refusing.
+
 ### 3. Integrate
 
 Back at the root (or in any other lane), merge the lane's work by name:

@@ -97,7 +97,15 @@ pub(crate) fn member_path(root_path: Option<&str>, path: &str) -> String {
     buffer.to_string_lossy().into_owned()
 }
 
-/// The human listing: `name  kind  state  path`, column-aligned, plus a
+/// What the `owner` column prints for one row: the recorded token, or `-`
+/// for a row that records none (GwzLaneCleanFixes R20). The token is
+/// reported exactly as the index carries it and is never parsed, matched or
+/// abbreviated here; its alphabet excludes whitespace, so it is always one
+/// column and can never forge a second.
+pub(crate) const NO_OWNER: &str = "-";
+
+/// The human listing: `name  kind  state  path`, column-aligned, plus an
+/// `owner` column that exists only when some row records one (R20) and a
 /// trailing `last_error` column that exists only when some row carries one
 /// (design §7 makes it optional, and a family with nothing wrong must render
 /// exactly the four columns of §8.1). `root_path` is the response's own
@@ -122,6 +130,18 @@ pub(crate) fn render_local_family_members(
             .map(|entry| member_kind_word(entry.kind).chars().count()),
     );
     let state_width = width(&mut states.iter().map(|state| state.chars().count()));
+    // A family in which nobody recorded an owner renders design §8.1's four
+    // columns exactly; one owned row adds the column for every row.
+    let owners: Vec<&str> = members
+        .iter()
+        .map(|entry| entry.owner.as_deref().unwrap_or(NO_OWNER))
+        .collect();
+    let any_owner = members.iter().any(|entry| entry.owner.is_some());
+    let owner_width = if any_owner {
+        width(&mut owners.iter().map(|owner| owner.chars().count()))
+    } else {
+        0
+    };
     let any_error = members.iter().any(|entry| entry.last_error.is_some());
     // Alignment is computed on what is printed, so a joined path column lines
     // up the way a relative one does.
@@ -135,13 +155,17 @@ pub(crate) fn render_local_family_members(
         .iter()
         .zip(states.iter())
         .zip(paths.iter())
-        .map(|((entry, state), path)| {
+        .zip(owners.iter())
+        .map(|(((entry, state), path), owner)| {
             let mut line = format!(
                 "{:name_width$}  {:kind_width$}  {:state_width$}  ",
                 entry.name,
                 member_kind_word(entry.kind),
                 state,
             );
+            if any_owner {
+                line.push_str(&format!("{owner:owner_width$}  "));
+            }
             match &entry.last_error {
                 // A diagnostic is one line: a recorded newline would otherwise
                 // forge a row of its own in a listing consumers read by line.
@@ -177,5 +201,8 @@ pub(crate) fn local_family_member_json(
         "observed_state": observed_state_word(entry.observed_state),
         "path": entry.path,
         "last_error": entry.last_error,
+        // R20: the row's opaque owner token, `null` when it records none.
+        // Reported verbatim; gwz never interprets it.
+        "owner": entry.owner,
     })
 }

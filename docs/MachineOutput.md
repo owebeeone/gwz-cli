@@ -560,6 +560,14 @@ Read-only listing commands render listing objects with `--json` or `--jsonl`.
 `local_family_root_path`; see the
 [`gwz local` command page](commands/local.md#machine-output).
 
+Each row carries `name`, `kind`, `recorded_state`, `observed_state`, `path`,
+`last_error` and `owner`. `owner` is the opaque token a
+`gwz local clone --owner <token>` recorded on that row, reported verbatim and
+never interpreted by gwz; it is `null` for the root, for a row created without
+`--owner`, and for every row of a family index still in format 1. It is
+written once, by the index write that reserves the row, and no command
+changes it afterwards. `path` stays relative to `local_family_root_path`.
+
 ## Push JSON
 
 `gwz --json push` renders one member entry per selected repository, the root

@@ -23,7 +23,16 @@ by this build. There is no URL and no network. The destination defaults to
 Only verbatim cloning is supported: it copies the source tree as it sits,
 dirt and build directories included. The parser accepts --clean, --bare,
 -b and --from, but this build refuses those forms before copying.
-Keep the source quiet for the whole invocation.";
+Keep the source quiet for the whole invocation.
+
+A tool that makes lanes unattended has two options of its own. --owner
+<token> records an opaque caller token on the new member row, written by the
+same index write that reserves the row, reported by `gwz local list`, never
+changed afterwards and never interpreted by GWZ. --wait <secs> keeps
+retrying a busy family lock until the deadline, so two invocations fired for
+one request queue instead of refusing each other; the one that waits rereads
+the family before acting, so it is answered by the lane the other one
+made.";
 
 pub(crate) const LOCAL_LIST_LONG: &str = "\
 List the local clone family recorded on the workspace root.
@@ -40,8 +49,14 @@ unobserved). They are shown as one word while they agree and as
 interrupted disposal is visible without a second command. Any diagnostic the
 index recorded for a member is shown beside its row.
 
+An `owner` column appears when any member records the opaque token a
+`gwz local clone --owner <token>` wrote; rows without one show `-`. A family
+in which nobody recorded a token renders the four columns above unchanged.
+
 The listing performs no repair and takes no lock; --json and --jsonl carry
-every field of every row.";
+every field of every row, `owner` included (null when the row records
+none). --wait is accepted here and ignored, since there is no lock to wait
+for.";
 
 pub(crate) const LOCAL_DISPOSE_LONG: &str = "\
 Dispose of one local family member.
@@ -60,6 +75,9 @@ incomplete or interrupted member is retained rather than force-deleted.
 the index row, so the tree, its open merge and its history stay on disk and
 remain usable as an ordinary workspace.
 
+`--wait <secs>` keeps retrying a busy family lock until the deadline instead
+of refusing at once.
+
 The workspace root is never disposed, and neither is the member you are
 standing in.";
 
@@ -72,4 +90,5 @@ resolving afterwards, so `--remote <name>` on pull, push and merge falls back
 to ordinary Git remote resolution.
 
 Disband may be repeated after an error; it never routes a remaining row through
-directory deletion.";
+directory deletion. `--wait <secs>` keeps retrying a busy family lock until
+the deadline instead of refusing at once.";
