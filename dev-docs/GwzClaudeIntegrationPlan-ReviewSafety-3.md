@@ -1,0 +1,89 @@
+# GwzClaudeIntegrationPlan.md — SAFETY-AXIS REVIEW (round 3, final)
+
+**Review object:** `/Users/owebeeone/limbo/gwz-dev/gwz-cli/dev-docs/GwzClaudeIntegrationPlan.md`, sha256 `ecb2fc925e4d1bc21c2f1ab6338395769fb8834531af7fd918e6c444463a290b`, 819 lines, uncommitted working-tree file. Verified identical at the start and the end of this review.
+**Baseline:** gwz-dev root HEAD `5152f637c4a2169b15e0c7d97393b1ed3a2afe28`; gwz-cli HEAD `865f89c5787b5e1470415a718003dc4682f448a7`; gwz-core HEAD `0f1aad6f0b9c687a315afc11c78b22472feb88e8` — unchanged across all three rounds, re-verified at start and end. Sources: the changed ranges of the object read in full (Goal, U4, D5, D6, D7-D11, S1.1, S1.2), plus `GwzClaudeIntegrationPlan-RemPlan-2.md`. The other axis's round-2 and round-3 material exists in the tree and was **not** read; the RemPlan-2 header does state that axis's classification, which I take as given context and not as evidence. Round-1 tool evidence (`gwz --version` 1.0.13, `gwz local clone --help`, `gwz local dispose --help`, `gwz local list`, `git check-ignore -v .gwz/x`, `df -g .`, `LocalClones.md`, `GwzLaneIssues.md` L1/L2, `GwzLaneCleanFixes.md`) carries forward on an unmoved tree. Read-only throughout.
+**Date:** 2026-09-17
+**Axis:** Safety: what the text permits to go wrong. Independent, adversarial, read-only. The other axis runs in parallel; nothing here relies on it. Filed verbatim by the lane owner.
+
+**Verdict: GO** on sha256 `ecb2fc92…` — all three round-2 findings closed; **no new architectural root cause**; one new non-blocking P3 (an implementation note about re-entrant lock acquisition, which the first test in S1.1 would surface). No P0, P1 or P2 is open.
+
+---
+
+## Prior-finding closure table
+
+| ID | Disposition claimed | Verified on corrected tree | Status |
+| --- | --- | --- | --- |
+| P2-1 (`.worktreeinclude` copy could overwrite untracked edits on fallback reuse) | The copy runs only for a worktree this invocation created; on reuse nothing is written and a missing listed file is reported on stderr, not supplied; lane completeness check writes nothing; pattern semantics named | D8:356-361 — "performed by the hook **only for a worktree this invocation created** (the same gitignore-style patterns Claude documents, matched against the project root's untracked files); on reuse nothing is written, and a listed file missing from the reused worktree is reported on stderr, not supplied". S1.1:476 repeats the scoping in the step's own sequence. D6:308 adds that the lane completeness check "reads and writes nothing". Re-traced my sequence: at step 4 (second `claude --worktree api` on a worktree whose `.env` the first session edited) the hook now reuses and writes nothing, so the edited file survives; a listed file the session deleted is reported, not silently restored. The unrecoverable-loss path is closed at its only link. Tests at S1.1:519-521 assert both directions (modified file byte-identical after reuse; deleted file reported and not recreated) | **Verified — forbidden** |
+| P2-2 (guards evaluated before reuse → a parallel handler aborts a creation the first completed, leaving an orphan lane) | Reuse evaluated before the guards; a same-session reuse consumes nothing and skips both; D5 names the orphan case that remains (stale `--command`) with S3.4 as its inventory | D6:296-298 — "The guards apply only to an invocation that will create; the reuse rule is evaluated first, under the family lock, and a reuse consumes nothing, so it is never refused by a guard." S1.1:469-473 states the sequence in execution order (take the lock → reuse table → guards only for a create → clone → sidecar → release). D6:299-303 pins the lock discipline that makes the second handler's read well-defined: the lock is taken before the index is read and held until the `ready` row and the sidecar record are both committed, "so the two therefore become visible to any other holder of the lock together". Re-traced my boundary reproduction: family at 7 `ready` rows, `--max-lanes` 8, two differing handlers. A creates (now 8). B waits on the lock, and on acquiring it hits the reuse table first — `ready` row at the destination, record for this session, complete → reuse, print, exit zero. No guard is applied, no abort, no orphan. The single-handler variant (a session re-entering its own lane after free space fell below `--min-free-gb`) is closed by the same sentence. Tests at S1.1:503-508 assert exactly these three: the `--max-lanes` minus one case under differing handler text yielding one lane and two zero exits; same-session reuse below `--min-free-gb`; and "a guard refusal asserted to occur only when this invocation created nothing" | **Verified — forbidden** |
+| P3-1 (sidecar got none of the log's ignore-location protection; `ready`-with-no-record unenumerated) | D10's check covers every file the hooks write in the workspace, naming the sidecar; a sidecar location that would show in `git status` refuses creation with the L2 reason; `ready`-with-no-record added to D6's table | D10:419-428 — the check now fires "Before writing any file inside the workspace, the log or the session sidecar of D6", with the L2 and `dirty`-hazard rationale intact, and draws the right distinction between the two files: the log relocates to the user-level path, while "The sidecar cannot be relocated, since reuse depends on finding it beside the family, so a sidecar location that would appear in `git status` refuses creation with that reason". D6:319-322 adds the missing table row — a `ready` row at the destination with no sidecar record (a lane made by hand, by an older gwz, or by a hook interrupted between the row and the record) → "refuse, fail-closed; retire it through S3.4 or choose another name". Tests at S1.1:501-502 and 508-509 | **Verified — closed** |
+| Residual 1 (Goal parity sentence unqualified) — not a numbered finding, raised as a residual | Goal qualified to match D8 | Goal:26-29 now reads "laid out the way Claude Code lays it out by default, **as far as a hook can (D8 names what it cannot)**". The summary sentence and the specification no longer disagree | **Verified — closed** |
+
+---
+
+## Changed-range analysis
+
+- **Goal (26-29):** parity qualification added, pointing at D8. Within disposition.
+- **U4 (163-170):** the resolution is now explicitly made conditional on D6's lock sentence — "That holds because D6 commits the `ready` row and the session record under one family-lock hold; the resolution is conditional on that sentence." This is the right shape: a resolved unknown that names the invariant it depends on, so that weakening D6 later re-opens U4 visibly rather than silently.
+- **D5 (263-284):** names the lock, restates the second handler's path (waits → sees row and record together or neither → reuses before any guard → prints the same path), and then does what I asked and did not expect to get in full: it names the residual orphan case honestly — a parallel handler that refuses for a reason of its own (a pinned `--command` naming a binary without the `hook` family, or a malformed handler) still aborts a creation the first handler completed, "and that lane is an orphan whose inventory is `gwz local list` and whose retirement is S3.4", with `setup`'s warning required to name that consequence. That residual is irreducible without forbidding differing handlers outright; disclosing it with an inventory and a retirement route is the correct disposition for a plan.
+- **D6 (285-330):** the reuse-before-guards ordering, the lock-hold rule, and a complete eight-row outcome table (row state × sidecar state), each row carrying its remedy. I checked the table for completeness against the state space I can construct: no row / nothing at destination; no row / directory present; `creating` row (any sidecar); `ready` row with a differing path (any sidecar); `ready` row at the destination with no record, with another session's record, with this session's record and complete, and with this session's record and incomplete. That is every combination that matters, and exactly one of them creates, exactly one reuses, and the remaining six refuse.
+- **D8 (345-367):** the `.worktreeinclude` scoping, the pattern semantics, and a reasoned statement of why fallback reuse is *not* session-keyed while lane reuse is — cheap and recreatable, matches Claude's own default for a reused name, and `git worktree remove` without `--force` protects a dirty tree. That is precisely the asymmetry I flagged in round 2's invariant analysis, now decided rather than left implicit, with the two-session case added to S1.1's fallback tests (517-518).
+- **D9 (397, 400):** the two pointers moved from S1.3 to S2.1, matching where the desktop evidence is now gathered.
+- **D10 (419-428):** as above.
+- **S1.1 (465-529):** the create sequence is now written in execution order, which is what makes the ordering findings checkable; the test list carries every closure test from both remediation rounds, including the three I specified this round.
+- **Trail:** records the round-2 reviews, the convergence, and the architectural count.
+
+**Nothing changed outside the dispositions.** I found no edit unexplained by RemPlan-2, and no disposition was implemented in a weaker form than it was written.
+
+**New root causes:** one, below, and it is a P3. **No NEW ARCHITECTURAL root cause.** I looked specifically for one, since this is the last remediation round and that classification would stop the lane. The patch introduces no new mechanism: it orders two existing checks, extends an existing lock hold, scopes an existing copy, and extends an existing check to a second file. The structure that survived round 2 — one binary, two hook subcommands, a family-locked create, a sidecar for session ownership, a fail-closed reuse table — is unchanged, and every new sentence narrows behaviour rather than widening it. A narrowing patch cannot introduce an architectural root cause unless it narrows into a contradiction, and I found no contradiction: I re-derived the second handler's path, the timeout path, the interrupted-create path and the fallback reuse path against the new text and each terminates in exactly one of the eight enumerated outcomes.
+
+---
+
+## 0. Evidence base
+
+1. The object at sha256 `ecb2fc92…`, changed ranges read in full; line citations are to that file.
+2. `GwzClaudeIntegrationPlan-RemPlan-2.md`, read in full: seven dispositions, three of them mine, plus the Goal fix and the note that one architectural root cause has been counted against the object by the other axis.
+3. My round-2 report (`-ReviewSafety-2.md`), used only to re-trace my own state sequences.
+4. Round-1 tool evidence, still valid on an unmoved tree: the clone destination refusals and the `creating/incomplete` row; the dispose hazard set, the never-disposed root and the standing-in refusal; `LocalClones.md:75-78,104-110,127-128,166-172,401-408`; `git check-ignore -v .gwz/x` → `.git/info/exclude:4:/.gwz/` (the managed block, not a tracked rule — the fact D10's new sidecar rule turns on); `df -g .` → 37 GB available; `GwzLaneIssues.md` L1 (28 lanes, every one refused) and L2 (an untracked file in a receiving member blocks every lane merge); `GwzLaneCleanFixes.md` R0/R0.1/R8.
+
+---
+
+## 1. Findings
+
+### [P3-1] The create hook is specified to hold the family lock across an in-process `gwz local clone`, which itself takes that lock
+
+**Location:** D6:299-303 — "The hook takes the family lock before it reads the index and holds it until the clone has committed the `ready` row and the hook has written its own session record"; S1.1:469-473 — "takes the family lock, evaluates the reuse table first and then … runs the local clone in process … writes the sidecar record, releases the lock"; against section 1:108-112, which records that `gwz local clone` takes the family lock itself and that family commands serialise on it.
+
+**Root cause.** The lock-hold rule was written to make the `ready` row and the sidecar record atomic to another holder, which is correct and is what closes P2-2 and the other axis's architectural finding. But the operation the hook performs while holding the lock is the very command that acquires it, and the text says nothing about how the inner acquisition is satisfied.
+
+**Violated invariant.** A stated lock discipline must say how a nested acquisition of the same lock is resolved — by re-entrancy, by passing the guard into the inner call, or by an inner API that assumes the lock is already held.
+
+**Consequence.** An implementer who reads S1.1 literally — take the lock, then call the clone — writes a self-deadlock. The hook then blocks until Claude's 600-second command timeout, Claude aborts creation, and the family lock is released only by process death, potentially leaving a `creating` row that D6's table correctly refuses thereafter. No corruption and no loss: the failure is a hang, it is deterministic, and S1.1's very first test ("a workspace … lane path printed and canonical") would hit it on the first run, before any of this reaches a real session.
+
+**Required correction.** One clause in D6 or S1.1: the in-process clone call inherits the hook's lock guard and does not re-acquire it (or, if gwz-core's in-process API cannot take a held guard, the hook acquires the lock only around the index read and the sidecar write, and relies on the clone's own hold in between — in which case D6 must say that the row and the record are committed under the clone's hold, since the atomicity argument U4 now depends on is what the sentence exists to provide).
+
+**Closure test.** No new test is needed: S1.1's existing workspace-creation test fails by timeout if the nesting is unresolved. If the second form of the correction is chosen, add an assertion that no other family command observes a `ready` row without its sidecar record.
+
+**Blocking:** no. This is a P3 and the verdict is GO with it open; it is recorded so the implementer meets it in the text rather than in a hung test.
+
+---
+
+## 2. Invariant analysis
+
+- **Every safety invariant I have asserted across three rounds now has a sentence in the document and a test in S1.1.** The create hook prints only a path it created or verified (D1); the remove hook deletes only what `worktree_path` canonically names, from outside the lane, against exactly one matching `ready` row (D8); no `--force` and no `--keep` ever (D3); reuse only for a complete, ready, same-session lane, with every other combination fail-closed (D6's table); no file written into a tree the hook did not make (D8, D6:308); no file written where it would show in `git status` (D10). That is the complete set for this object.
+- **The fail-closed direction is consistent.** Of D6's eight outcomes, six refuse, one creates and one reuses. Every refusal keeps a lane and loses nothing; the cost of the conservatism is an aborted creation with a named remedy, which is the right trade for an unattended hook. I specifically checked that no refusal path deletes, waives, or overwrites anything: none does.
+- **The two residual unsafe-ish behaviours are now decisions, not gaps.** Fallback worktrees are shared between same-slug sessions (D8:351-356, with three reasons and a test), and a parallel handler that refuses for its own reason orphans a lane (D5:274-281, with an inventory and a retirement route). Both are disclosed where an implementer and a user will meet them. A plan is entitled to accept a bounded risk it has named; these are named.
+- **Nothing in the text permits an unattended step to reach the main workspace.** Re-derived for the last time against the final text: the remove hook canonicalises, resolves through `.gwz/family-root`, requires a unique `ready`-row path match, runs dispose with an explicit `--root` from the family root, never `--force`; gwz refuses the root and the standing-in member underneath that. Two independent barriers, the outer one now the plan's own.
+- **Deferred as instructed**, and deliberately not reported: the merits of D1–D11; whether R0–R19 are right; Windows detail (Phase 5); the object being uncommitted.
+
+---
+
+## 3. Risks and next action
+
+**Live risks carried into implementation, none blocking.**
+
+1. *S1.4 commits routine lane creation before GwzLaneCleanFixes R0.* Unchanged by design and surfaced at the step where the operator decides, with the one-line alternative named. This remains the largest real-world risk in the plan: until R0, every Claude-created lane is retired through the L1 waiver (`--force dirty,unpreserved-history` after a 112-entry manual comparison). My round-2 judgement stands: adequate for a plan.
+2. *`--max-lanes` 8 plus undisposable verbatim lanes.* The steady state before R0 is that the workspace reaches the ceiling and refuses further creations with a message naming S3.4. That is the correct failure — a clean refusal instead of the 2026-09-11 disk-full incident — but it will be met, and S4.1 should read as if it is expected rather than exceptional.
+3. *O5 remains load-bearing.* If session-written `.claude/` state inside a lane counts as user work under R8, R0 never yields a one-command dispose for a Claude lane and S3.5's milestone is unreachable.
+4. *P3-1 above,* which the first test run will surface.
+
+**Next action.** GO. Three rounds, twelve safety findings, all closed: the round-1 P1 and six P2s, the two round-2 P2s, and the two P3s from each round, each verified by re-tracing the original state sequence against the new text rather than by accepting the disposition. The object is fit to hand to implementers on the safety axis. I have no open blocking finding and I found no architectural root cause in the final patch; the classification the other axis applied in round 2 is theirs and I neither confirm nor contest it. The single P3 above should be folded by the implementer of S1.1 at the moment they write the lock acquisition.
