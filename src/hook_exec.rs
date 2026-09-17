@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use crate::hook::env::HookEnv;
 use crate::hook::{
     CreateInput, HookContext, HookFailure, HookSuccess, LogRecord, RemoveInput, SystemEnv,
-    parse_create_input, parse_remove_input, resolve_log_location, run_worktree_create,
+    parse_create_input, parse_remove_input, resolve_log_location, run_setup, run_worktree_create,
     run_worktree_remove, write_log,
 };
 use crate::*;
@@ -131,6 +131,28 @@ fn report(
                 location,
                 &LogRecord::refusal(event, name, session_id, &failure),
             );
+            1
+        }
+    }
+}
+
+/// `gwz claude-code setup`: ordinary output on stdout, refusals on stderr.
+pub(crate) fn run_claude_code_setup(
+    request: &crate::hook::setup::SetupRequest,
+    start_dir: &Path,
+) -> i32 {
+    let env = SystemEnv;
+    let root = gwz_core::workspace::discover_workspace_root(start_dir)
+        .ok()
+        .or_else(|| crate::hook::ignore::enclosing_repository(start_dir));
+    match run_setup(&env, root.as_deref(), request) {
+        Ok(output) => {
+            println!("{}", output.block);
+            eprintln!("gwz: {}", output.note);
+            0
+        }
+        Err(failure) => {
+            eprintln!("{}", failure.line());
             1
         }
     }

@@ -30,7 +30,7 @@ Change:     add  commit  branch  tag  stash  merge  pull  push
 Workspace:  init  clone  snapshot  capture  materialize
 Members:    repo add|create|clone|detach|attach|sync
 Lanes:      local clone|list|dispose|disband
-Other:      auth  forall  hook
+Other:      auth  forall  hook  claude-code
 
 Selection (default: root and every member):
   --root PATH       Workspace to operate in (default: current directory)
@@ -632,6 +632,279 @@ Global Options:
           Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
           timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
           hang forever. 0 disables the timeout. Defaults to 3.
+```
+
+### `gwz claude-code`
+
+Command page: [claude-code](commands/claude-code.md).
+
+```text
+Set this machine up to run GWZ's Claude Code hooks.
+
+`gwz claude-code setup` prints the hooks block, and with --write merges it
+into `.claude/settings.json` of the workspace root (--project), its
+`settings.local.json` (--project --local), or `~/.claude/settings.json`
+(--user).
+
+Usage: gwz claude-code [OPTIONS] <COMMAND>
+
+Commands:
+  setup  Print the Claude Code hooks block, and with --write merge it into a settings file
+  help   Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
+
+      --target <selector>
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+```
+
+### `gwz claude-code setup`
+
+Command page: [claude-code](commands/claude-code.md).
+
+```text
+Print the Claude Code hooks block, and with --write merge it into a settings
+file.
+
+The block carries one WorktreeCreate handler and one WorktreeRemove handler,
+each with its own timeout. Inside a workspace the timeouts and the handlers'
+--wait-secs are computed from the same run-time estimate the create hook uses;
+outside one they are the compiled-in defaults.
+
+The default handler is the bare command `gwz hook ...`, resolved through PATH,
+so a committed project block is machine-independent and identical everywhere,
+which is what Claude Code's same-handler dedupe keys on. --command pins an
+absolute binary instead, for a machine whose desktop app cannot see `gwz` on
+its PATH.
+
+--write edits another program's configuration, so it parses the existing file
+first and refuses one that does not parse or is not a regular file; writes a
+temporary file beside the target, fsyncs it, re-parses it and renames it over
+the original; changes no byte outside the inserted block; creates the file when
+it is absent; and does nothing when the block is already there.
+
+Usage: gwz claude-code setup [OPTIONS]
+
+Options:
+      --project
+          Use the workspace root's .claude/settings.json
+
+      --user
+          Use ~/.claude/settings.json
+
+      --local
+          With --project, use settings.local.json instead
+
+      --write
+          Merge the block into the file; without it the block is only printed
+
+      --command <PATH>
+          Pin an absolute gwz binary in the handler instead of the bare `gwz`
+
+      --min-free-gb <gb>
+          Refuse a creation when free space on the filesystem holding the destination's parent is
+          below this many gigabytes. It is a floor applied on top of the copy-cost estimate, never a
+          replacement for it.
+
+      --max-lanes <n>
+          Refuse a creation once the family holds this many ready lanes (default 8)
+
+      --wait-secs <secs>
+          Deadline for the attempt loop and for a removal's family lock (default 300)
+
+      --base-ref <ref>
+          Base for the fallback git worktree (default origin/<default-branch>, else HEAD)
+
+      --log <path>
+          Write the hook log here instead of the fixed location
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
+
+      --target <selector>
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz claude-code setup --project
+  gwz claude-code setup --project --local --write
+  gwz claude-code setup --user --write --command /usr/local/bin/gwz
+
+One placement is the recommendation. Two placements are harmless when the
+handler text is identical, because Claude Code runs an identical handler once;
+two differing handlers both run, and a refusal by either orphans the lane the
+other created.
 ```
 
 ### `gwz clone`
@@ -1375,6 +1648,8 @@ canonically names. Nothing else is ever printed, and nothing else is ever
 deleted. Every failure is one line on standard error, `gwz: <cause>; <remedy>`,
 and a non-zero exit with nothing on standard output.
 
+Write the settings block with `gwz claude-code setup`.
+
 Usage: gwz hook claude-code [OPTIONS] <COMMAND>
 
 Commands:
@@ -1475,6 +1750,7 @@ Global Options:
           hang forever. 0 disables the timeout. Defaults to 3.
 
 Examples:
+  gwz claude-code setup --project --local --write
   echo '{"name":"fix-123","session_id":"abc"}' | gwz hook claude-code worktree-create
 
 Each hook logs one line per decision: to `<root>/.gwz/claude-hooks.log` in a

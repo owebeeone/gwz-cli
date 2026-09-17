@@ -118,6 +118,7 @@ fn command_page(path: &[String]) -> Option<&'static str> {
         Some("add") => Some("add"),
         Some("branch") => Some("branch"),
         Some("capture") => Some("capture"),
+        Some("claude-code") => Some("claude-code"),
         Some("clone") => Some("clone"),
         Some("commit") => Some("commit"),
         Some("diff") => Some("diff"),

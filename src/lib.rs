@@ -208,11 +208,17 @@ pub fn run() {
                     }
                 }
             }
-            // The Claude Code hook owns its whole lifecycle: the payload
+            // The Claude Code hooks own their whole lifecycle: the payload
             // on stdin, one line of stdout, one line of stderr and the exit
             // code Claude reads (D1).
             if let CliRequest::Hook(hook) = &invocation.request {
                 std::process::exit(hook_exec::run_hook(hook, invocation.start_dir.as_path()));
+            }
+            if let CliRequest::ClaudeCodeSetup(setup) = &invocation.request {
+                std::process::exit(hook_exec::run_claude_code_setup(
+                    setup,
+                    invocation.start_dir.as_path(),
+                ));
             }
             // Log owns a finite core spool and writes its no-pager plumbing
             // response through an EPIPE-aware sink. S3.2/S3.3 replace the

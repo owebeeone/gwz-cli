@@ -123,6 +123,58 @@ impl HookOptionArgs {
     }
 }
 
+#[derive(Clone, Debug, Args)]
+pub(crate) struct ClaudeCodeArgs {
+    #[command(subcommand)]
+    pub(crate) command: ClaudeCodeCommandArgs,
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub(crate) enum ClaudeCodeCommandArgs {
+    #[command(
+        about = "Print the Claude Code hooks block, and with --write merge it into a settings file",
+        long_about = CLAUDE_CODE_SETUP_LONG,
+        after_long_help = CLAUDE_CODE_SETUP_AFTER
+    )]
+    Setup(ClaudeCodeSetupArgs),
+}
+
+#[derive(Clone, Debug, Args)]
+pub(crate) struct ClaudeCodeSetupArgs {
+    #[arg(
+        long,
+        help = "Use the workspace root's .claude/settings.json",
+        conflicts_with = "user"
+    )]
+    pub(crate) project: bool,
+
+    #[arg(long, help = "Use ~/.claude/settings.json")]
+    pub(crate) user: bool,
+
+    #[arg(
+        long,
+        requires = "project",
+        help = "With --project, use settings.local.json instead"
+    )]
+    pub(crate) local: bool,
+
+    #[arg(
+        long,
+        help = "Merge the block into the file; without it the block is only printed"
+    )]
+    pub(crate) write: bool,
+
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Pin an absolute gwz binary in the handler instead of the bare `gwz`"
+    )]
+    pub(crate) command: Option<String>,
+
+    #[command(flatten)]
+    pub(crate) options: HookOptionArgs,
+}
+
 impl HookArgs {
     pub(crate) fn request(&self) -> Result<CliRequest, CliError> {
         let HookCommandArgs::ClaudeCode(claude) = &self.command;
@@ -135,5 +187,29 @@ impl HookArgs {
             }
         };
         Ok(CliRequest::Hook(HookInvocation { event, options }))
+    }
+}
+
+impl ClaudeCodeArgs {
+    pub(crate) fn request(&self) -> Result<CliRequest, CliError> {
+        let ClaudeCodeCommandArgs::Setup(args) = &self.command;
+        if !args.project && !args.user {
+            return Err(CliError::invalid_request(
+                "claude-code setup needs --project or --user",
+            ));
+        }
+        let placement = if args.project {
+            crate::hook::SetupPlacement::Project { local: args.local }
+        } else {
+            crate::hook::SetupPlacement::User
+        };
+        Ok(CliRequest::ClaudeCodeSetup(
+            crate::hook::setup::SetupRequest {
+                placement,
+                write: args.write,
+                command: args.command.clone(),
+                options: args.options.options(),
+            },
+        ))
     }
 }

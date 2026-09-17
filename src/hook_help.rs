@@ -24,10 +24,12 @@ worktree-remove deletes only the lane or worktree that `worktree_path`
 canonically names. Nothing else is ever printed, and nothing else is ever
 deleted. Every failure is one line on standard error, `gwz: <cause>; <remedy>`,
 and a non-zero exit with nothing on standard output.
-";
+
+Write the settings block with `gwz claude-code setup`.";
 
 pub(crate) const HOOK_CLAUDE_CODE_AFTER: &str = "\
 Examples:
+  gwz claude-code setup --project --local --write
   echo '{\"name\":\"fix-123\",\"session_id\":\"abc\"}' | gwz hook claude-code worktree-create
 
 Each hook logs one line per decision: to `<root>/.gwz/claude-hooks.log` in a
@@ -70,3 +72,43 @@ resolved to its family and disposed with `gwz local dispose`, never with
 --keep and never with --force: a hazard refusal keeps the lane and the session,
 which is the safe outcome. A path that no longer exists exits zero. Anything
 else is refused.";
+
+pub(crate) const CLAUDE_CODE_LONG: &str = "\
+Set this machine up to run GWZ's Claude Code hooks.
+
+`gwz claude-code setup` prints the hooks block, and with --write merges it
+into `.claude/settings.json` of the workspace root (--project), its
+`settings.local.json` (--project --local), or `~/.claude/settings.json`
+(--user).";
+
+pub(crate) const CLAUDE_CODE_SETUP_LONG: &str = "\
+Print the Claude Code hooks block, and with --write merge it into a settings
+file.
+
+The block carries one WorktreeCreate handler and one WorktreeRemove handler,
+each with its own timeout. Inside a workspace the timeouts and the handlers'
+--wait-secs are computed from the same run-time estimate the create hook uses;
+outside one they are the compiled-in defaults.
+
+The default handler is the bare command `gwz hook ...`, resolved through PATH,
+so a committed project block is machine-independent and identical everywhere,
+which is what Claude Code's same-handler dedupe keys on. --command pins an
+absolute binary instead, for a machine whose desktop app cannot see `gwz` on
+its PATH.
+
+--write edits another program's configuration, so it parses the existing file
+first and refuses one that does not parse or is not a regular file; writes a
+temporary file beside the target, fsyncs it, re-parses it and renames it over
+the original; changes no byte outside the inserted block; creates the file when
+it is absent; and does nothing when the block is already there.";
+
+pub(crate) const CLAUDE_CODE_SETUP_AFTER: &str = "\
+Examples:
+  gwz claude-code setup --project
+  gwz claude-code setup --project --local --write
+  gwz claude-code setup --user --write --command /usr/local/bin/gwz
+
+One placement is the recommendation. Two placements are harmless when the
+handler text is identical, because Claude Code runs an identical handler once;
+two differing handlers both run, and a refusal by either orphans the lane the
+other created.";

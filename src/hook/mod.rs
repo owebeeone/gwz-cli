@@ -25,6 +25,7 @@ pub(crate) mod ignore;
 pub(crate) mod input;
 pub(crate) mod logging;
 pub(crate) mod remove;
+pub(crate) mod setup;
 
 use std::path::PathBuf;
 
@@ -33,6 +34,7 @@ pub(crate) use env::SystemEnv;
 pub(crate) use input::{CreateInput, RemoveInput, parse_create_input, parse_remove_input};
 pub(crate) use logging::{LogRecord, resolve_log_location, write_log};
 pub(crate) use remove::run_worktree_remove;
+pub(crate) use setup::{SetupPlacement, run_setup};
 
 /// The compiled-in ceiling on `ready` family rows (D6). A handler `setup`
 /// writes may carry `--max-lanes` instead; the bare handler is guarded by

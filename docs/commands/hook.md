@@ -77,3 +77,5 @@ classification, the path, the outcome and the exit code — never the transcript
 path and never the working directory. A location that would appear in
 `git status` is not used; the user-level log is used instead and a note says
 so. The file is bounded at 1 MB and truncated to its newest half beyond that.
+
+Write the settings block with [`gwz claude-code setup`](claude-code.md).

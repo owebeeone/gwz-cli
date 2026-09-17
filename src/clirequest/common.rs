@@ -72,6 +72,8 @@ pub(crate) enum CliRequest {
     /// of stdout and its exit code, so it never flows through the response
     /// renderer either.
     Hook(HookInvocation),
+    /// `gwz claude-code setup`: writes another program's settings file.
+    ClaudeCodeSetup(crate::hook::setup::SetupRequest),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
