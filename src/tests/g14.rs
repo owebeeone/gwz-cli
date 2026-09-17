@@ -1,4 +1,4 @@
-//! S1.2: `gwz claude-code setup` (D1, D5).
+//! S1.2: `gwz hook claude-code setup` (D1, D5), and its `--remove` (A2).
 //!
 //! The writer edits another program's configuration, so every test here is
 //! about what it does to a file: what it inserts, what it leaves alone, and
@@ -69,8 +69,16 @@ fn request(write: bool) -> SetupRequest {
     SetupRequest {
         placement: SetupPlacement::User,
         write,
+        remove: false,
         command: None,
         options: HookOptions::default(),
+    }
+}
+
+fn removal() -> SetupRequest {
+    SetupRequest {
+        remove: true,
+        ..request(false)
     }
 }
 
@@ -239,7 +247,12 @@ fn the_handler_text_carries_the_command_and_the_options() {
         "/usr/local/bin/gwz hook claude-code worktree-create --min-free-gb 20 --max-lanes 3 \
          --base-ref main"
     );
-    assert!(outside.remove_command.ends_with("--base-ref main"));
+    // The remove leaf obeys neither guard nor the fallback base, so its
+    // handler carries none of them.
+    assert_eq!(
+        outside.remove_command,
+        "/usr/local/bin/gwz hook claude-code worktree-remove"
+    );
     // Outside a workspace both timeouts are the documented default.
     assert_eq!(outside.create_timeout, 600);
     assert_eq!(outside.remove_timeout, 600);
@@ -278,6 +291,86 @@ fn the_handler_text_carries_the_command_and_the_options() {
     );
 }
 
+/// `--remove` is `--write` run backwards: for a fresh file, for a file with
+/// unrelated hooks, and for a file with unknown keys and unusual formatting,
+/// the bytes after the removal are the bytes before the write.
+#[test]
+fn remove_restores_the_file_write_started_from() {
+    for original in [
+        "{}\n",
+        "{\n  \"hooks\": {\n    \"PreToolUse\": [{\"hooks\":[{\"type\":\"command\",\"command\":\"true\"}]}]\n  }\n}\n",
+        "{\n  \"unknownTopLevel\":   [1,2,3],\n\t\"hooks\": {\n    \"PreToolUse\": [{\"hooks\":[{\"type\":\"command\",\"command\":\"true\"}]}]\n  }\n}\n",
+    ] {
+        let home = TempDir::new("setup-remove");
+        std::fs::create_dir_all(home.path().join(".claude")).unwrap();
+        std::fs::write(settings(&home), original).unwrap();
+        let env = SetupEnv::new(home.path());
+
+        run_setup(&env, None, &request(true)).expect("the block is merged");
+        let merged = std::fs::read_to_string(settings(&home)).unwrap();
+        assert_ne!(merged, original);
+        assert_eq!(
+            commands(&document(&settings(&home)), "WorktreeCreate").len(),
+            1
+        );
+
+        let output = run_setup(&env, None, &removal()).expect("the block is removed");
+        assert!(output.note.contains("removed"), "{}", output.note);
+        assert_eq!(
+            std::fs::read_to_string(settings(&home)).unwrap(),
+            original,
+            "removal did not restore\n{merged}"
+        );
+        // The file is never deleted, and what it does carry still parses.
+        assert!(settings(&home).exists());
+    }
+}
+
+/// A file the tool never wrote to is left byte for byte as it was, and the
+/// command says so; so is a missing file.
+#[test]
+fn remove_leaves_a_file_without_the_block_alone() {
+    let home = TempDir::new("setup-remove-absent");
+    let env = SetupEnv::new(home.path());
+    let output = run_setup(&env, None, &removal()).expect("a missing file is served");
+    assert!(output.note.contains("does not exist"), "{}", output.note);
+    assert!(!settings(&home).exists());
+
+    std::fs::create_dir_all(home.path().join(".claude")).unwrap();
+    let original = "{\n  \"hooks\": {\n    \"PreToolUse\": [{\"hooks\":[{\"type\":\"command\",\"command\":\"true\"}]}]\n  }\n}\n";
+    std::fs::write(settings(&home), original).unwrap();
+    let output = run_setup(&env, None, &removal()).expect("a file without the block is served");
+    assert!(
+        output.note.contains("does not carry the block"),
+        "{}",
+        output.note
+    );
+    assert_eq!(std::fs::read_to_string(settings(&home)).unwrap(), original);
+}
+
+/// `--remove` refuses what `--write` refuses: a file that does not parse, and
+/// one that is not a regular file. Neither is touched.
+#[test]
+fn remove_refuses_a_file_it_cannot_parse_or_is_not_a_file() {
+    let home = TempDir::new("setup-remove-refuse");
+    std::fs::create_dir_all(home.path().join(".claude")).unwrap();
+    let broken = "{ \"hooks\": [ }\n";
+    std::fs::write(settings(&home), broken).unwrap();
+    let env = SetupEnv::new(home.path());
+    let failure = run_setup(&env, None, &removal()).expect_err("a broken file is refused");
+    assert!(failure.cause.contains("is not JSON"), "{}", failure.cause);
+    assert_eq!(std::fs::read_to_string(settings(&home)).unwrap(), broken);
+
+    std::fs::remove_file(settings(&home)).unwrap();
+    std::fs::create_dir_all(settings(&home)).unwrap();
+    let failure = run_setup(&env, None, &removal()).expect_err("a directory is refused");
+    assert!(
+        failure.cause.contains("not a regular file"),
+        "{}",
+        failure.cause
+    );
+}
+
 /// A settings path that is a symbolic link is refused rather than followed.
 #[cfg(unix)]
 mod symlinks {
@@ -292,6 +385,10 @@ mod symlinks {
         std::os::unix::fs::symlink(&real, settings(&home)).unwrap();
         let env = SetupEnv::new(home.path());
         let failure = run_setup(&env, None, &request(true)).expect_err("a symlink is refused");
+        assert!(failure.cause.contains("symbolic link"), "{}", failure.cause);
+        assert_eq!(std::fs::read_to_string(&real).unwrap(), "{}\n");
+
+        let failure = run_setup(&env, None, &removal()).expect_err("a symlink is refused");
         assert!(failure.cause.contains("symbolic link"), "{}", failure.cause);
         assert_eq!(std::fs::read_to_string(&real).unwrap(), "{}\n");
     }

@@ -25,6 +25,7 @@ workspace, make a cross-repository change, and learn the repository lifecycle.
 | Inspect history across the whole workspace | [`gwz log`](commands/log.md) |
 | Get out of a merge that will not finish or close | [Merge Recovery Runbook](MergeRecovery.md) |
 | Work in an isolated copy of the workspace and merge it back by name | [Local Clones](LocalClones.md) |
+| Let Claude Code start its sessions in a workspace lane | [Claude Code](ClaudeCode.md) |
 
 GWZ resolves the workspace from the current directory, including from inside a
 member repository. Use `--root <path>` only to override that discovery.

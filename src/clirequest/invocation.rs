@@ -149,7 +149,6 @@ impl Cli {
                 },
             )),
             CommandArgs::Hook(args) => args.request(),
-            CommandArgs::ClaudeCode(args) => args.request(),
             CommandArgs::Init(args) => args.request(meta, workspace_root),
             CommandArgs::Clone(args) => args.request(meta),
             CommandArgs::Add(args) => args.request(meta, current_dir),

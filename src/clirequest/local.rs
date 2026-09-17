@@ -12,8 +12,7 @@ pub(crate) const HAZARD_NAMES: &str = "open-merge, dirty, unpreserved-history";
 /// `--wait <secs>` help, identical on every family verb (GwzLaneCleanFixes
 /// R21) so one wrapper may pass it to all of them.
 const WAIT_HELP: &str = "Seconds to keep retrying a busy family lock";
-const WAIT_LONG_HELP: &str = "Seconds to keep retrying a busy family lock before reporting it busy. The family lock is held for the whole of a create, a dispose or a disband, so two unattended invocations fired for one request would otherwise refuse each other outright. GWZ retries the try-lock at a short fixed interval until the deadline; there is no blocking acquisition, so the wait stays portable and is bounded by the number you give. Omit it and a busy lock refuses immediately, exactly as before. A wait that wins the lock rereads the index before acting, so a create that waited behind another create of the same name is answered by the family that create left, not by a stale view. `gwz local list` takes no lock and accepts this option without effect.";
-const WAIT_LONG_HELP_LIST: &str = "Accepted and ignored. `gwz local list` is observation-only and takes no family lock, so there is nothing to wait for; the option exists here so a wrapper may pass --wait to every family verb uniformly.";
+const WAIT_LONG_HELP: &str = "Seconds to keep retrying a busy family lock before reporting it busy. The family lock is held for the whole of a create, a dispose or a disband, so two unattended invocations fired for one request would otherwise refuse each other outright. GWZ retries the try-lock at a short fixed interval until the deadline; there is no blocking acquisition, so the wait stays portable and is bounded by the number you give. Omit it and a busy lock refuses immediately, exactly as before. A wait that wins the lock rereads the index before acting, so a create that waited behind another create of the same name is answered by the family that create left, not by a stale view.";
 
 /// `--owner <token>` (R20). The alphabet and the 128-byte limit are the
 /// model's (`gwz_family_model::OwnerToken`); this parser is the earlier
@@ -63,7 +62,7 @@ pub(crate) enum LocalCommandArgs {
         about = "Create a local clone of this workspace as a new family member",
         long_about = LOCAL_CLONE_LONG,
         after_long_help = LOCAL_CLONE_AFTER,
-        override_usage = "gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>] [--owner <token>] [--wait <secs>]"
+        override_usage = "gwz local clone <name> [dest] [--owner <token>] [--wait <secs>]"
     )]
     Clone(LocalCloneArgs),
     #[command(
@@ -87,19 +86,10 @@ pub(crate) enum LocalCommandArgs {
     Disband(LocalDisbandArgs),
 }
 
-/// `gwz local list`. Observation-only, so the only option it carries is the
-/// family-wide `--wait`, which it accepts and ignores (R21).
+/// `gwz local list`. Observation-only: it takes no family lock, so it carries
+/// no options at all (A2; Surface F6).
 #[derive(Clone, Debug, Args)]
-pub(crate) struct LocalListArgs {
-    #[arg(
-        long,
-        value_name = "secs",
-        value_parser = parse_wait_seconds,
-        help = WAIT_HELP,
-        long_help = WAIT_LONG_HELP_LIST
-    )]
-    pub(crate) wait: Option<i64>,
-}
+pub(crate) struct LocalListArgs {}
 
 /// `gwz local disband`.
 #[derive(Clone, Debug, Args)]
@@ -233,15 +223,15 @@ impl LocalArgs {
     ) -> Result<CliRequest, CliError> {
         let request = match &self.command {
             LocalCommandArgs::Clone(args) => return args.request(meta),
-            LocalCommandArgs::List(args) => gwz_core::LocalFamilyRequest {
+            LocalCommandArgs::List(_) => gwz_core::LocalFamilyRequest {
                 meta,
                 op: gwz_core::LocalFamilyOp::List,
                 name: None,
                 keep: None,
                 force_hazards: Vec::new(),
-                // R21: a listing takes no family lock, so the value travels
-                // and core does nothing with it.
-                wait_seconds: args.wait,
+                // A listing takes no family lock, so there is nothing to wait
+                // for and the field stays unset.
+                wait_seconds: None,
             },
             LocalCommandArgs::Disband(args) => gwz_core::LocalFamilyRequest {
                 meta,

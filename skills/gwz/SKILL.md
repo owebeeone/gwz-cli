@@ -85,6 +85,35 @@ from **member** `repo detach`. `local disband` retires the family, keeping trees
 If deletion refuses dirty or unpreserved work, investigate and preserve it;
 `--keep` does not satisfy a request to delete the directory.
 
+### You may already be standing in a lane
+
+A session can start in a lane that Claude Code's worktree hook made rather than
+in the workspace the user named. Check before assuming: `.gwz/family-root` in
+the lane names the family and the source workspace root, and `gwz local list`
+run from that source root shows the lane with the session id as its owner. Do
+not infer a lane from the directory name.
+
+A lane is not a Git linked worktree. There is no `worktree-<name>` branch and
+none is needed: a lane sits on the workspace's own branches, so branch-based
+views do not describe it. Work and commit in the lane as in any workspace, with
+`gwz add` and `gwz commit` run from the lane root.
+
+Integrate with `gwz --target @all merge --remote NAME` run from the receiving
+workspace, never from inside the lane. The hooks never merge; integration and
+disposal remain the user's steps.
+
+Never dispose the lane you are standing in. Dispose a lane from the source
+workspace, after its merge is verified.
+
+Do not ask for subagent worktree isolation in a GWZ workspace until an
+integrated lane disposes in one command: each subagent would leave a lane
+behind that only the retirement procedure removes.
+
+The settings block that installs the hooks is written with
+`gwz hook claude-code setup --write` and taken back out with `--remove`, both
+with a placement flag (`--project`, `--project --local` or `--user`). The
+workspace's `docs/ClaudeCode.md` is the guide.
+
 ## Recovery and less common commands
 
 For an open coordinated merge: inspect `gwz merge --status`, then use

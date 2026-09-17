@@ -38,6 +38,9 @@ gwz --target @all merge --remote A
 gwz local dispose A
 ```
 
+A lane whose owner column reads `claude-code:<session id>` was made by Claude
+Code's worktree hook; see [Claude Code](ClaudeCode.md).
+
 The explicit `@all` selection brings across the lane's root and member commits
 together. To integrate several lanes, merge them serially into this root, then
 run one `gwz push`; see [Local Clones](LocalClones.md#integrating-several-lanes).

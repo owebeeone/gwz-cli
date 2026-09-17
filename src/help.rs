@@ -13,8 +13,8 @@ Inspect:    status  ls  diff  log
 Change:     add  commit  branch  tag  stash  merge  pull  push
 Workspace:  init  clone  snapshot  capture  materialize
 Members:    repo add|create|clone|detach|attach|sync
-Lanes:      local clone|list|dispose|disband
-Other:      auth  forall  hook  claude-code
+Lanes:      local clone|list|dispose|disband  hook claude-code
+Other:      auth  forall
 
 Selection (default: root and every member):
   --root PATH       Workspace to operate in (default: current directory)

@@ -1,11 +1,12 @@
-//! `gwz claude-code setup` (D1, D5; S1.2).
+//! `gwz hook claude-code setup` (D1, D5; S1.2).
 //!
 //! Prints the hooks block, and with `--write` merges it into the chosen
-//! settings file. The writer edits another program's configuration, so it
-//! parses the existing file first and refuses one that does not parse or is
-//! not a regular file; writes a temporary file beside the target, fsyncs,
-//! re-parses it, and renames over the original; and changes no byte outside
-//! the inserted block.
+//! settings file, or with `--remove` takes it back out. Either edit touches
+//! another program's configuration, so it parses the existing file first and
+//! refuses one that does not parse, is a symbolic link or is not a regular
+//! file; writes a temporary file beside the target, fsyncs, re-parses it, and
+//! renames over the original; and changes no byte outside the inserted or
+//! removed entries.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -28,6 +29,7 @@ pub(crate) enum SetupPlacement {
 pub(crate) struct SetupRequest {
     pub(crate) placement: SetupPlacement,
     pub(crate) write: bool,
+    pub(crate) remove: bool,
     pub(crate) command: Option<String>,
     pub(crate) options: HookOptions,
 }
@@ -69,15 +71,11 @@ pub(crate) fn handlers(
     }
     let wait = options.wait_secs;
     let copy = copy_seconds.unwrap_or(0);
-    let words = handler_words(&options);
-    let suffix = if words.is_empty() {
-        String::new()
-    } else {
-        format!(" {}", words.join(" "))
-    };
+    let create_suffix = suffix(&handler_words(&options, Leaf::Create));
+    let remove_suffix = suffix(&handler_words(&options, Leaf::Remove));
     Handlers {
-        create_command: format!("{binary} hook claude-code worktree-create{suffix}"),
-        remove_command: format!("{binary} hook claude-code worktree-remove{suffix}"),
+        create_command: format!("{binary} hook claude-code worktree-create{create_suffix}"),
+        remove_command: format!("{binary} hook claude-code worktree-remove{remove_suffix}"),
         create_timeout: if copy_seconds.is_some() {
             wait + copy + 60
         } else {
@@ -91,24 +89,44 @@ pub(crate) fn handlers(
     }
 }
 
+/// Which hook leaf a handler drives. Each leaf carries only the options it
+/// obeys, so the remove handler never advertises a creation guard.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Leaf {
+    Create,
+    Remove,
+}
+
+fn suffix(words: &[String]) -> String {
+    if words.is_empty() {
+        String::new()
+    } else {
+        format!(" {}", words.join(" "))
+    }
+}
+
 /// The options as they appear inside a handler's command text, in a stable
 /// order, so two `setup` runs with the same options produce the same handler
 /// string (D5's dedupe keys on identical text).
-fn handler_words(options: &HookOptions) -> Vec<String> {
+fn handler_words(options: &HookOptions, leaf: Leaf) -> Vec<String> {
     let mut words = Vec::new();
-    if let Some(gb) = options.min_free_gb {
-        words.push("--min-free-gb".to_owned());
-        words.push(format_gb(gb));
-    }
-    if options.max_lanes != DEFAULT_MAX_LANES {
-        words.push("--max-lanes".to_owned());
-        words.push(options.max_lanes.to_string());
+    if leaf == Leaf::Create {
+        if let Some(gb) = options.min_free_gb {
+            words.push("--min-free-gb".to_owned());
+            words.push(format_gb(gb));
+        }
+        if options.max_lanes != DEFAULT_MAX_LANES {
+            words.push("--max-lanes".to_owned());
+            words.push(options.max_lanes.to_string());
+        }
     }
     if options.wait_secs != DEFAULT_WAIT_SECS {
         words.push("--wait-secs".to_owned());
         words.push(options.wait_secs.to_string());
     }
-    if let Some(base) = &options.base_ref {
+    if leaf == Leaf::Create
+        && let Some(base) = &options.base_ref
+    {
         words.push("--base-ref".to_owned());
         words.push(base.clone());
     }
@@ -188,6 +206,14 @@ pub(crate) fn run_setup(
     let handlers = handlers(env, workspace_root, request);
     let block = render_block(&handlers);
     let target = settings_path(env, request.placement, workspace_root)?;
+    if request.remove {
+        let note = remove_from(&target)?;
+        return Ok(SetupOutput {
+            block,
+            target,
+            note,
+        });
+    }
     warn_about_other_placements(env, workspace_root, &target, &handlers);
     if !request.write {
         return Ok(SetupOutput {
@@ -403,52 +429,59 @@ fn next_meaningful(text: &str, from: usize) -> Option<char> {
 }
 
 /// The byte offset of the `{` or `[` that opens the value of `key`, when the
-/// key sits at `depth` in the document. A scan, not a parser: it tracks
-/// strings, escapes and container depth, which is all that is needed to
-/// find a key that a `serde_json` parse has already proved is there.
+/// key sits at `depth` in the document.
 fn value_start(text: &str, key: &str, depth: usize) -> Option<usize> {
-    let bytes: Vec<char> = text.chars().collect();
+    find_member(text, key, depth).map(|(_, value)| value)
+}
+
+/// The byte offset of `key`'s opening quote and of the `{` or `[` that opens
+/// its value, when the key sits at `depth` in the document. A scan, not a
+/// parser: it tracks strings, escapes and container depth, which is all that
+/// is needed to find a key that a `serde_json` parse has already proved is
+/// there.
+fn find_member(text: &str, key: &str, depth: usize) -> Option<(usize, usize)> {
+    let bytes = text.as_bytes();
     let mut index = 0_usize;
     let mut current = 0_usize;
     while index < bytes.len() {
         match bytes[index] {
-            '{' | '[' => {
+            b'{' | b'[' => {
                 current += 1;
                 index += 1;
             }
-            '}' | ']' => {
+            b'}' | b']' => {
                 current = current.saturating_sub(1);
                 index += 1;
             }
-            '"' => {
+            b'"' => {
+                let key_start = index;
                 let start = index + 1;
                 let mut end = start;
                 while end < bytes.len() {
-                    if bytes[end] == '\\' {
+                    if bytes[end] == b'\\' {
                         end += 2;
                         continue;
                     }
-                    if bytes[end] == '"' {
+                    if bytes[end] == b'"' {
                         break;
                     }
                     end += 1;
                 }
-                let token: String = bytes[start..end.min(bytes.len())].iter().collect();
+                let end = end.min(bytes.len());
+                let token = &text[start..end];
                 index = end + 1;
                 if current == depth && token == key {
                     let mut after = index;
-                    while after < bytes.len() && bytes[after].is_whitespace() {
+                    while after < bytes.len() && bytes[after].is_ascii_whitespace() {
                         after += 1;
                     }
-                    if bytes.get(after) == Some(&':') {
+                    if bytes.get(after) == Some(&b':') {
                         after += 1;
-                        while after < bytes.len() && bytes[after].is_whitespace() {
+                        while after < bytes.len() && bytes[after].is_ascii_whitespace() {
                             after += 1;
                         }
-                        if matches!(bytes.get(after), Some('{') | Some('[')) {
-                            // Offsets are byte offsets into the original
-                            // text, so translate from the char index.
-                            return Some(bytes[..after].iter().map(|value| value.len_utf8()).sum());
+                        if matches!(bytes.get(after), Some(b'{') | Some(b'[')) {
+                            return Some((key_start, after));
                         }
                     }
                 }
@@ -459,6 +492,263 @@ fn value_start(text: &str, key: &str, depth: usize) -> Option<usize> {
         }
     }
     None
+}
+
+/// The byte offset just past the `}` or `]` that closes the container opened
+/// at `start`.
+fn balanced_end(text: &str, start: usize) -> Option<usize> {
+    let bytes = text.as_bytes();
+    let mut depth = 0_usize;
+    let mut index = start;
+    let mut in_string = false;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if in_string {
+            match byte {
+                b'\\' => {
+                    index += 2;
+                    continue;
+                }
+                b'"' => {
+                    in_string = false;
+                }
+                _ => {}
+            }
+            index += 1;
+            continue;
+        }
+        match byte {
+            b'"' => {
+                in_string = true;
+            }
+            b'{' | b'[' => {
+                depth += 1;
+            }
+            b'}' | b']' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return Some(index + 1);
+                }
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    None
+}
+
+/// The byte spans of the elements of the array opened at `open`.
+fn array_elements(text: &str, open: usize) -> Vec<(usize, usize)> {
+    let bytes = text.as_bytes();
+    let Some(close) = balanced_end(text, open) else {
+        return Vec::new();
+    };
+    let mut spans = Vec::new();
+    let mut index = open + 1;
+    while index < close - 1 {
+        while index < close - 1 && (bytes[index].is_ascii_whitespace() || bytes[index] == b',') {
+            index += 1;
+        }
+        if index >= close - 1 {
+            break;
+        }
+        let end = if matches!(bytes[index], b'{' | b'[') {
+            match balanced_end(text, index) {
+                Some(end) => end,
+                None => break,
+            }
+        } else {
+            let mut scan = index;
+            let mut in_string = false;
+            while scan < close - 1 {
+                let byte = bytes[scan];
+                if in_string {
+                    if byte == b'\\' {
+                        scan += 2;
+                        continue;
+                    }
+                    if byte == b'"' {
+                        in_string = false;
+                    }
+                    scan += 1;
+                    continue;
+                }
+                if byte == b'"' {
+                    in_string = true;
+                } else if byte == b',' {
+                    break;
+                }
+                scan += 1;
+            }
+            while scan > index && bytes[scan - 1].is_ascii_whitespace() {
+                scan -= 1;
+            }
+            scan
+        };
+        spans.push((index, end));
+        index = end;
+    }
+    spans
+}
+
+/// Delete `[start, end)` together with the separator and the whitespace the
+/// insertion introduced, so removing an inserted span restores the original
+/// bytes exactly.
+fn remove_span(text: &str, start: usize, end: usize) -> String {
+    let bytes = text.as_bytes();
+    let mut from = start;
+    while from > 0 && bytes[from - 1].is_ascii_whitespace() {
+        from -= 1;
+    }
+    let mut after = end;
+    while after < bytes.len() && bytes[after].is_ascii_whitespace() {
+        after += 1;
+    }
+    let mut to = end;
+    if bytes.get(after) == Some(&b',') {
+        to = after + 1;
+    } else if from > 0 && bytes[from - 1] == b',' {
+        from -= 1;
+    }
+    let mut updated = String::with_capacity(text.len());
+    updated.push_str(&text[..from]);
+    updated.push_str(&text[to..]);
+    updated
+}
+
+/// True when this handler command is one this tool wrote for `event`.
+fn ours(command: &str, event: &str) -> bool {
+    let leaf = if event == CREATE_EVENT {
+        "hook claude-code worktree-create"
+    } else {
+        "hook claude-code worktree-remove"
+    };
+    command.contains(leaf)
+}
+
+/// The span of the first handler group under `event` that this tool wrote.
+fn our_entry_span(text: &str, event: &str) -> Option<(usize, usize)> {
+    let hooks = value_start(text, "hooks", 1)?;
+    let array = value_start(text, event, 2).filter(|position| *position > hooks)?;
+    for (start, end) in array_elements(text, array) {
+        let Ok(group) = serde_json::from_str::<serde_json::Value>(&text[start..end]) else {
+            continue;
+        };
+        let carries = group
+            .get("hooks")
+            .and_then(serde_json::Value::as_array)
+            .map(|handlers| {
+                handlers.iter().any(|handler| {
+                    handler
+                        .get("command")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|command| ours(command, event))
+                })
+            })
+            .unwrap_or(false);
+        if carries {
+            return Some((start, end));
+        }
+    }
+    None
+}
+
+/// The span of the member `"key": <value>` at `depth`, from its opening quote
+/// to the end of its value.
+fn member_span(text: &str, key: &str, depth: usize) -> Option<(usize, usize)> {
+    let (key_start, value) = find_member(text, key, depth)?;
+    let end = balanced_end(text, value)?;
+    Some((key_start, end))
+}
+
+fn container_is_empty(text: &str, open: usize) -> bool {
+    let Some(end) = balanced_end(text, open) else {
+        return false;
+    };
+    text[open + 1..end - 1].trim().is_empty()
+}
+
+/// `--remove`: take the two entries this tool wrote out of `target`, with the
+/// writer's discipline. The file itself is never deleted.
+fn remove_from(target: &Path) -> Result<String, HookFailure> {
+    let text = match std::fs::symlink_metadata(target) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            return Err(HookFailure::refused(
+                format!("{} is a symbolic link", target.display()),
+                "remove the block from the file the link names, or remove the link",
+            ));
+        }
+        Ok(metadata) if !metadata.is_file() => {
+            return Err(HookFailure::refused(
+                format!("{} is not a regular file", target.display()),
+                "move it aside and run the command again",
+            ));
+        }
+        Ok(_) => std::fs::read_to_string(target).map_err(|error| {
+            HookFailure::refused(
+                format!("{} could not be read: {error}", target.display()),
+                "check the permissions on that file",
+            )
+        })?,
+        Err(_) => {
+            return Ok(format!(
+                "{} does not exist; nothing to remove",
+                target.display()
+            ));
+        }
+    };
+    let document = serde_json::from_str::<serde_json::Value>(&text).map_err(|error| {
+        HookFailure::refused(
+            format!("{} is not JSON: {error}", target.display()),
+            "fix that file, then run the command again",
+        )
+    })?;
+    if !document.is_object() {
+        return Err(HookFailure::refused(
+            format!("{} is not a JSON object", target.display()),
+            "fix that file, then run the command again",
+        ));
+    }
+    let mut updated = text.clone();
+    let mut removed = Vec::new();
+    for event in [CREATE_EVENT, REMOVE_EVENT] {
+        while let Some((start, end)) = our_entry_span(&updated, event) {
+            updated = remove_span(&updated, start, end);
+            if !removed.contains(&event) {
+                removed.push(event);
+            }
+        }
+    }
+    if removed.is_empty() {
+        return Ok(format!(
+            "{} does not carry the block; nothing was changed",
+            target.display()
+        ));
+    }
+    // An array or a `hooks` object left empty behind the entries goes too.
+    for event in [CREATE_EVENT, REMOVE_EVENT] {
+        let hooks = value_start(&updated, "hooks", 1);
+        let array = value_start(&updated, event, 2)
+            .filter(|position| hooks.is_some_and(|hooks| *position > hooks));
+        if let Some(array) = array
+            && container_is_empty(&updated, array)
+            && let Some((start, end)) = member_span(&updated, event, 2)
+        {
+            updated = remove_span(&updated, start, end);
+        }
+    }
+    if let Some(hooks) = value_start(&updated, "hooks", 1)
+        && container_is_empty(&updated, hooks)
+        && let Some((start, end)) = member_span(&updated, "hooks", 1)
+    {
+        updated = remove_span(&updated, start, end);
+    }
+    write_atomically(target, &updated)?;
+    Ok(format!(
+        "removed {} from {}",
+        removed.join(" and "),
+        target.display()
+    ))
 }
 
 /// Temporary file beside the target, fsync, re-parse, rename (D1).

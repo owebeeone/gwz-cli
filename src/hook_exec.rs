@@ -32,7 +32,7 @@ fn read_stdin() -> Result<String, HookFailure> {
         .map_err(|error| {
             HookFailure::refused(
                 format!("the hook input could not be read: {error}"),
-                "check the hooks block written by `gwz claude-code setup`",
+                "check the hooks block written by `gwz hook claude-code setup`",
             )
         })?;
     Ok(body)
@@ -136,7 +136,8 @@ fn report(
     }
 }
 
-/// `gwz claude-code setup`: ordinary output on stdout, refusals on stderr.
+/// `gwz hook claude-code setup`: ordinary output on stdout, refusals on
+/// stderr.
 pub(crate) fn run_claude_code_setup(
     request: &crate::hook::setup::SetupRequest,
     start_dir: &Path,
@@ -149,6 +150,12 @@ pub(crate) fn run_claude_code_setup(
         Ok(output) => {
             println!("{}", output.block);
             eprintln!("gwz: {}", output.note);
+            if !request.remove {
+                eprintln!(
+                    "gwz: install or refresh the agent skill too: copy `skills/gwz/SKILL.md` to \
+                     `~/.claude/skills/gwz/`"
+                );
+            }
             0
         }
         Err(failure) => {
