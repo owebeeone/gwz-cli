@@ -267,6 +267,12 @@ pub(crate) enum CommandArgs {
     #[command(about = "Record the live worktree state into the lock (no mutation)")]
     Capture,
     #[command(
+        name = "claude-code",
+        about = "Set this machine up to run GWZ's Claude Code hooks",
+        long_about = CLAUDE_CODE_LONG
+    )]
+    ClaudeCode(ClaudeCodeArgs),
+    #[command(
         about = "Clone a workspace from a URL and materialize its members",
         long_about = CLONE_LONG,
         after_long_help = CLONE_AFTER,
@@ -287,6 +293,11 @@ pub(crate) enum CommandArgs {
         about = "Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c <string>"
     )]
     Forall(ForallArgs),
+    #[command(
+        about = "Serve another tool's hooks from this workspace",
+        long_about = HOOK_LONG
+    )]
+    Hook(HookArgs),
     #[command(
         about = "Create a workspace or initialize one from source URLs",
         long_about = INIT_LONG,
