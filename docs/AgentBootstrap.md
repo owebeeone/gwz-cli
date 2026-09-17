@@ -23,7 +23,8 @@ before reporting success.
 
 For Claude Code, copy it to `~/.claude/skills/gwz/SKILL.md` (or the project's
 `.claude/skills/gwz/`). Other agent runtimes can load the same file as a system
-or tool instruction.
+or tool instruction. To have Claude Code's worktree sessions land in GWZ lanes
+instead of member-less worktrees, see [Claude Code](ClaudeCode.md).
 
 ## Intended File Scope
 

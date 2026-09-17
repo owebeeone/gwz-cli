@@ -67,6 +67,7 @@ nav:
       - Troubleshooting: Troubleshooting.md
       - Merge Recovery Runbook: MergeRecovery.md
       - Local Clones: LocalClones.md
+      - Claude Code: ClaudeCode.md
       - Agent Bootstrap: AgentBootstrap.md
   - Reference:
       - CLI Reference: CLI.md
