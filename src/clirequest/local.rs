@@ -40,7 +40,10 @@ fn parse_owner_token(value: &str) -> Result<String, String> {
 }
 
 /// `--wait <secs>`: a count of seconds, so a negative one is not a wait.
-fn parse_wait_seconds(value: &str) -> Result<i64, String> {
+/// Shared with `gwz merge --remote <name> --wait <secs>` (GwzOpenDecisions
+/// D1), whose flag is declared with the other merge options but parses its
+/// value by exactly this rule.
+pub(crate) fn parse_wait_seconds(value: &str) -> Result<i64, String> {
     let parsed = value
         .parse::<i64>()
         .map_err(|_| "--wait <secs> requires an integer number of seconds".to_owned())?;

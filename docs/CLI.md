@@ -3274,7 +3274,7 @@ Command page: [merge](commands/merge.md).
 Merge a source ref across selected workspace repositories
 
 Usage: gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]
-       gwz merge --remote <name> [<ref>]
+       gwz merge --remote <name> [<ref>] [--wait <secs>]
        gwz merge --status [merge-id]
        gwz merge --continue
        gwz merge --abort [--preserve]
@@ -3311,6 +3311,18 @@ Options:
 
   -m, --message <message>
           Use a custom merge commit-message body
+
+      --wait <secs>
+          Seconds to keep retrying a busy family lock before reporting it busy, accepted only with
+          --remote <name>. A family merge holds the family lock across the import and the merge
+          itself, so an unattended merge fired while a create, a dispose or another family merge is
+          running would otherwise refuse outright. GWZ retries the try-lock at a short fixed
+          interval until the deadline; there is no blocking acquisition, so the wait stays portable
+          and is bounded by the number you give. Omit it, or pass 0, and a busy lock refuses
+          immediately, exactly as before. A wait that wins the lock rereads the family index before
+          it resolves the source, so a merge that waited behind a create or a dispose is answered by
+          the family that operation left, not by a stale view. An ordinary merge takes no family
+          lock, so `--wait` without `--remote` is refused rather than accepted and ignored.
 
   -h, --help
           Print help (see a summary with '-h')

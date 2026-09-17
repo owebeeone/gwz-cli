@@ -711,6 +711,40 @@ fn merge_remote_is_refused_for_lifecycle_operations() {
     }
 }
 
+/// GwzOpenDecisions D1: `--wait <secs>` rides with the family selector and
+/// nothing else. With `--remote` it is encoded as `MergeRequest.wait_seconds`
+/// (0 included -- core reads 0 as "one attempt", the absent behaviour, and
+/// never as "no value"); without `--remote` it is refused before the request
+/// is built, because an ordinary merge takes no family lock to wait for.
+#[test]
+fn merge_wait_rides_with_the_family_selector_only() {
+    assert_eq!(
+        merge(&["merge", "--remote", "A", "--wait", "120"]).wait_seconds,
+        Some(120)
+    );
+    assert_eq!(
+        merge(&["merge", "--remote", "A", "--wait", "0"]).wait_seconds,
+        Some(0)
+    );
+    assert_eq!(merge(&["merge", "--remote", "A"]).wait_seconds, None);
+    assert_eq!(merge(&["merge", "feature/x"]).wait_seconds, None);
+
+    for args in [
+        vec!["merge", "--wait", "30"],
+        vec!["merge", "feature/x", "--wait", "30"],
+    ] {
+        let message = refusal(&args);
+        assert!(
+            message.contains("--wait") && message.contains("--remote"),
+            "{args:?}: {message}"
+        );
+    }
+
+    // A lifecycle op never reaches the wait: `--remote` is refused first.
+    let message = refusal(&["merge", "--remote", "A", "--wait", "30", "--abort"]);
+    assert!(message.contains("starting a merge"), "{message}");
+}
+
 /// `--remote` keeps its existing meaning on pull -- the token stays in
 /// `OperationPolicy.remote` and core resolves it -- and on push it is
 /// encoded exactly once, in `PushRequest.remote` (operator ruling 4 of
