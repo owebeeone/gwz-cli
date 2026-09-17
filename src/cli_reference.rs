@@ -122,6 +122,7 @@ fn command_page(path: &[String]) -> Option<&'static str> {
         Some("commit") => Some("commit"),
         Some("diff") => Some("diff"),
         Some("forall") => Some("forall"),
+        Some("hook") => Some("hook"),
         Some("init") => Some("init"),
         Some("local") => Some("local"),
         Some("ls") => Some("ls"),

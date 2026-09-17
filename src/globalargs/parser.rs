@@ -288,6 +288,11 @@ pub(crate) enum CommandArgs {
     )]
     Forall(ForallArgs),
     #[command(
+        about = "Serve another tool's hooks from this workspace",
+        long_about = HOOK_LONG
+    )]
+    Hook(HookArgs),
+    #[command(
         about = "Create a workspace or initialize one from source URLs",
         long_about = INIT_LONG,
         after_long_help = INIT_AFTER

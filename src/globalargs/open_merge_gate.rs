@@ -69,6 +69,9 @@ pub(super) fn open_merge_gate_request(
         // Log is a read-only special runner and the core open-merge vocabulary
         // has no Log row; it never passes through generic dispatch pre-gating.
         CliRequest::Log(_) => return None,
+        // The hook never enters the gate: it drives core's own family verbs,
+        // which take it themselves (D1).
+        CliRequest::Hook(_) => return None,
     };
     Some((meta, command))
 }

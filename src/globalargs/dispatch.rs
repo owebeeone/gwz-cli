@@ -290,6 +290,13 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             // bytes and owns its exit code); it never reaches the envelope path.
             unreachable!("diff is handled by diff_exec::run_diff, not execute_invocation")
         }
+        CliRequest::Hook(_) => {
+            // The hook is dispatched in `run()` before this function: it owns
+            // its own stdin, stdout contract and exit code (D1).
+            unreachable!(
+                "the claude-code commands are handled by hook_exec, not execute_invocation"
+            )
+        }
         CliRequest::Log(_) => {
             // Log is dispatched in `run()` because it owns the output registry,
             // stdout lifecycle, and aggregate exit code.

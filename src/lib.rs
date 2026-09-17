@@ -20,6 +20,9 @@ mod git_status_json;
 mod git_transfer_progress_json;
 mod globalargs;
 mod help;
+mod hook;
+mod hook_exec;
+mod hook_help;
 mod impl_from_syncarg_for_gwz_core_syncbehavior;
 mod init_after;
 mod init_long;
@@ -93,6 +96,7 @@ pub(crate) use forall::*;
 pub(crate) use git_status_json::*;
 pub(crate) use git_transfer_progress_json::*;
 pub(crate) use globalargs::*;
+pub(crate) use hook_help::*;
 pub(crate) use init_after::*;
 pub(crate) use init_long::*;
 pub(crate) use local_after::*;
@@ -203,6 +207,12 @@ pub fn run() {
                         std::process::exit(1);
                     }
                 }
+            }
+            // The Claude Code hook owns its whole lifecycle: the payload
+            // on stdin, one line of stdout, one line of stderr and the exit
+            // code Claude reads (D1).
+            if let CliRequest::Hook(hook) = &invocation.request {
+                std::process::exit(hook_exec::run_hook(hook, invocation.start_dir.as_path()));
             }
             // Log owns a finite core spool and writes its no-pager plumbing
             // response through an EPIPE-aware sink. S3.2/S3.3 replace the
