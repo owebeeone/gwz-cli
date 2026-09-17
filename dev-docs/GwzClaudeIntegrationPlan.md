@@ -13,9 +13,11 @@ and D9 to D11 as written on 2026-09-17, replaced D1 (gwz itself is the hook,
 and a gwz command writes the settings) and simplified D8 (one test: is the
 project a GWZ workspace). No code or settings have changed yet.
 Implementation is chartered for non-Fable agents (Opus builders) under the
-usual review loop: S1.0 now, S1.1 onward once GwzLaneCleanFixes R20 and
-R21 are in an installed gwz (the redesign route chosen on 2026-09-17 after
-the round-3 review; section 7).
+usual review loop: S1.1 onward once GwzLaneCleanFixes R20 and R21 are in
+an installed gwz (the redesign route chosen on 2026-09-17 after the
+round-3 review; section 7). Amended A1 on 2026-09-17 by the operator's
+decision, without re-review: the copy-cost guard estimates at run time by
+filesystem and S1.0 is withdrawn (D6, S1.2, S3.2, section 7).
 
 ## Goal
 
@@ -156,12 +158,19 @@ GWZ, from `gwz local --help`, `gwz local clone --help` and
   gwz-cli work as well as gwz-core work (the clap arguments, the generated
   `docs/CLI.md`, the long help, the `local list` sample and the
   machine-output contract; §3.6's scope note). S1.1 onward needs R20 and
-  R21 in the installed gwz; S1.0 does not.
+  R21 in the installed gwz.
 - The gwz-dev workspace is 65 GB on disk, most of it cargo target trees. On
   APFS the verbatim copy is a copy-on-write clone, cheap until a lane builds;
   a full build in a lane then writes its own tens of gigabytes (the 2026-09-11
   disk-full incident came from exactly this). Free space at the time of
   writing: 31 GB.
+- Block sharing on copy is a filesystem property and never crosses a
+  filesystem boundary: APFS (`clonefile`), XFS and btrfs (`FICLONE`),
+  OpenZFS 2.2 and bcachefs, and ReFS (block cloning) share; ext4 and NTFS
+  copy every byte. gwz's copy backend already takes the clone path where
+  the platform offers it (LocalClones.md: "natively" versus "ordinarily").
+  A clone's wall time is bound by file count, not bytes, on every sharing
+  filesystem.
 - `gwz` refuses `root`, `origin` and git's reserved ref names as lane names.
 - Creation also refuses a destination that is already a workspace or lies
   inside a family member (`PathCollision`). Dispose refuses `open-merge`,
@@ -318,24 +327,38 @@ integration is documented for other users.
   S1.4 requires user-level blocks on the dogfood machines to be removed or
   identical before the project block is committed, so the parallel case is
   rare in practice. S4.1 recommends one placement and explains this.
-- D6. **Two guards in the create hook, and a strict reuse rule.** The copy
-  itself costs almost nothing on a copy-on-write filesystem (section 1), so
-  a floor sized for the copy would never fire; the resource a lane consumes
-  is what it builds afterwards. Creation therefore refuses, with one stderr
-  line naming the S3.4 retirement procedure, when either holds: free space
-  on the filesystem that holds the destination's parent directory (not the
-  workspace's volume, which can differ under a symlinked or mounted root)
-  is below `--min-free-gb`, whose default is the working-lane cost S3.2
-  measures (until then, the S1.0 copy cost plus the size of the root's
-  largest build directory); or the family already holds `--max-lanes`
-  rows in state `ready` (default 8). Both are hook options baked into the
+- D6. **Two guards in the create hook, and a strict reuse rule.** (Amended
+  A1, 2026-09-17.) The guard protects the copy, not what a session builds
+  afterwards: a build that fills the disk is a failure mode Claude's own
+  worktrees already have, and the operator has ruled it out of scope. The
+  copy's cost depends on the filesystem, so the hook estimates it at run
+  time rather than carrying a measured constant. Estimate: walk the source
+  once for apparent size and file count (the walk the completeness check
+  needs anyway); probe the destination's parent by writing one 64 MB file
+  there and cloning it with the platform's reflink call (`clonefile`,
+  `FICLONE`, ReFS block cloning), reading the `df` delta; a failed clone,
+  or a destination on a different filesystem from the source, means no
+  sharing. Cost = apparent size × (1 − share) + a fixed margin, with
+  share from a pessimistic table by filesystem: 94% for APFS, XFS and
+  btrfs; 70% for ReFS; 70% for any other filesystem whose probe clones
+  successfully; 0% for ext4, NTFS and any filesystem whose probe fails to
+  clone. The table's numbers are placeholders until S3.2 measures them.
+  Creation therefore refuses, with one stderr line naming the S3.4
+  retirement procedure, when either holds: free space on the filesystem
+  that holds the destination's parent directory (not the workspace's
+  volume, which can differ under a symlinked or mounted root) is below the
+  estimated cost, or below `--min-free-gb` when the handler carries that
+  option as a floor; or the family already holds `--max-lanes` rows in
+  state `ready` (default 8). Both are hook options baked into the
   handler by `setup` (D1), with compiled-in defaults, so the bare handler
   is guarded too. The guards apply only to an attempt that will create; the
   reuse rule is evaluated first, and a reuse consumes nothing, so it is
   never refused by a guard. The hook takes no lock of its own and keeps no
   state of its own. It runs a bounded attempt loop until its deadline, the
-  `--wait-secs` option (compiled-in default 300 s; S1.0 revises it and
-  sets Claude's create timeout to one wait plus one copy plus 60 s): each
+  `--wait-secs` option (compiled-in default 300 s, or, when `setup` bakes
+  it, the estimated copy time: file count × a per-file cost from the same
+  table, pessimistic; Claude's create timeout is one wait plus one
+  estimated copy plus 60 s, A1): each
   attempt re-reads the family index lock-free (as `local list` does),
   evaluates the table below, re-evaluates both guards, and only then runs
   `local clone` in process with `--owner <session_id>` (R20) and no wait;
@@ -343,8 +366,8 @@ integration is documented for other users.
   clone pays the clone's pre-lock source inventory before it can learn the
   lock is busy (the clone inventories the source at its step 4 and takes
   the lock at step 5), so against an unrelated family command the
-  effective poll period is that inventory, not the sleep; S1.0 measures it
-  and the `--wait-secs` default is sized against it. The clone holds the family lock
+  effective poll period is that inventory, not the sleep; the per-file
+  cost the estimate uses covers it, and S3.2 measures it. The clone holds the family lock
   for the copy and records the owner in the same index write as the row,
   so there is no second store and no window between the row and its
   owner. The guards are therefore fresh at every attempt; the residual
@@ -520,19 +543,13 @@ targets, not limits.
 
 ### Phase 1: hook subcommands and the CLI path (milestone: `claude --worktree NAME` in gwz-dev lands in a GWZ lane, and exiting with removal runs dispose, keeping the lane whenever dispose refuses)
 
-- **S1.0: creation cost, measured once** *(evidence; independent of S1.1;
-  ~30 minutes)*. From the gwz-dev root, `gwz local clone probe-cost`, timed,
-  with `df` before and after and `du -sh` of the lane; then retire it. With
-  gwz 1.0.13 the dispose is refused for the hazards the copy inherited, so
-  follow the L1 remedy in gwz-dev `dev-docs/GwzLaneIssues.md` and keep the
-  refusal text as early evidence for U6. Also time the clone's pre-lock
-  source inventory on its own (the interval before the lock is taken), since
-  an attempt that reaches the clone pays it before it can learn the lock is
-  busy (D6). The numbers set D6's interim `--min-free-gb` default, revise
-  D6's `--wait-secs` default (at least one copy plus the inventory), and set
-  the create timeout in S1.2's settings block to one wait plus one copy
-  plus 60 s, D6's formula, with the remove handler's timeout at one wait
-  plus 60 s.
+- **S1.0: withdrawn by amendment A1 (2026-09-17).** The creation-cost
+  measurement it described is replaced by the run-time estimate in D6 (a
+  source walk, a reflink probe, and a pessimistic table by filesystem),
+  which `setup` also uses to bake `--wait-secs` and both handlers'
+  timeouts (S1.2). No lane is created and retired for measurement; S3.2
+  validates the estimate against a real clone once the hooks exist. The
+  number is kept so cross-references stay stable.
 - **S1.1: the hook subcommands** *(gwz-cli, new `hook` command family;
   ~450 lines plus ~350 lines of test, above the aspiration; an implementer
   may split it along create/remove, landing create with its tests first)*.
@@ -569,7 +586,10 @@ targets, not limits.
   Tests, in gwz-cli's existing test tree, against a fixture workspace built
   in a temporary directory: a workspace (lane path printed and canonical,
   name validation including GWZ's refused names, each guard with a forced
-  value, the busy-build warning, same-session reuse printing the same path
+  value, the cost estimate on a same-filesystem destination whose probe
+  clones (share from the table) and on a destination whose probe fails or
+  lies on another filesystem (share 0, the guard firing on apparent
+  size), the `--min-free-gb` floor applying on top of the estimate, the busy-build warning, same-session reuse printing the same path
   with the row still `ready`, dispose exit codes on a clean and a dirty
   lane, a member-rooted `CLAUDE_PROJECT_DIR` resolving to the lane's member
   directory and its removal disposing the right lane with a sibling lane
@@ -625,10 +645,11 @@ targets, not limits.
 - **S1.2: the setup command** *(gwz-cli, `claude-code setup`; ~200 lines
   plus ~150 lines of test)*. `gwz claude-code setup` prints the hooks block
   (`WorktreeCreate` and `WorktreeRemove`, each one command handler with
-  its own timeout from S1.0: one wait plus one copy plus 60 s for create,
-  one wait plus 60 s for remove, both derived from the same `--wait-secs`
-  the block carries or the compiled-in default; hook options passed
-  through into the handler text). With `--write` it merges the block into the chosen file
+  its own timeout, computed by `setup` at write time from D6's estimate
+  for the workspace it runs in (A1): `--wait-secs` baked as the estimated
+  copy time, one wait plus one estimated copy plus 60 s for create, one
+  wait plus 60 s for remove; outside a workspace, the compiled-in default
+  and 600 s; hook options passed through into the handler text). With `--write` it merges the block into the chosen file
   (`--project` for `<root>/.claude/settings.json`, `--project --local` for
   `settings.local.json`, `--user` for `~/.claude/settings.json`) the way D1
   requires: parse first and refuse a file that does not parse or is not a
@@ -744,11 +765,16 @@ targets, not limits.
   and R10, which already require hazards reported by category and the exact
   waiver command, rather than opening a separate gwz-core change.
 - **S3.2: cost measurement** *(evidence; ~60 lines in the probe note)*. On
-  the gwz-dev volume, measure: lane creation wall time (S1.0 repeated under
-  load); apparent and actual disk use of a fresh lane (`du` versus `df`
-  deltas, since APFS clones share blocks); growth after `cargo build -p gwz`
-  and after the gwz-core suite in the lane. Set the D6 default from the
-  numbers, and state in the docs what a building lane costs.
+  the gwz-dev volume, measure: lane creation wall time, quiet and under
+  load, against the estimate `setup` baked (file count × per-file cost);
+  the clone's pre-lock inventory interval; apparent and actual disk use of
+  a fresh lane (`du` versus `df` deltas) against D6's estimate, giving the
+  measured share for APFS; the same on the Linux (aarch64) and Windows
+  hosts the acceptance runbook already uses, for ext4 or XFS and NTFS or
+  ReFS; growth after `cargo build -p gwz` and after the gwz-core suite in
+  the lane, for the docs only (out of the guard's scope, A1). Replace D6's
+  placeholder table entries with the measured values, keeping them
+  pessimistic, and state in the docs what a building lane costs.
 - **S3.3: disposal route decision** *(decision only)*. From S3.2 and S2.3,
   decide which GwzLaneCleanFixes route Claude use waits on: verbatim lanes
   that dispose once integrated (R1 to R8), clean lanes from
@@ -834,20 +860,18 @@ targets, not limits.
 ## 5. Step dependency sketch
 
 ```
-S0.1 -> S1.0
 { S0.1, GwzLaneCleanFixes R20 and R21 in an installed gwz } -> S1.1 -> S1.2 -> S1.3
 { S1.3, a gwz release containing S1.1 and S1.2 } -> S1.4 -> { S4.1, S4.3 }
 S1.3 -> { S2.1, S2.2, S2.3, S3.1, S3.2, S3.4 } -> S3.3 -> { S4.1, S4.2, S4.3 } -> S5.1
 { S2.3, S3.3, GwzLaneCleanFixes R0 in an installed gwz } -> S3.5 -> revisions of S3.4, S4.1, S4.2
 ```
 
-S1.0 and S1.1 are independent of each other. S2.x, S3.1, S3.2 and S3.4 are
+S2.x, S3.1, S3.2 and S3.4 are
 independent of each other and can be picked up by different agents; S4.x
 waits for their evidence so the docs describe measured behaviour. Three
 dependencies lie outside this plan's steps: S1.1 waits for an installed
 gwz that carries R20 and R21 (gwz-core work plus the gwz-cli surface
-named in §3.6's scope note, landed in one lane; S1.0 does not wait, and
-can run first); S1.4 waits for a gwz release that carries the `hook` and
+named in §3.6's scope note, landed in one lane; S1.0 is withdrawn, A1); S1.4 waits for a gwz release that carries the `hook` and
 `claude-code` families; and S3.5 waits on gwz-core work for R0. Nothing
 else waits on S3.5, and its revisions follow whenever it lands.
 
@@ -988,5 +1012,18 @@ else waits on S3.5, and its revisions follow whenever it lands.
   text, 6 on the first patch, 4 on the second (one architectural: a lock
   the plan assumed and gwz-core lacks, which stopped the lane and led to
   the R20 to R22 redesign), then on the redesigned text 15, 6 and 2, all
-  closed with re-traced counterexamples. Implementation may start: S1.0
-  now, S1.1 onward once R20 and R21 are in an installed gwz.
+  closed with re-traced counterexamples. Implementation may start once
+  R20 and R21 are in an installed gwz.
+- 2026-09-17: **amendment A1**, at the operator's decision and, by the
+  operator's instruction, without re-review. The free-space guard no
+  longer sizes itself from a one-off measured clone or from what a lane
+  builds afterwards (a build filling the disk is a failure mode Claude's
+  own worktrees already have, ruled out of scope): the hook estimates the
+  copy's cost at run time from a source walk, a reflink probe at the
+  destination's parent, and a pessimistic share table by filesystem (94%
+  APFS, XFS, btrfs; 70% ReFS and any other filesystem that clones; 0%
+  ext4, NTFS and any that does not), and `setup` bakes `--wait-secs` and
+  both handler timeouts from the same estimate. S1.0 is withdrawn, its
+  number retained; S3.2 measures the placeholders on the three hosts and
+  replaces them. Touched: D6, S1.0, S1.1 (tests), S1.2, S3.2, section 1
+  (a block-sharing fact), section 5, the status line.
