@@ -773,7 +773,9 @@ targets, not limits.
   a fresh lane (`du` versus `df` deltas) against D6's estimate, giving the
   measured share for APFS; the same on the Linux (aarch64) and Windows
   hosts the acceptance runbook already uses, for ext4 or XFS and NTFS or
-  ReFS; growth after `cargo build -p gwz` and after the gwz-core suite in
+  ReFS (btrfs was measured on the Linux host on 2026-09-18 and shares
+  within 1% of XFS, so the two keep one table entry and need no separate
+  measurement); growth after `cargo build -p gwz` and after the gwz-core suite in
   the lane, for the docs only (out of the guard's scope, A1). Replace D6's
   placeholder table entries with the measured values, keeping them
   pessimistic, and state in the docs what a building lane costs.
