@@ -243,7 +243,7 @@ integration is documented for other users.
   desktop app passes no environment variables of ours (section 1); the
   environment variables the tests use to force values are not user
   configuration. A third subcommand,
-  `gwz claude-code setup --project | --user [--local] [--write]
+  `gwz hook claude-code setup --project | --user [--local] [--write]
   [--command PATH] [hook options]`, prints the hooks block and, with
   `--write`, merges it idempotently into `.claude/settings.json` (or
   `settings.local.json` with `--local`) of the workspace root, or
@@ -321,7 +321,7 @@ integration is documented for other users.
   malformed handler, or a wait that outlives its deadline): then Claude
   aborts the creation the first handler completed, and that lane is an
   orphan whose inventory is `gwz local list` and whose retirement is S3.4;
-  `gwz claude-code setup` warns, and does not refuse, when another
+  `gwz hook claude-code setup` warns, and does not refuse, when another
   placement on the machine carries a differing handler, naming both files
   and this consequence.
   S1.4 requires user-level blocks on the dogfood machines to be removed or
@@ -642,8 +642,9 @@ targets, not limits.
   fields exit non-zero with a message naming the field. The fallback tests
   run on every platform; only the platform-bound helpers sit behind
   `cfg_if!` (D11).
-- **S1.2: the setup command** *(gwz-cli, `claude-code setup`; ~200 lines
-  plus ~150 lines of test)*. `gwz claude-code setup` prints the hooks block
+- **S1.2: the setup command** *(gwz-cli, `hook claude-code setup`; ~200
+  lines plus ~150 lines of test)*. `gwz hook claude-code setup` prints the
+  hooks block
   (`WorktreeCreate` and `WorktreeRemove`, each one command handler with
   its own timeout, computed by `setup` at write time from D6's estimate
   for the workspace it runs in (A1): `--wait-secs` baked as the estimated
@@ -670,7 +671,8 @@ targets, not limits.
   and consistent with the block's `--wait-secs`.
 - **S1.3: local adoption and the CLI probe** *(evidence only; one command
   at the gwz-dev root, not committed, then ~2 hours of operator time)*.
-  Run `gwz claude-code setup --project --local --write` at the gwz-dev root
+  Run `gwz hook claude-code setup --project --local --write` at the gwz-dev
+  root
   (D5). Then, from the gwz-dev root, run `claude --worktree probe-YYYYMMDD`.
   Record: the session's working directory is the lane; `gwz status` and
   `gwz ls` work inside it; what lane-local state the copy carried that
@@ -711,7 +713,7 @@ targets, not limits.
 - **S1.4: committed adoption** *(gwz-dev root; ~10 lines)*. With S1.3
   evidence in hand, remove the block from `settings.local.json`, remove or
   make identical any user-level block on the dogfood machines (D5), run
-  `gwz claude-code setup --project --write`, and commit the root's
+  `gwz hook claude-code setup --project --write`, and commit the root's
   `.claude/settings.json` through `gwz commit --target @root`, so every
   clone of the workspace has it (D5). A clone whose installed `gwz` predates
   the `hook` family then carries a hook command that does not exist, and
@@ -813,7 +815,8 @@ targets, not limits.
 
 - **S4.1: the docs page** *(gwz-cli, `docs/ClaudeCode.md`, linked from
   `docs/AgentBootstrap.md` and the nav; ~200 lines)*. What the hooks do, the
-  settings block, `gwz claude-code setup`, the recommended single placement
+  settings block, `gwz hook claude-code setup`, the recommended single
+  placement
   and why two placements are harmless (D1, D5) together with the one case
   where they are not (a second handler that refuses for its own reason
   orphans the first's lane; `gwz local list` is the inventory, S3.4 the
@@ -1027,3 +1030,6 @@ else waits on S3.5, and its revisions follow whenever it lands.
   number retained; S3.2 measures the placeholders on the three hosts and
   replaces them. Touched: D6, S1.0, S1.1 (tests), S1.2, S3.2, section 1
   (a block-sharing fact), section 5, the status line.
+- 2026-09-18: amendment A2 (operator decision, Surface review):
+  `gwz claude-code setup` moved under `gwz hook claude-code setup`;
+  `--remove` added; S4.2 skill text landed.

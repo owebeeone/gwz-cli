@@ -1,5 +1,5 @@
 //! The Claude Code integration: `gwz hook claude-code worktree-create`,
-//! `gwz hook claude-code worktree-remove` and `gwz claude-code setup`
+//! `gwz hook claude-code worktree-remove` and `gwz hook claude-code setup`
 //! (gwz-cli `dev-docs/GwzClaudeIntegrationPlan.md`, D1 to D11, S1.1 and S1.2).
 //!
 //! The contract, stated once in D1 and enforced here: **the create hook

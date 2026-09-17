@@ -213,7 +213,8 @@ A     checkout  ready  claude-code:session_7  /Users/you/work/demo-A
 gwz stores and reports the token and never interprets it; the
 [command page](commands/local.md#lanes-made-by-a-tool) covers it, together
 with `--wait <secs>`, which makes a busy family lock queue instead of
-refusing.
+refusing. A `claude-code:` owner token means Claude Code's worktree hook made
+that lane — see [Claude Code](ClaudeCode.md).
 
 ### 3. Integrate
 

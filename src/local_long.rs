@@ -55,8 +55,7 @@ in which nobody recorded a token renders the four columns above unchanged.
 
 The listing performs no repair and takes no lock; --json and --jsonl carry
 every field of every row, `owner` included (null when the row records
-none). --wait is accepted here and ignored, since there is no lock to wait
-for.";
+none). There is no --wait here, because there is no lock to wait for.";
 
 pub(crate) const LOCAL_DISPOSE_LONG: &str = "\
 Dispose of one local family member.

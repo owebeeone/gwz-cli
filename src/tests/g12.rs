@@ -460,7 +460,6 @@ fn local_owner_and_wait_travel_on_every_family_verb() {
     );
 
     for args in [
-        &["local", "list", "--wait", "30"][..],
         &["local", "disband", "--wait", "30"][..],
         &["local", "dispose", "C", "--wait", "30"][..],
         &["local", "dispose", "C", "--keep", "--wait", "30"][..],
@@ -472,6 +471,12 @@ fn local_owner_and_wait_travel_on_every_family_verb() {
             args.join(" ")
         );
     }
+    // A listing takes no lock, so it carries no wait at all: `--wait` is not
+    // an option there, and the field it would have travelled in stays unset.
+    let refused = parse(&["local", "list", "--wait", "30"])
+        .expect_err("list must not accept --wait")
+        .message;
+    assert!(refused.contains("--wait"), "{refused}");
     assert_eq!(local_family(&["local", "list"]).wait_seconds, None);
 }
 
@@ -2070,7 +2075,7 @@ fn local_and_clone_help_describe_the_family_surface() {
 
     let local_clone = long_help(&["local", "clone"]);
     for phrase in [
-        "gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]",
+        "gwz local clone <name> [dest] [--owner <token>] [--wait <secs>]",
         "<name>",
         "[dest]",
         "--verbatim",

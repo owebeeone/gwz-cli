@@ -94,6 +94,5 @@ nav:
           - push: commands/push.md
           - SSH identity: commands/auth.md
           - hook: commands/hook.md
-          - claude-code: commands/claude-code.md
           - forall: commands/forall.md
   - Releases: Releases.md

@@ -1,10 +1,11 @@
 # hook
 
-Serve another tool's hooks from this workspace.
+Serve another tool's hooks for the workspace a session starts in.
 
 A hook command reads the calling tool's JSON payload on standard input, does
 the work that tool asked for, and answers on standard output in the shape the
-tool documents. Today one family is served: `gwz hook claude-code`.
+tool documents. Today one family is served: `gwz hook claude-code`, which
+carries the two hooks themselves and the `setup` command that installs them.
 
 ## `gwz hook claude-code worktree-create`
 
@@ -58,15 +59,19 @@ A path that no longer exists exits zero. Anything else is refused.
 ## Options
 
 Every knob is an option on the handler itself, because the desktop app passes
-no environment variable of ours.
+no environment variable of ours. Each leaf carries only the options it obeys:
+removal consumes nothing, so none of the creation guards appear on it.
 
-| Option | Meaning |
-| --- | --- |
-| `--min-free-gb <gb>` | A floor on free space, on top of the estimate |
-| `--max-lanes <n>` | Ready-lane ceiling (default 8) |
-| `--wait-secs <secs>` | Deadline for the attempt loop and a removal's lock (default 300) |
-| `--base-ref <ref>` | Base for the fallback worktree |
-| `--log <path>` | Log location, instead of the fixed one |
+| Option | Meaning | Leaf |
+| --- | --- | --- |
+| `--min-free-gb <gb>` | A floor on free space, on top of the estimate (default: no floor; only the estimate applies) | create |
+| `--max-lanes <n>` | Ready-lane ceiling (default 8) | create |
+| `--wait-secs <secs>` | Deadline for the attempt loop, and for a removal's family lock (default 300) | create, remove |
+| `--base-ref <ref>` | Base for the fallback worktree (default `origin/<default-branch>`, else `HEAD`) | create |
+| `--log <path>` | Log location, instead of the fixed one | create, remove |
+
+`setup` takes the creation options and bakes them into the handler text; the
+`WorktreeRemove` handler it writes carries only `--wait-secs` and `--log`.
 
 ## The log
 
@@ -78,4 +83,73 @@ path and never the working directory. A location that would appear in
 `git status` is not used; the user-level log is used instead and a note says
 so. The file is bounded at 1 MB and truncated to its newest half beyond that.
 
-Write the settings block with [`gwz claude-code setup`](claude-code.md).
+## `gwz hook claude-code setup`
+
+Prints the hooks block, and with `--write` merges it into a settings file or
+with `--remove` takes it back out. A placement flag is mandatory:
+
+```sh
+gwz hook claude-code setup --project                 # print the block
+gwz hook claude-code setup --project --local --write # merge into settings.local.json
+gwz hook claude-code setup --user --write            # merge into ~/.claude/settings.json
+gwz hook claude-code setup --project --local --remove # take it back out
+```
+
+```text
+Usage: gwz hook claude-code setup <--project [--local] | --user> [--write | --remove] [OPTIONS]
+```
+
+The block carries one `WorktreeCreate` handler and one `WorktreeRemove`
+handler, each with its own timeout. Inside a workspace the timeouts and the
+handlers' `--wait-secs` are computed from the same run-time estimate the create
+hook uses — one wait plus one estimated copy plus 60 s for creation, one wait
+plus 60 s for removal. Outside a workspace they are the compiled-in defaults.
+
+The default handler is the bare command `gwz hook ...`, resolved through
+`PATH`, so a committed project block is machine-independent and identical
+everywhere, which is what Claude Code's same-handler dedupe keys on.
+`--command PATH` pins an absolute binary instead, for a machine whose desktop
+app cannot see `gwz` on its `PATH`.
+
+`setup` also reminds you to install or refresh the agent skill: copy
+`skills/gwz/SKILL.md` to `~/.claude/skills/gwz/`.
+
+### Getting a session into a lane
+
+After `--write`, run `claude --worktree <name>` from the workspace root (or
+start a background session). The lane appears in `gwz local list` with the
+session id as its owner. Integrate it with
+`gwz --target @all merge --remote <name>` from the main workspace, then
+`gwz local dispose <name>`. See [Claude Code](../ClaudeCode.md) for the whole
+lifecycle.
+
+### Writing and removing
+
+`--write` and `--remove` are the lifecycle pair, and are refused together.
+Both edit another program's configuration, so each:
+
+- parses the existing file first and refuses one that does not parse, is a
+  symbolic link, or is not a regular file;
+- writes a temporary file beside the target, fsyncs it, re-parses it and
+  renames it over the original;
+- changes no byte outside the block it inserts or the entries it removes.
+
+`--write` in addition creates the file when it is absent and does nothing when
+the block is already there. `--remove` takes out the two entries this tool
+wrote, drops a `WorktreeCreate` or `WorktreeRemove` array or a `hooks` object
+left empty behind them, never deletes the file itself, and says so and changes
+nothing when the file does not carry the block. A removal after a write leaves
+the file byte for byte as the write found it.
+
+### Placements
+
+One placement is the recommendation. A block may sit in both a project's
+settings and a user's: Claude Code runs an identical handler once, so identical
+text is harmless. Two *differing* handlers both run, in parallel, for the same
+name and session; `setup` warns, naming both files, when it finds one. They
+stay harmless for creation — the second handler reuses the first's lane and
+prints the same path — but a handler that refuses for a reason of its own makes
+Claude abort the creation the other completed, and that lane is an orphan whose
+inventory is `gwz local list`.
+
+See [Claude Code](../ClaudeCode.md) for the guide.

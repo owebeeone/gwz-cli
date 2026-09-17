@@ -108,9 +108,12 @@ held, naming the owner the first one recorded.
 gwz: PathCollision: local clone `A` -> /Users/you/limbo/gwz-dev-A: ... name `A` already holds ../gwz-dev-A (owner `claude-code:session_7`) ...
 ```
 
-`gwz local list` accepts `--wait` and ignores it: a listing takes no lock, so
-there is nothing to wait for, and accepting it lets a wrapper pass `--wait` to
-every family verb uniformly.
+`gwz local list` has no `--wait`: a listing takes no lock, so there is nothing
+to wait for.
+
+A lane whose owner token reads `claude-code:<session id>` was created by Claude
+Code's worktree hook; [Claude Code](../ClaudeCode.md) covers that integration
+and how such a lane is integrated and retired.
 
 ### Index format 2
 

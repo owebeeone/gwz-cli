@@ -3,7 +3,7 @@
 Status: draft written from the accepted plan before its probes have run.
 Paragraphs marked **Unmeasured** describe intended behaviour that no probe has
 yet confirmed; the plan's steps S1.3, S2.1, S2.2 and S3.2 replace them with
-observed behaviour. Requires a gwz that carries `gwz hook` and `gwz claude-code`
+observed behaviour. Requires a gwz that carries the `gwz hook` family
 (the release after 1.0.13); the installed 1.0.13 does not.
 
 ## What it does
@@ -39,22 +39,23 @@ so they can live in user-level settings without changing other projects.
 Print the settings block, then write it where you want it:
 
 ```sh
-gwz claude-code setup --project
+gwz hook claude-code setup --project
 ```
 
 ```sh
-gwz claude-code setup --project --local --write
+gwz hook claude-code setup --project --local --write
 ```
 
 ```sh
-gwz claude-code setup --user --write
+gwz hook claude-code setup --user --write
 ```
 
 `--project` writes `<root>/.claude/settings.json`, `--project --local` writes
 `settings.local.json` (not committed), `--user` writes
 `~/.claude/settings.json`. The writer parses first, writes a temporary file
 beside the target, fsyncs, re-parses and renames, and changes no byte outside
-the block; see [`gwz claude-code`](commands/claude-code.md).
+the block, and `--remove` takes it back out again; see
+[`gwz hook`](commands/hook.md).
 
 **Which placement.** One is the recommendation. A gwz-dev clone whose machine
 also carries the block in user settings is fine: identical handler text runs
@@ -66,6 +67,9 @@ handler that refuses for a reason of its own (a pinned binary without the
 lane is then an orphan: `gwz local list` is its inventory and
 [retirement](#retiring-lanes) its remedy. `setup` warns, naming both files,
 when it finds a differing handler.
+
+After writing the block, install or refresh the agent skill too: copy
+`skills/gwz/SKILL.md` to `~/.claude/skills/gwz/`.
 
 **Migrating a machine that pinned `--command`** before the project block was
 committed: remove or align the user-level block first, then pull.
@@ -208,7 +212,16 @@ differs from Claude's own behaviour unless the handler carries `--base-ref`.
 
 ## Switching it off
 
-Delete the block from the settings file it lives in. For background sessions
+Take the block back out with the same placement flags:
+
+```sh
+gwz hook claude-code setup --project --local --remove
+```
+
+`--remove` changes no byte outside the two entries it takes out, drops an array
+or a `hooks` object left empty behind them, and never deletes the settings file
+itself; a file that does not carry the block is left alone and the command says
+so. Deleting the block by hand does the same job. For background sessions
 alone, `worktree.bgIsolation: "none"` in Claude's settings lets them edit the
 main checkout instead.
 
@@ -241,5 +254,4 @@ classification (`lane`, `member-in-lane`, `fallback worktree`,
 code. Never the transcript path or the working directory. Bounded at 1 MB. The
 session id is the lane's owner token: redact it from anything you publish.
 
-Reference: [`gwz hook`](commands/hook.md), [`gwz claude-code`](commands/claude-code.md),
-[Local Clones](LocalClones.md).
+Reference: [`gwz hook`](commands/hook.md), [Local Clones](LocalClones.md).
