@@ -167,11 +167,10 @@ pub(crate) mod integration {
     /// Who owns the wait on a busy family lock.
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub(crate) enum WaitOwner {
-        /// Today: gwz-core's family commands take the lock with `try_lock`
-        /// and refuse `Busy` at once, so the hook polls to its own deadline.
+        /// The request carries no wait and the hook polls to its own
+        /// deadline (used when the wait rounds to zero).
         Hook,
-        /// After R21: the request carries `--wait <secs>` and core polls.
-        #[allow(dead_code)]
+        /// The request carries `--wait <secs>` and gwz-core polls (R21).
         Core,
     }
 
@@ -184,42 +183,39 @@ pub(crate) mod integration {
         Read(&'a gwz_core::LocalFamilyMemberEntry),
     }
 
-    /// R20/R21 integration point: the owner token, in and out.
+    /// R20 integration point: the owner token, in and out.
     ///
-    /// R20 adds `owner: Option<String>` to the clone request (set by
-    /// `--owner <token>`) and to the listed member row. Until it lands the
-    /// request carries no owner and every row reads back `None`, which is
-    /// the fail-closed side of D6's table: a `ready` row with no owner is
-    /// refused rather than reused. The tests that need a real owner are
-    /// `#[ignore = "needs R20/R21"]`.
+    /// The clone request's `owner` is recorded on the family row in the same
+    /// index write that reserves it, and read back from the listed row. A
+    /// row with no owner (made by hand, or before the workspace's first
+    /// owned lane) reads `None`, which is the fail-closed side of D6's
+    /// table: it is refused rather than reused.
     pub(crate) fn owner(op: OwnerOp<'_>) -> Option<String> {
         match op {
             OwnerOp::Attach(request, session_id) => {
-                // R20: `request.owner = Some(session_id.to_owned());`
-                let _ = (&request, session_id);
-                None
+                request.owner = Some(session_id.to_owned());
+                request.owner.clone()
             }
-            OwnerOp::Read(entry) => {
-                // R20: `entry.owner.clone()`
-                let _ = entry;
-                None
-            }
+            OwnerOp::Read(entry) => entry.owner.clone(),
         }
     }
 
-    /// R20/R21 integration point: the dispose wait.
+    /// R21 integration point: the dispose wait.
     ///
-    /// R21 adds `--wait <secs>` to every family command, polling `try_lock`
-    /// to a deadline. Until it lands the request carries no wait and the
-    /// remove hook polls to the same deadline itself, which is why this
-    /// answers who owns the wait rather than returning nothing.
+    /// The request carries `--wait <secs>` and gwz-core polls `try_lock` to
+    /// the deadline, rereading before it acts. A wait under one second
+    /// rounds to none, and then the remove hook polls itself.
     pub(crate) fn dispose_wait(
         request: &mut gwz_core::LocalFamilyRequest,
         wait: Duration,
     ) -> WaitOwner {
-        // R21: `request.wait_secs = Some(wait.as_secs() as i64);`
-        //      `WaitOwner::Core`
-        let _ = (&request, wait);
-        WaitOwner::Hook
+        let secs = wait.as_secs();
+        if secs == 0 {
+            request.wait_seconds = None;
+            WaitOwner::Hook
+        } else {
+            request.wait_seconds = Some(i64::try_from(secs).unwrap_or(i64::MAX));
+            WaitOwner::Core
+        }
     }
 }

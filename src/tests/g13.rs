@@ -254,7 +254,15 @@ fn ready_row(name: &str, path: &str) -> gwz_core::LocalFamilyMemberEntry {
         observed_state: gwz_core::LocalObservedState::Ready,
         path: path.to_owned(),
         last_error: None,
+        owner: None,
     }
+}
+
+/// A `ready` row carrying an owner token (R20).
+fn owned_row(name: &str, path: &str, owner: &str) -> gwz_core::LocalFamilyMemberEntry {
+    let mut row = ready_row(name, path);
+    row.owner = Some(owner.to_owned());
+    row
 }
 
 fn family(root: &Path, members: Vec<gwz_core::LocalFamilyMemberEntry>) -> FamilyRead {
@@ -543,20 +551,39 @@ fn the_reuse_table_refuses_every_state_but_a_fresh_name() {
 /// refusal naming another session, an incomplete lane of this session, and a
 /// `creating` row of this session that makes the second handler wait.
 #[test]
-#[ignore = "needs R20/R21"]
 fn the_owner_keyed_rows_of_the_reuse_table() {
     let fixture = Fixture::new("hook-owner");
     let root = fixture.root();
     let destination = fixture.lane("a");
     assert_eq!(
         decide(
-            &family(&root, vec![ready_row("a", "../ws-a")]),
+            &family(&root, vec![owned_row("a", "../ws-a", "s1")]),
             "a",
             &destination,
             "s1"
         ),
         Decision::Reuse,
         "a ready row at the destination owned by this session reuses"
+    );
+    assert!(
+        matches!(
+            decide(
+                &family(&root, vec![owned_row("a", "../ws-a", "s2")]),
+                "a",
+                &destination,
+                "s1"
+            ),
+            Decision::Refuse(_)
+        ),
+        "a ready row at the destination owned by another session refuses"
+    );
+    let mut creating = owned_row("a", "../ws-a", "s1");
+    creating.recorded_state = gwz_core::LocalMemberState::Creating;
+    creating.observed_state = gwz_core::LocalObservedState::Incomplete;
+    assert_eq!(
+        decide(&family(&root, vec![creating]), "a", &destination, "s1"),
+        Decision::Wait,
+        "a creating row of this session means another handler is mid-copy: wait"
     );
 }
 
@@ -787,7 +814,7 @@ fn removal_classifies_by_canonical_path_and_not_by_name() {
 /// The removal runs from the family root, never from inside the lane, so a
 /// process working directory inside the lane still disposes (D8).
 #[test]
-#[ignore = "needs R20/R21"]
+#[ignore = "needs GwzLaneCleanFixes R0: a verbatim lane cannot dispose without a waiver yet"]
 fn a_removal_from_inside_the_lane_still_disposes() {
     // Until an integrated lane disposes in one command (GwzLaneCleanFixes
     // R0) every verbatim lane refuses, so the positive half of this row

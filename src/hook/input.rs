@@ -27,6 +27,8 @@ pub(crate) struct RemoveInput {
 /// so a slug that would become an awkward directory name never reaches core.
 const NAME_CHARS: fn(char) -> bool =
     |value| value.is_ascii_alphanumeric() || matches!(value, '.' | '_' | '-');
+/// R20's owner-token grammar: the name characters plus `:`.
+const TOKEN_CHARS: fn(char) -> bool = |value| NAME_CHARS(value) || value == ':';
 
 /// Names GWZ refuses outright (`gwz-family-model`'s `RESERVED_NAMES` and its
 /// directory shorthands, quoted here because gwz-cli does not depend on that
@@ -103,7 +105,7 @@ pub(crate) fn validate_lane_name(name: &str) -> Result<(), HookFailure> {
 /// most 128 characters, which every observed hook payload's UUID satisfies
 /// (section 1; S1.3 confirms).
 pub(crate) fn validate_session_token(token: &str) -> Result<(), HookFailure> {
-    let ok = !token.is_empty() && token.len() <= 128 && token.chars().all(NAME_CHARS);
+    let ok = !token.is_empty() && token.len() <= 128 && token.chars().all(TOKEN_CHARS);
     if ok {
         Ok(())
     } else {

@@ -71,6 +71,8 @@ pub(crate) fn read_family(root: &Path) -> Result<FamilyRead, gwz_core::model::Mo
             name: None,
             keep: None,
             force_hazards: Vec::new(),
+            // `list` takes no lock, so there is nothing to wait for (R21).
+            wait_seconds: None,
         },
         new_operation_id(),
         &events,
@@ -98,6 +100,10 @@ pub(crate) fn clone_lane(
         mode: gwz_core::LocalCloneMode::Verbatim,
         branch: None,
         copy_source: None,
+        owner: None,
+        // The create hook owns its attempt loop and never waits inside the
+        // clone (D6): a busy lock comes straight back and the loop decides.
+        wait_seconds: None,
     };
     owner(OwnerOp::Attach(&mut request, session_id));
     gwz_core::workspace_ops::handle_clone_local_workspace(
@@ -130,6 +136,7 @@ pub(crate) fn dispose_lane(
         name: Some(name.to_owned()),
         keep: None,
         force_hazards: Vec::new(),
+        wait_seconds: None,
     };
     let wait_owner = dispose_wait(&mut request, wait);
     let result = gwz_core::workspace_ops::handle_local_family(
