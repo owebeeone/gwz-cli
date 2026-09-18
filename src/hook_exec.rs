@@ -145,10 +145,11 @@ pub(crate) fn run_claude_code_setup(
     start_dir: &Path,
 ) -> i32 {
     let env = SystemEnv;
-    let root = gwz_core::workspace::discover_workspace_root(start_dir)
-        .ok()
-        .or_else(|| crate::hook::ignore::enclosing_repository(start_dir));
-    match run_setup(&env, root.as_deref(), request) {
+    // Two roots, not one: the settings file's, and the workspace the
+    // estimate may size the handlers from, which a plain repository is not
+    // (F5).
+    let roots = crate::hook::setup::SetupRoots::resolve(start_dir);
+    match run_setup(&env, &roots, request) {
         Ok(output) => {
             println!("{}", output.block);
             eprintln!("gwz: {}", output.note);

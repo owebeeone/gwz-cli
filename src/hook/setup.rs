@@ -52,9 +52,57 @@ pub(crate) struct Handlers {
     pub(crate) remove_timeout: u64,
 }
 
-/// S1.2: `--wait-secs` is the estimated copy time inside a workspace, and
-/// the compiled-in default outside one; the create timeout is one wait plus
-/// one estimated copy plus 60 s, and the remove timeout one wait plus 60 s.
+/// The two roots `setup` works from, which are not the same question (F5).
+///
+/// `settings` is where the block goes: a workspace root, or a plain
+/// repository's root for the D8 fallback case. `workspace` is the GWZ
+/// workspace whose copy cost may size the handlers, and is `None` for
+/// anything that is not one -- a plain repository has no lane to estimate,
+/// and sizing a 1 s wait from a three-file repository is a hair trigger.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct SetupRoots {
+    pub(crate) settings: Option<PathBuf>,
+    pub(crate) workspace: Option<PathBuf>,
+}
+
+impl SetupRoots {
+    /// Neither root: `--user` from nowhere in particular.
+    pub(crate) fn none() -> Self {
+        Self::default()
+    }
+
+    /// A settings root that is not a GWZ workspace (D8's fallback case).
+    pub(crate) fn settings_only(settings: &Path) -> Self {
+        Self {
+            settings: Some(settings.to_path_buf()),
+            workspace: None,
+        }
+    }
+
+    /// What `setup` resolves from the directory it was run in: the workspace
+    /// if there is one, and otherwise the enclosing repository for the
+    /// settings file alone.
+    pub(crate) fn resolve(start_dir: &Path) -> Self {
+        if let Ok(workspace) = gwz_core::workspace::discover_workspace_root(start_dir) {
+            return Self {
+                settings: Some(workspace.clone()),
+                workspace: Some(workspace),
+            };
+        }
+        match super::ignore::enclosing_repository(start_dir) {
+            Some(repository) => Self::settings_only(&repository),
+            None => Self::none(),
+        }
+    }
+}
+
+/// S1.2, as F5 corrects it: `--wait-secs` is the compiled-in default with
+/// the estimated copy time as a floor raised only inside a workspace -- the
+/// estimate models the copy and not the queueing behind the family lock,
+/// which is what the wait exists for, and on gwz-dev the estimate was 132 s
+/// against a copy that took 207 s. The create timeout is one wait plus one
+/// estimated copy plus 60 s, and the remove timeout one wait plus 60 s.
+/// Outside a workspace both are the compiled-in defaults.
 pub(crate) fn handlers(
     env: &dyn HookEnv,
     workspace_root: Option<&Path>,
@@ -66,9 +114,7 @@ pub(crate) fn handlers(
         let parent = root.parent()?;
         Some(estimate(env, root, parent).copy_time.as_secs().max(1))
     });
-    if let Some(copy) = copy_seconds {
-        options.wait_secs = copy;
-    }
+    options.wait_secs = baked_wait(options.wait_secs, copy_seconds);
     let wait = options.wait_secs;
     let copy = copy_seconds.unwrap_or(0);
     let create_suffix = suffix(&handler_words(&options, Leaf::Create));
@@ -86,6 +132,22 @@ pub(crate) fn handlers(
         } else {
             600
         },
+    }
+}
+
+/// The wait a handler carries (F5): inside a workspace, the estimated copy
+/// time with the compiled-in default as a *floor*, so the estimate can only
+/// raise it; outside one, whatever the request configured, which is the
+/// compiled-in default unless the operator said otherwise.
+///
+/// The floor exists because the estimate models the copy and not the wait
+/// for the family lock, which is what `--wait-secs` is for: on gwz-dev the
+/// baked 132 s met a copy that took 207 s, all but 30 s of it queueing
+/// behind two other lanes (the probe of 2026-09-18, §3).
+pub(crate) fn baked_wait(configured: u64, copy_seconds: Option<u64>) -> u64 {
+    match copy_seconds {
+        Some(copy) => copy.max(DEFAULT_WAIT_SECS),
+        None => configured,
     }
 }
 
@@ -200,10 +262,11 @@ pub(crate) fn settings_path(
 
 pub(crate) fn run_setup(
     env: &dyn HookEnv,
-    workspace_root: Option<&Path>,
+    roots: &SetupRoots,
     request: &SetupRequest,
 ) -> Result<SetupOutput, HookFailure> {
-    let handlers = handlers(env, workspace_root, request);
+    let workspace_root = roots.settings.as_deref();
+    let handlers = handlers(env, roots.workspace.as_deref(), request);
     let block = render_block(&handlers);
     let target = settings_path(env, request.placement, workspace_root)?;
     if request.remove {
