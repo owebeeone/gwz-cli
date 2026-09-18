@@ -51,3 +51,38 @@ aren't lost.
   credential-only for that reason).
 - Not part of the URL-scheme feature (plan: `GwzUrlSchemePlan.md`, pending);
   needs its own security review and plan.
+
+## `gwz pull`: a member the manifest gained upstream (added 2026-09-19)
+
+Measured with gwz 1.0.17 in a throwaway: workspace A pushed to bare remotes,
+cloned to B with `gwz clone`, then A added member `two` and pushed.
+
+- **One unmaterialized member refuses the whole member phase.** In B,
+  `gwz pull` fast-forwards the root, so the manifest now names `two`, then
+  stops with `gwz: MemberNotFound: member 'mem_two' is not materialized`, exit
+  1. The existing member, which had a new upstream commit, is not pulled.
+  Running `pull` again fails identically until `gwz materialize` has run.
+  Nothing is lost and `gwz materialize` recovers, but the pull is partial (root
+  advanced, members not) and blocking. Wanted: the missing member is a row of
+  its own, every other member is pulled, and the result is `Partial`, which is
+  the shape `gwz fetch` already has for this case.
+- **The refusal names no remedy.** Only `gwz status` says
+  `run gwz materialize --lock to complete the clone`. The pull error should
+  name the command.
+- **Decision needed: should `pull` materialize new members itself?** Arguments
+  for an explicit step: private or very large members, and `git pull` does not
+  do it for submodules either. Options: leave it explicit, add
+  `pull --materialize`, or materialize by default every member the manifest
+  does not mark local-only. Not decided.
+- **`pull` prints no row for a root that has no upstream.** `gwz fetch` prints
+  `@root . no upstream`; `gwz pull` omits the root entirely, so its output
+  reads as "everything is up to date". This is how a workspace made by
+  `gwz init` plus `gwz repo clone` (never pushed, never cloned) can look like a
+  stale copy of another workspace: its manifest is a local file that nothing
+  upstream can update, and no verb says so. Found on a developer's test
+  workspace whose root had no commits and no remote.
+
+## gwz-core runs the `git` executable in four places (added 2026-09-19)
+- `gwz commit`, `gwz tag`, path-filtered `gwz log`, and a conditional fallback
+  in lane import. Cases, reasons and a phased todo are in
+  `gwz-core/dev-docs/GwzLibgit2Gaps.md`.

@@ -2,11 +2,11 @@
 
 Status: **ADOPTED 2026-09-17; S0.1 done; accepted at sha256 `c0bba7fa…`
 (with gwz-core `GwzLaneCleanFixes.md` at `c5f06e41…`) after
-`GwzClaudeIntegrationPlan-ReviewConsistency-6.md` and
+`history/GwzClaudeIntegrationPlan-ReviewConsistency-6.md` and
 `-ReviewSafety-6.md` both reported GO; this accepts the plan text and the
 R20 to R22 requirements only, no code.** Released: S1.1 and S1.2 (the hook subcommands and `setup`, in the `gwz hook claude-code` shape of amendment A2) and R20 to R22 shipped in **gwz 1.0.14** on 2026-09-18, installed the same day; S1.3 onward can run on the installed gwz. Drafted 2026-09-12 by Fable at
 the operator's request after the 1.0.11 release; reviewed the same day
-(`GwzClaudeIntegration-S0.1-Review.md`: GO-WITH-CONDITIONS, 4 P1, 8 P2,
+(`history/GwzClaudeIntegration-S0.1-Review.md`: GO-WITH-CONDITIONS, 4 P1, 8 P2,
 6 P3) and every finding folded (trail in section 7); updated 2026-09-17 for
 the lane disposal clean-up requirements. The operator confirmed D2 to D7
 and D9 to D11 as written on 2026-09-17, replaced D1 (gwz itself is the hook,
@@ -981,7 +981,7 @@ else waits on S3.5, and its revisions follow whenever it lands.
 - 2026-09-12: drafted (Fable). Fallback to a git worktree when GWZ is absent
   added the same day at the operator's request (D8).
 - 2026-09-12: S0.1 round 1, adversarial self-review,
-  `GwzClaudeIntegration-S0.1-Review.md`: GO-WITH-CONDITIONS, F1 to F18. All
+  `history/GwzClaudeIntegration-S0.1-Review.md`: GO-WITH-CONDITIONS, F1 to F18. All
   eighteen folded the same day: F1 and F12 into D8 and S1.1; F2 and F13 into
   D6 and the new S1.0; F3 into D3, S2.3 and the new S3.4; F4 into D10 and
   S1.3; F5 into D5, S1.2 and the new S1.4; F6 into D1 and S1.2; F7 into the
@@ -1007,10 +1007,10 @@ else waits on S3.5, and its revisions follow whenever it lands.
   condition), S4.1, S4.3 and S5.1 (verification, not PowerShell twins).
   Version stamps note that gwz 1.0.13 changes nothing for L1.
 - 2026-09-17: round-2 dual peer-blind review of the adopted text,
-  `GwzClaudeIntegrationPlan-ReviewConsistency.md` (NO-GO: 2 P2, 7 P3) and
-  `GwzClaudeIntegrationPlan-ReviewSafety.md` (NO-GO: 1 P1, 6 P2, 2 P3).
+  `history/GwzClaudeIntegrationPlan-ReviewConsistency.md` (NO-GO: 2 P2, 7 P3) and
+  `history/GwzClaudeIntegrationPlan-ReviewSafety.md` (NO-GO: 1 P1, 6 P2, 2 P3).
   Both axes converged blind on D5's one-placement rule. All eighteen
-  findings folded in one patch per `GwzClaudeIntegrationPlan-RemPlan.md`:
+  findings folded in one patch per `history/GwzClaudeIntegrationPlan-RemPlan.md`:
   the hook contract and knobs-as-options into D1; placement into D5 and
   U4; the two guards, the strict reuse rule and the session sidecar into
   D6; the fallback's reuse, `.worktreeinclude` copy and sweep gap, and the
@@ -1025,7 +1025,7 @@ else waits on S3.5, and its revisions follow whenever it lands.
   prior findings cured; NO-GO on 1 new P2, classified architectural, and
   2 new P3) and `-ReviewSafety-2.md` (all nine closed; NO-GO on 2 new P2,
   1 new P3). Every new finding came from the round-1 patch. Folded in one
-  patch per `GwzClaudeIntegrationPlan-RemPlan-2.md`, the last remediation
+  patch per `history/GwzClaudeIntegrationPlan-RemPlan-2.md`, the last remediation
   round the loop allows: D6 now holds the family lock across the clone and
   the session record and enumerates the full row-by-record table, with
   reuse evaluated before the guards; D5 names the lock and the orphan case;
@@ -1053,7 +1053,7 @@ else waits on S3.5, and its revisions follow whenever it lands.
   (NO-GO: 4 P2, 4 P3); no architectural finding on either axis; both
   converged blind on the remove hook's dispose having no wait and no busy
   class. All fifteen folded in one patch per
-  `GwzClaudeIntegrationPlan-RemPlan-3.md`: the create hook now runs its
+  `history/GwzClaudeIntegrationPlan-RemPlan-3.md`: the create hook now runs its
   own attempt loop (reuse table and guards re-evaluated before every
   attempt, a `creating` row of its own session means wait, `Busy` means
   loop) with a compiled-in `--wait-secs` default of 300 s and Claude's
@@ -1069,7 +1069,7 @@ else waits on S3.5, and its revisions follow whenever it lands.
 - 2026-09-17: round-5 re-verdicts, `-ReviewSafety-5.md` (GO; 3 new P3)
   and `-ReviewConsistency-5.md` (all seven prior findings closed; NO-GO on
   3 new P2, 3 new P3, none architectural). Folded in one patch per
-  `GwzClaudeIntegrationPlan-RemPlan-4.md`, the last remediation round on
+  `history/GwzClaudeIntegrationPlan-RemPlan-4.md`, the last remediation round on
   this object: S1.0 rewritten to D6's timeout formula and made to measure
   the clone's pre-lock inventory; D10's classification vocabulary carries
   the three refusal classes and S1.1's assertions match; the different-name
