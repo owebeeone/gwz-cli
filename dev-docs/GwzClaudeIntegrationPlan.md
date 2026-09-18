@@ -766,7 +766,7 @@ targets, not limits.
   the message lacks the remedy, record the gap against GwzLaneCleanFixes R9
   and R10, which already require hazards reported by category and the exact
   waiver command, rather than opening a separate gwz-core change.
-- **S3.2: cost measurement** *(evidence; ~60 lines in the probe note)*. On
+- **S3.2: cost measurement** *(evidence; ~60 lines in the probe note; postponed indefinitely by operator decision D8 on 2026-09-18: the placeholder share table and per-file cost stand, and nothing in Phases 1, 2 or 4 waits on this step)*. On
   the gwz-dev volume, measure: lane creation wall time, quiet and under
   load, against the estimate `setup` baked (file count × per-file cost);
   the clone's pre-lock inventory interval; apparent and actual disk use of
