@@ -1,8 +1,8 @@
 # GWZ Stash Implementation Plan
 
-Status: proposed / not implemented
+Status: implemented (gwz-cli `9e60109`); kept as the design record, user documentation is `docs/commands/stash.md`.
 
-Related spec: `dev-docs/GwzStashSpec.md`
+Related spec: `dev-docs/history/GwzStashSpec.md`
 
 Goal: add coordinated workspace stash support while keeping each implementation
 step reviewable. Each step SHOULD target no more than about 500 LOC of net code

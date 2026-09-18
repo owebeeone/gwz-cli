@@ -333,7 +333,7 @@ gwz local dispose A
 ```
 
 ```text
-gwz: UnwaivedHazard: local dispose `A` at /Users/you/work/demo-A: unwaived hazard(s): `@root` <unpreserved-history>: 2 protected root(s) of @root are preserved whole in no surviving family repository: Head 21bc247792bb20cfefe7ca7001ae82841b06edc9, Ref { name: "refs/heads/main" } 21bc247792bb20cfefe7ca7001ae82841b06edc9; name each accepted loss with --force <hazard,...> to delete, or --keep to detach and retain every file; nothing was removed; effects: []
+gwz: UnwaivedHazard: local dispose `A` at /Users/you/work/demo-A: unwaived hazard(s) by category: regenerable 0; unchanged copy 0; changed copy 0; unique to the lane 1: `@root` 2 protected root(s) of @root are preserved whole in no surviving family repository: Head 21bc247792bb20cfefe7ca7001ae82841b06edc9, Ref { name: "refs/heads/main" } 21bc247792bb20cfefe7ca7001ae82841b06edc9; to delete anyway, naming every loss it waives: `gwz local dispose A --force unpreserved-history`; or --keep to detach and retain every file; nothing was removed; effects: []
 ```
 
 The commit it names is the lane's root commit from step 2. Merge the root as
@@ -382,7 +382,7 @@ There are three exits from a lane, and only one of them destroys anything:
   ```
 
   ```text
-  gwz: UnwaivedHazard: local dispose `D` at /Users/you/work/demo-D: unwaived hazard(s): `@root` <dirty>: unstaged change, text content (gwz.conf/markers/conf-integrity.yml); `mem_api` <dirty>: staged change, text content (main.rs), untracked file, text content (scratch.txt); name each accepted loss with --force <hazard,...> to delete, or --keep to detach and retain every file; nothing was removed; effects: []
+  gwz: UnwaivedHazard: local dispose `D` at /Users/you/work/demo-D: unwaived hazard(s) by category: regenerable 0; unchanged copy 0; changed copy 0; unique to the lane 3: `@root` unstaged change, text content (gwz.conf/markers/conf-integrity.yml), `mem_api` staged change, text content (main.rs), `mem_api` untracked file, text content (scratch.txt); to delete anyway, naming every loss it waives: `gwz local dispose D --force dirty`; or --keep to detach and retain every file; nothing was removed; effects: []
   ```
 
   ```sh

@@ -762,9 +762,52 @@ fn a_dispose_refusal_is_classified_as_a_hazard_and_keeps_the_lane() {
                 "{}",
                 failure.remedy
             );
+            // F3: one line, not the dispose report. The full report stays
+            // `gwz local dispose`'s, which the remedy names.
+            let line = failure.line();
+            assert!(line.len() < 300, "{} bytes: {line}", line.len());
+            assert_eq!(line.lines().count(), 1, "{line}");
             assert!(created.path.exists(), "the lane is kept");
         }
     }
+}
+
+/// F3 (the probe of 2026-09-18, §6): a dispose hazard report of any size
+/// becomes one short line naming how many hazards there are, across how many
+/// repositories, and of which class.
+#[test]
+fn a_hazard_report_is_summarised_to_one_line() {
+    let report = "local dispose `probe` at /tmp/ws-probe: unwaived hazard(s): \
+        `@root` <dirty>: ignored user data (ignored does not mean disposable) \
+        (.claude/.cc-writes/), text content (.claude/settings.local.json), \
+        ignored user data (.cursor/), and 3 more; \
+        `mem_gwz_cli` <dirty>: ignored user data (__pycache__/); \
+        `mem_gwz_core` <unpreserved-history>: reflog-only commit; \
+        name each accepted loss with --force <hazard,...> to delete, or --keep to \
+        detach and retain every file; nothing was removed";
+    let summary = crate::hook::remove::summarise(report);
+    assert_eq!(
+        summary,
+        "8 hazards across 3 repositories (dirty, unpreserved-history)"
+    );
+
+    // One repository, one hazard, singular.
+    let single = "local dispose `a` at /tmp/ws-a: unwaived hazard(s): `@root` <dirty>: \
+        untracked file (note.txt); name each accepted loss with --force";
+    assert_eq!(
+        crate::hook::remove::summarise(single),
+        "1 hazard across 1 repository (dirty)"
+    );
+
+    // A refusal of another shape is cut to one readable line, never guessed
+    // at and never passed through at length.
+    let other = format!(
+        "removal stopped (permission denied); remaining: {}",
+        "x/".repeat(400)
+    );
+    let summary = crate::hook::remove::summarise(&other);
+    assert!(summary.len() < 200, "{} bytes: {summary}", summary.len());
+    assert!(summary.starts_with("removal stopped"), "{summary}");
 }
 
 /// A `worktree_path` that no longer exists exits zero and is logged; one
@@ -809,6 +852,141 @@ fn removal_classifies_by_canonical_path_and_not_by_name() {
     .expect_err("a decoy path must refuse");
     assert_eq!(failure.class, Classification::RefusedByHook);
     assert!(fixture.lane("lane9").exists(), "the real lane is untouched");
+}
+
+/// F2 (the probe of 2026-09-18, §3): the reuse path runs the completeness
+/// check D6 and `hook.md` promise. A lane whose member has lost its `.git`
+/// is refused by name, and an intact one is still handed back.
+#[test]
+fn a_reuse_checks_the_lane_is_complete() {
+    let fixture = Fixture::new("hook-complete");
+    let root = fixture.root();
+    let member = root.join("docs");
+    std::fs::create_dir_all(&member).unwrap();
+    std::fs::write(member.join("note.md"), b"note\n").unwrap();
+    let env = TestEnv::new().with_home(fixture.container.path());
+    let context = context(&root);
+    let created = run_worktree_create(&env, &context, &create_input("whole", "s1"))
+        .expect("a lane is created");
+
+    let started = std::time::Instant::now();
+    let reused = run_worktree_create(&env, &context, &create_input("whole", "s1"))
+        .expect("an intact lane is reused");
+    let elapsed = started.elapsed();
+    assert_eq!(reused.outcome, "reused");
+    assert_eq!(reused.path, created.path);
+    eprintln!("reuse of an intact lane: {elapsed:?}");
+
+    // A member of the lane that lost its repository: the reuse must not hand
+    // the session a lane it cannot work in. (The fixture workspace's one
+    // member is its root, which is the same listing and the same check.)
+    std::fs::remove_dir_all(fixture.lane("whole").join(".git")).unwrap();
+    let started = std::time::Instant::now();
+    let failure = run_worktree_create(&env, &context, &create_input("whole", "s1"))
+        .expect_err("an incomplete lane is refused");
+    eprintln!("reuse of an incomplete lane: {:?}", started.elapsed());
+    assert_eq!(failure.class, Classification::RefusedByHook);
+    assert!(
+        failure.cause.contains("the lane `whole` is incomplete"),
+        "{}",
+        failure.cause
+    );
+    assert!(
+        failure.remedy.contains("gwz local list"),
+        "{}",
+        failure.remedy
+    );
+}
+
+/// F4 (the probe of 2026-09-18, §7): the remove path's log fields. `name=`
+/// is the lane name the family row gave, not the destination's basename;
+/// `path=` on a refusal is the path that was known; and the exit-zero
+/// `absent` outcome is its own class, not a refusal.
+#[test]
+fn the_remove_paths_log_fields_name_the_lane_and_its_path() {
+    let fixture = Fixture::new("hook-fields");
+    let root = fixture.root();
+    let env = TestEnv::new().with_home(fixture.container.path());
+    let created = run_worktree_create(&env, &context(&root), &create_input("lane10", "s1"))
+        .expect("a lane is created");
+    let requested = created.path.to_string_lossy().into_owned();
+    // The destination's basename is `ws-lane10`; the lane is `lane10`.
+    assert!(requested.ends_with("ws-lane10"), "{requested}");
+
+    let outcome = run_worktree_remove(
+        &env,
+        &context(&root),
+        &RemoveInput {
+            worktree_path: requested.clone(),
+            session_id: "s1".to_owned(),
+        },
+    );
+    // The basename is what the driver has before the hook runs; the hook's
+    // own answer is what the log must carry.
+    let basename = "ws-lane10";
+    match outcome {
+        Ok(success) => {
+            assert_eq!(success.name.as_deref(), Some("lane10"));
+            let record = LogRecord {
+                event: "worktree-remove",
+                name: success.name.clone().unwrap_or_else(|| basename.to_owned()),
+                session_id: "s1".to_owned(),
+                class: success.class,
+                path: success.path.to_string_lossy().into_owned(),
+                outcome: success.outcome.to_owned(),
+                exit: 0,
+                message: None,
+            };
+            let line = record.line(&env);
+            assert!(line.contains("name=lane10"), "{line}");
+        }
+        Err(failure) => {
+            assert_eq!(failure.name.as_deref(), Some("lane10"));
+            assert_eq!(failure.path.as_deref(), Some(created.path.as_path()));
+            let line = LogRecord::refusal("worktree-remove", basename, "s1", &failure).line(&env);
+            assert!(line.contains("name=lane10"), "{line}");
+            assert!(!line.contains("path=-"), "{line}");
+            assert!(line.contains(&requested), "{line}");
+        }
+    }
+
+    // A path that no longer exists: exit zero, and a class of its own.
+    let absent = run_worktree_remove(
+        &env,
+        &context(&root),
+        &RemoveInput {
+            worktree_path: fixture
+                .container
+                .path()
+                .join("never-existed")
+                .to_string_lossy()
+                .into_owned(),
+            session_id: "s1".to_owned(),
+        },
+    )
+    .expect("an absent path exits zero");
+    assert_eq!(absent.outcome, "absent");
+    assert_eq!(absent.class, Classification::AlreadyAbsent);
+    assert_eq!(Classification::AlreadyAbsent.word(), "already-absent");
+
+    // A refusal the hook itself made still carries the path it was about.
+    let impostor = fixture.container.path().join("decoy2").join("ws-lane10");
+    std::fs::create_dir_all(&impostor).unwrap();
+    let failure = run_worktree_remove(
+        &env,
+        &context(&root),
+        &RemoveInput {
+            worktree_path: impostor.to_string_lossy().into_owned(),
+            session_id: "s1".to_owned(),
+        },
+    )
+    .expect_err("a decoy path must refuse");
+    assert_eq!(
+        failure.path.as_deref(),
+        Some(canonical(&impostor).as_path())
+    );
+    let line = LogRecord::refusal("worktree-remove", basename, "s1", &failure).line(&env);
+    assert!(!line.contains("path=-"), "{line}");
 }
 
 /// The removal runs from the family root, never from inside the lane, so a
@@ -901,6 +1079,64 @@ fn the_fallback_creates_reuses_and_removes_a_plain_worktree() {
     .expect("a clean worktree is removed");
     assert_eq!(removed.class, Classification::FallbackWorktree);
     assert!(!created.path.exists());
+}
+
+/// F7 (the probe of 2026-09-18, §9): the `.worktreeinclude` enumeration is
+/// scoped to the project's own files, so a second worktree never receives the
+/// first worktree's copies and a reuse never reports a present file missing.
+#[test]
+fn the_fallback_never_copies_one_worktrees_includes_into_another() {
+    let temp = plain_repository("hook-include-scope");
+    let root = temp.path().to_path_buf();
+    std::fs::write(root.join(".gitignore"), b"secrets.env\n").unwrap();
+    std::fs::write(root.join(".worktreeinclude"), b"secrets.env\n").unwrap();
+    std::fs::write(root.join("secrets.env"), b"TOKEN=abc\n").unwrap();
+    let env = TestEnv::new().with_home(temp.path());
+    let context = context(&root);
+
+    let first = run_worktree_create(&env, &context, &create_input("one", "s1"))
+        .expect("the first worktree is created");
+    assert!(first.path.join("secrets.env").is_file());
+
+    // The second creation walks a project root that now holds the first
+    // worktree, including its copy of the included file.
+    let second = run_worktree_create(&env, &context, &create_input("two", "s1"))
+        .expect("the second worktree is created");
+    assert!(
+        second.path.join("secrets.env").is_file(),
+        "the project's own included file is copied"
+    );
+    assert!(
+        !second.path.join(".claude").exists(),
+        "no other worktree's copy travels into this one: {:?}",
+        std::fs::read_dir(&second.path)
+            .unwrap()
+            .flatten()
+            .map(|entry| entry.file_name())
+            .collect::<Vec<_>>()
+    );
+    let copies = std::process::Command::new("find")
+        .arg(&second.path)
+        .args(["-name", "secrets.env"])
+        .output()
+        .expect("find runs");
+    assert_eq!(
+        String::from_utf8_lossy(&copies.stdout).lines().count(),
+        1,
+        "exactly one copy, at the top level: {}",
+        String::from_utf8_lossy(&copies.stdout)
+    );
+
+    // Reuse of the first worktree, whose included file is present, warns
+    // about nothing.
+    let reused = run_worktree_create(&env, &context, &create_input("one", "s1"))
+        .expect("the first worktree is reused");
+    assert_eq!(reused.outcome, "reused");
+    assert!(
+        !env.warned("missing from the reused worktree"),
+        "{:?}",
+        env.warnings()
+    );
 }
 
 /// `--base-ref` is honoured, and a locked worktree -- what Claude holds on a

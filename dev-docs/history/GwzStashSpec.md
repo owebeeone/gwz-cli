@@ -1,6 +1,6 @@
 # GWZ Stash
 
-Status: proposed / not implemented
+Status: implemented (gwz-cli `9e60109`, "Added stash and branch support"); user documentation is `docs/commands/stash.md`. This spec and `GwzStashPlan.md` are kept as the design record.
 
 Scope: coordinated `git stash` across workspace members. CLI surface in
 `gwz-cli`; semantics and registry in `gwz-core`.

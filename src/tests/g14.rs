@@ -12,7 +12,10 @@ use std::time::{Duration, SystemTime};
 use super::g01::TempDir;
 
 use crate::hook::env::{HookEnv, ShareProbe};
-use crate::hook::setup::{SetupPlacement, SetupRequest, handlers, render_block, run_setup};
+use crate::hook::estimate::estimate;
+use crate::hook::setup::{
+    SetupPlacement, SetupRequest, SetupRoots, baked_wait, handlers, render_block, run_setup,
+};
 use crate::hook::{DEFAULT_WAIT_SECS, HookOptions};
 
 struct SetupEnv {
@@ -105,7 +108,7 @@ fn commands(document: &serde_json::Value, event: &str) -> Vec<String> {
 fn setup_writes_a_fresh_settings_file() {
     let home = TempDir::new("setup-fresh");
     let env = SetupEnv::new(home.path());
-    let output = run_setup(&env, None, &request(true)).expect("the file is written");
+    let output = run_setup(&env, &SetupRoots::none(), &request(true)).expect("the file is written");
     assert_eq!(output.target, settings(&home));
     let document = document(&settings(&home));
     assert_eq!(
@@ -119,7 +122,8 @@ fn setup_writes_a_fresh_settings_file() {
     // Without --write nothing is created.
     let other = TempDir::new("setup-print");
     let env = SetupEnv::new(other.path());
-    let printed = run_setup(&env, None, &request(false)).expect("the block is printed");
+    let printed =
+        run_setup(&env, &SetupRoots::none(), &request(false)).expect("the block is printed");
     assert!(!settings(&other).exists());
     assert!(
         printed.block.contains("WorktreeCreate"),
@@ -140,7 +144,7 @@ fn setup_merges_without_touching_a_byte_outside_the_block() {
     std::fs::write(settings(&home), original).unwrap();
     let env = SetupEnv::new(home.path());
 
-    run_setup(&env, None, &request(true)).expect("the block is merged");
+    run_setup(&env, &SetupRoots::none(), &request(true)).expect("the block is merged");
     let merged = std::fs::read_to_string(settings(&home)).unwrap();
     let document = document(&settings(&home));
     assert_eq!(document["unknownTopLevel"], serde_json::json!([1, 2, 3]));
@@ -156,9 +160,81 @@ fn setup_merges_without_touching_a_byte_outside_the_block() {
     }
 
     // A second run is a no-op, byte for byte.
-    let note = run_setup(&env, None, &request(true)).expect("the second run is served");
+    let note =
+        run_setup(&env, &SetupRoots::none(), &request(true)).expect("the second run is served");
     assert!(note.note.contains("already carries"), "{}", note.note);
     assert_eq!(std::fs::read_to_string(settings(&home)).unwrap(), merged);
+}
+
+/// F1 (the probe of 2026-09-18, §2): the merge writes the same pretty block
+/// it prints, in the file's own indentation and in the printed event order.
+/// A reviewer diffs this file, and S1.4 commits it.
+#[test]
+fn the_merge_is_pretty_indented_and_in_the_printed_order() {
+    let home = TempDir::new("setup-pretty");
+    std::fs::create_dir_all(home.path().join(".claude")).unwrap();
+    let original = "{\n  \"permissions\": {\n    \"allow\": []\n  }\n}\n";
+    std::fs::write(settings(&home), original).unwrap();
+    let env = SetupEnv::new(home.path());
+
+    let output = run_setup(&env, &SetupRoots::none(), &request(true)).expect("the block is merged");
+    let merged = std::fs::read_to_string(settings(&home)).unwrap();
+
+    // The same event order as the printed block, in the note and in the file.
+    assert!(
+        output
+            .note
+            .contains("merged WorktreeCreate and WorktreeRemove"),
+        "{}",
+        output.note
+    );
+    for text in [output.block.as_str(), merged.as_str()] {
+        let create = text.find("WorktreeCreate").expect("the create event");
+        let remove = text.find("WorktreeRemove").expect("the remove event");
+        assert!(create < remove, "{text}");
+    }
+
+    // Pretty, not minified: one member to a line, and indented in the
+    // file's own unit rather than pinned to column zero.
+    let command_line = merged
+        .lines()
+        .find(|line| line.trim_start().starts_with("\"command\": \"gwz hook"))
+        .expect("the command is on a line of its own");
+    assert!(
+        command_line.starts_with("      "),
+        "the handler is indented: {command_line:?}"
+    );
+    assert!(merged.contains("\n  \"hooks\": {"), "{merged}");
+    assert!(
+        !merged.lines().any(|line| line.len() > 120),
+        "a near-minified line survived:\n{merged}"
+    );
+    // And the original bytes are still the file's own.
+    assert!(
+        merged.contains("  \"permissions\": {\n    \"allow\": []\n  }"),
+        "{merged}"
+    );
+
+    // A file indented with tabs gets tabs.
+    let tabbed = TempDir::new("setup-pretty-tabs");
+    std::fs::create_dir_all(tabbed.path().join(".claude")).unwrap();
+    std::fs::write(settings(&tabbed), "{\n\t\"permissions\": {}\n}\n").unwrap();
+    let env = SetupEnv::new(tabbed.path());
+    run_setup(&env, &SetupRoots::none(), &request(true)).expect("the block is merged");
+    let merged = std::fs::read_to_string(settings(&tabbed)).unwrap();
+    assert!(merged.contains("\n\t\"hooks\": {"), "{merged}");
+    assert!(
+        merged.contains("\t\"type\": \"command\""),
+        "the file's own unit is used throughout: {merged}"
+    );
+    assert!(
+        !merged.contains("\n  "),
+        "no space indentation crept in: {merged}"
+    );
+    // It still parses, and still carries both events once.
+    let document = document(&settings(&tabbed));
+    assert_eq!(commands(&document, "WorktreeCreate").len(), 1);
+    assert_eq!(commands(&document, "WorktreeRemove").len(), 1);
 }
 
 /// A file that does not parse is refused and left exactly as it was, and so
@@ -170,7 +246,8 @@ fn setup_refuses_a_file_it_cannot_parse_or_replace() {
     let broken = "{ \"hooks\": [ }\n";
     std::fs::write(settings(&home), broken).unwrap();
     let env = SetupEnv::new(home.path());
-    let failure = run_setup(&env, None, &request(true)).expect_err("a broken file is refused");
+    let failure =
+        run_setup(&env, &SetupRoots::none(), &request(true)).expect_err("a broken file is refused");
     assert!(failure.cause.contains("is not JSON"), "{}", failure.cause);
     assert_eq!(std::fs::read_to_string(settings(&home)).unwrap(), broken);
 
@@ -184,7 +261,8 @@ fn setup_refuses_a_file_it_cannot_parse_or_replace() {
         .join(".claude")
         .join(format!(".settings.json.gwz-{}", std::process::id()));
     std::fs::create_dir_all(&temporary).unwrap();
-    let failure = run_setup(&env, None, &request(true)).expect_err("the write cannot complete");
+    let failure = run_setup(&env, &SetupRoots::none(), &request(true))
+        .expect_err("the write cannot complete");
     assert!(
         failure.cause.contains("could not be written"),
         "{}",
@@ -209,8 +287,8 @@ fn setup_warns_about_a_differing_handler_in_another_placement() {
     let env = SetupEnv::new(home.path());
     let mut request = request(true);
     request.placement = SetupPlacement::Project { local: true };
-    let output =
-        run_setup(&env, Some(project.path()), &request).expect("the project file is written");
+    let output = run_setup(&env, &SetupRoots::settings_only(project.path()), &request)
+        .expect("the project file is written");
     assert_eq!(
         output.target,
         project.path().join(".claude/settings.local.json")
@@ -267,28 +345,105 @@ fn the_handler_text_carries_the_command_and_the_options() {
         600
     );
 
-    // Inside a workspace the wait is the estimated copy time, and the two
-    // timeouts are one wait plus one estimated copy plus 60 s, and one wait
-    // plus 60 s.
+    // Inside a workspace the wait is the estimated copy time with the
+    // compiled-in default as a floor, and the two timeouts are one wait plus
+    // one estimated copy plus 60 s, and one wait plus 60 s.
     let workspace = TempDir::new("setup-workspace");
     let root = workspace.path().join("ws");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("file.txt"), b"x").unwrap();
     let inside = handlers(&env, Some(&root), &request);
-    let wait = inside
-        .create_command
-        .split("--wait-secs ")
-        .nth(1)
-        .and_then(|rest| rest.split_whitespace().next())
-        .map(|value| value.parse::<u64>().unwrap())
-        .expect("the baked wait");
-    assert_eq!(inside.create_timeout, wait * 2 + 60);
+    let copy = estimate(&env, &root, workspace.path())
+        .copy_time
+        .as_secs()
+        .max(1);
+    let wait = baked_wait(request.options.wait_secs, Some(copy));
+    assert_eq!(inside.create_timeout, wait + copy + 60);
     assert_eq!(inside.remove_timeout, wait + 60);
-    assert!(
+    // At the floor the wait is the compiled-in default, which the handler
+    // text leaves implicit; above it, both handlers carry it.
+    let carried = wait != DEFAULT_WAIT_SECS;
+    assert_eq!(
         inside
             .remove_command
-            .contains(&format!("--wait-secs {wait}"))
+            .contains(&format!("--wait-secs {wait}")),
+        carried,
+        "{}",
+        inside.remove_command
     );
+}
+
+/// F5 (the probe of 2026-09-18, §2): the wait the estimate bakes has the
+/// compiled-in default as a floor, because the estimate models the copy and
+/// not the queueing behind the family lock; and outside a workspace no
+/// estimate runs at all.
+#[test]
+fn the_baked_wait_has_a_floor_and_a_plain_repository_gets_the_defaults() {
+    let home = TempDir::new("setup-floor");
+    let env = SetupEnv::new(home.path());
+    let request = request(false);
+
+    // The floor itself: an estimate below it does not lower the wait, and
+    // one above it raises it.
+    assert_eq!(baked_wait(DEFAULT_WAIT_SECS, Some(1)), DEFAULT_WAIT_SECS);
+    assert_eq!(
+        baked_wait(DEFAULT_WAIT_SECS, Some(DEFAULT_WAIT_SECS * 3)),
+        DEFAULT_WAIT_SECS * 3
+    );
+    assert_eq!(baked_wait(DEFAULT_WAIT_SECS, None), DEFAULT_WAIT_SECS);
+    // Outside a workspace the request's own option stands, unestimated.
+    assert_eq!(baked_wait(42, None), 42);
+
+    // A small workspace: the estimate is a second or two, and the floor,
+    // not the estimate, is what the handler carries. At the floor the
+    // option is the compiled-in default, so it is left off the text.
+    let workspace = TempDir::new("setup-floor-ws");
+    let root = workspace.path().join("ws");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("file.txt"), b"x").unwrap();
+    let small = handlers(&env, Some(&root), &request);
+    assert!(
+        !small.create_command.contains("--wait-secs"),
+        "{}",
+        small.create_command
+    );
+    // One wait (the floor) plus one estimated copy plus 60 s, and one wait
+    // plus 60 s: the create timeout is never a bare multiple of the copy.
+    assert!(
+        small.create_timeout > DEFAULT_WAIT_SECS + 60,
+        "{}",
+        small.create_timeout
+    );
+    assert_eq!(small.remove_timeout, DEFAULT_WAIT_SECS + 60);
+
+    // A plain Git repository is a settings root but not a workspace: the
+    // estimate does not run, and the block carries the compiled-in defaults.
+    let plain = TempDir::new("setup-floor-plain");
+    std::fs::write(plain.path().join("README.md"), b"x\n").unwrap();
+    let roots = SetupRoots::settings_only(plain.path());
+    assert_eq!(roots.workspace, None);
+    let outside = handlers(&env, roots.workspace.as_deref(), &request);
+    assert!(
+        !outside.create_command.contains("--wait-secs"),
+        "{}",
+        outside.create_command
+    );
+    assert_eq!(outside.create_timeout, 600);
+    assert_eq!(outside.remove_timeout, 600);
+
+    // And that is what resolving a plain repository's roots gives: a
+    // settings root, and no workspace to estimate from.
+    let repository = TempDir::new("setup-floor-repo");
+    let status = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repository.path())
+        .args(["init", "-q", "-b", "main", "."])
+        .status()
+        .expect("git runs");
+    assert!(status.success());
+    let resolved = SetupRoots::resolve(repository.path());
+    assert_eq!(resolved.workspace, None);
+    assert!(resolved.settings.is_some(), "{resolved:?}");
 }
 
 /// `--remove` is `--write` run backwards: for a fresh file, for a file with
@@ -306,7 +461,7 @@ fn remove_restores_the_file_write_started_from() {
         std::fs::write(settings(&home), original).unwrap();
         let env = SetupEnv::new(home.path());
 
-        run_setup(&env, None, &request(true)).expect("the block is merged");
+        run_setup(&env, &SetupRoots::none(), &request(true)).expect("the block is merged");
         let merged = std::fs::read_to_string(settings(&home)).unwrap();
         assert_ne!(merged, original);
         assert_eq!(
@@ -314,7 +469,8 @@ fn remove_restores_the_file_write_started_from() {
             1
         );
 
-        let output = run_setup(&env, None, &removal()).expect("the block is removed");
+        let output =
+            run_setup(&env, &SetupRoots::none(), &removal()).expect("the block is removed");
         assert!(output.note.contains("removed"), "{}", output.note);
         assert_eq!(
             std::fs::read_to_string(settings(&home)).unwrap(),
@@ -332,14 +488,16 @@ fn remove_restores_the_file_write_started_from() {
 fn remove_leaves_a_file_without_the_block_alone() {
     let home = TempDir::new("setup-remove-absent");
     let env = SetupEnv::new(home.path());
-    let output = run_setup(&env, None, &removal()).expect("a missing file is served");
+    let output =
+        run_setup(&env, &SetupRoots::none(), &removal()).expect("a missing file is served");
     assert!(output.note.contains("does not exist"), "{}", output.note);
     assert!(!settings(&home).exists());
 
     std::fs::create_dir_all(home.path().join(".claude")).unwrap();
     let original = "{\n  \"hooks\": {\n    \"PreToolUse\": [{\"hooks\":[{\"type\":\"command\",\"command\":\"true\"}]}]\n  }\n}\n";
     std::fs::write(settings(&home), original).unwrap();
-    let output = run_setup(&env, None, &removal()).expect("a file without the block is served");
+    let output = run_setup(&env, &SetupRoots::none(), &removal())
+        .expect("a file without the block is served");
     assert!(
         output.note.contains("does not carry the block"),
         "{}",
@@ -357,13 +515,15 @@ fn remove_refuses_a_file_it_cannot_parse_or_is_not_a_file() {
     let broken = "{ \"hooks\": [ }\n";
     std::fs::write(settings(&home), broken).unwrap();
     let env = SetupEnv::new(home.path());
-    let failure = run_setup(&env, None, &removal()).expect_err("a broken file is refused");
+    let failure =
+        run_setup(&env, &SetupRoots::none(), &removal()).expect_err("a broken file is refused");
     assert!(failure.cause.contains("is not JSON"), "{}", failure.cause);
     assert_eq!(std::fs::read_to_string(settings(&home)).unwrap(), broken);
 
     std::fs::remove_file(settings(&home)).unwrap();
     std::fs::create_dir_all(settings(&home)).unwrap();
-    let failure = run_setup(&env, None, &removal()).expect_err("a directory is refused");
+    let failure =
+        run_setup(&env, &SetupRoots::none(), &removal()).expect_err("a directory is refused");
     assert!(
         failure.cause.contains("not a regular file"),
         "{}",
@@ -384,11 +544,13 @@ mod symlinks {
         std::fs::write(&real, "{}\n").unwrap();
         std::os::unix::fs::symlink(&real, settings(&home)).unwrap();
         let env = SetupEnv::new(home.path());
-        let failure = run_setup(&env, None, &request(true)).expect_err("a symlink is refused");
+        let failure =
+            run_setup(&env, &SetupRoots::none(), &request(true)).expect_err("a symlink is refused");
         assert!(failure.cause.contains("symbolic link"), "{}", failure.cause);
         assert_eq!(std::fs::read_to_string(&real).unwrap(), "{}\n");
 
-        let failure = run_setup(&env, None, &removal()).expect_err("a symlink is refused");
+        let failure =
+            run_setup(&env, &SetupRoots::none(), &removal()).expect_err("a symlink is refused");
         assert!(failure.cause.contains("symbolic link"), "{}", failure.cause);
         assert_eq!(std::fs::read_to_string(&real).unwrap(), "{}\n");
     }

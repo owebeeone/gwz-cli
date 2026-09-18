@@ -80,6 +80,10 @@ pub(crate) enum Classification {
     Lane,
     MemberInLane,
     FallbackWorktree,
+    /// A removal whose path, or whose family row, was already gone: an exit
+    /// of zero and no refusal at all, so it is not one of the three refusal
+    /// classes (F4).
+    AlreadyAbsent,
     RefusedByHook,
     RefusedByHazard,
     FamilyBusy,
@@ -91,6 +95,7 @@ impl Classification {
             Self::Lane => "lane",
             Self::MemberInLane => "member-in-lane",
             Self::FallbackWorktree => "fallback-worktree",
+            Self::AlreadyAbsent => "already-absent",
             Self::RefusedByHook => "refused-by-hook",
             Self::RefusedByHazard => "refused-by-hazard",
             Self::FamilyBusy => "family-busy",
@@ -105,6 +110,12 @@ pub(crate) struct HookFailure {
     pub(crate) class: Classification,
     pub(crate) cause: String,
     pub(crate) remedy: String,
+    /// The lane this refusal was about, when the hook learned it from the
+    /// family rather than from the payload (F4). The remove payload carries
+    /// no `name`.
+    pub(crate) name: Option<String>,
+    /// The path the refusal was about, when it was known (F4).
+    pub(crate) path: Option<PathBuf>,
 }
 
 impl HookFailure {
@@ -113,6 +124,8 @@ impl HookFailure {
             class: Classification::RefusedByHook,
             cause: cause.into(),
             remedy: remedy.into(),
+            name: None,
+            path: None,
         }
     }
 
@@ -121,6 +134,8 @@ impl HookFailure {
             class: Classification::RefusedByHazard,
             cause: cause.into(),
             remedy: remedy.into(),
+            name: None,
+            path: None,
         }
     }
 
@@ -129,7 +144,23 @@ impl HookFailure {
             class: Classification::FamilyBusy,
             cause: cause.into(),
             remedy: "family busy; retry".to_owned(),
+            name: None,
+            path: None,
         }
+    }
+
+    /// Record the path this refusal was about, so the log line carries it
+    /// instead of `path=-` (F4).
+    pub(crate) fn at(mut self, path: &std::path::Path) -> Self {
+        self.path = Some(path.to_path_buf());
+        self
+    }
+
+    /// Record the lane name the family gave, so the log line carries it
+    /// instead of the destination's basename (F4).
+    pub(crate) fn named(mut self, name: &str) -> Self {
+        self.name = Some(name.to_owned());
+        self
     }
 
     /// D10's one stderr line: `gwz: <cause>; <the one command that resolves
@@ -148,6 +179,8 @@ pub(crate) struct HookSuccess {
     pub(crate) path: PathBuf,
     pub(crate) class: Classification,
     pub(crate) outcome: &'static str,
+    /// The lane name the family gave, when the hook learned it there (F4).
+    pub(crate) name: Option<String>,
 }
 
 /// The invocation context: what the hook resolved before it read the family.

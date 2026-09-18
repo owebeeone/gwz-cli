@@ -52,9 +52,57 @@ pub(crate) struct Handlers {
     pub(crate) remove_timeout: u64,
 }
 
-/// S1.2: `--wait-secs` is the estimated copy time inside a workspace, and
-/// the compiled-in default outside one; the create timeout is one wait plus
-/// one estimated copy plus 60 s, and the remove timeout one wait plus 60 s.
+/// The two roots `setup` works from, which are not the same question (F5).
+///
+/// `settings` is where the block goes: a workspace root, or a plain
+/// repository's root for the D8 fallback case. `workspace` is the GWZ
+/// workspace whose copy cost may size the handlers, and is `None` for
+/// anything that is not one -- a plain repository has no lane to estimate,
+/// and sizing a 1 s wait from a three-file repository is a hair trigger.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct SetupRoots {
+    pub(crate) settings: Option<PathBuf>,
+    pub(crate) workspace: Option<PathBuf>,
+}
+
+impl SetupRoots {
+    /// Neither root: `--user` from nowhere in particular.
+    pub(crate) fn none() -> Self {
+        Self::default()
+    }
+
+    /// A settings root that is not a GWZ workspace (D8's fallback case).
+    pub(crate) fn settings_only(settings: &Path) -> Self {
+        Self {
+            settings: Some(settings.to_path_buf()),
+            workspace: None,
+        }
+    }
+
+    /// What `setup` resolves from the directory it was run in: the workspace
+    /// if there is one, and otherwise the enclosing repository for the
+    /// settings file alone.
+    pub(crate) fn resolve(start_dir: &Path) -> Self {
+        if let Ok(workspace) = gwz_core::workspace::discover_workspace_root(start_dir) {
+            return Self {
+                settings: Some(workspace.clone()),
+                workspace: Some(workspace),
+            };
+        }
+        match super::ignore::enclosing_repository(start_dir) {
+            Some(repository) => Self::settings_only(&repository),
+            None => Self::none(),
+        }
+    }
+}
+
+/// S1.2, as F5 corrects it: `--wait-secs` is the compiled-in default with
+/// the estimated copy time as a floor raised only inside a workspace -- the
+/// estimate models the copy and not the queueing behind the family lock,
+/// which is what the wait exists for, and on gwz-dev the estimate was 132 s
+/// against a copy that took 207 s. The create timeout is one wait plus one
+/// estimated copy plus 60 s, and the remove timeout one wait plus 60 s.
+/// Outside a workspace both are the compiled-in defaults.
 pub(crate) fn handlers(
     env: &dyn HookEnv,
     workspace_root: Option<&Path>,
@@ -66,9 +114,7 @@ pub(crate) fn handlers(
         let parent = root.parent()?;
         Some(estimate(env, root, parent).copy_time.as_secs().max(1))
     });
-    if let Some(copy) = copy_seconds {
-        options.wait_secs = copy;
-    }
+    options.wait_secs = baked_wait(options.wait_secs, copy_seconds);
     let wait = options.wait_secs;
     let copy = copy_seconds.unwrap_or(0);
     let create_suffix = suffix(&handler_words(&options, Leaf::Create));
@@ -86,6 +132,22 @@ pub(crate) fn handlers(
         } else {
             600
         },
+    }
+}
+
+/// The wait a handler carries (F5): inside a workspace, the estimated copy
+/// time with the compiled-in default as a *floor*, so the estimate can only
+/// raise it; outside one, whatever the request configured, which is the
+/// compiled-in default unless the operator said otherwise.
+///
+/// The floor exists because the estimate models the copy and not the wait
+/// for the family lock, which is what `--wait-secs` is for: on gwz-dev the
+/// baked 132 s met a copy that took 207 s, all but 30 s of it queueing
+/// behind two other lanes (the probe of 2026-09-18, §3).
+pub(crate) fn baked_wait(configured: u64, copy_seconds: Option<u64>) -> u64 {
+    match copy_seconds {
+        Some(copy) => copy.max(DEFAULT_WAIT_SECS),
+        None => configured,
     }
 }
 
@@ -200,10 +262,11 @@ pub(crate) fn settings_path(
 
 pub(crate) fn run_setup(
     env: &dyn HookEnv,
-    workspace_root: Option<&Path>,
+    roots: &SetupRoots,
     request: &SetupRequest,
 ) -> Result<SetupOutput, HookFailure> {
-    let handlers = handlers(env, workspace_root, request);
+    let workspace_root = roots.settings.as_deref();
+    let handlers = handlers(env, roots.workspace.as_deref(), request);
     let block = render_block(&handlers);
     let target = settings_path(env, request.placement, workspace_root)?;
     if request.remove {
@@ -331,16 +394,19 @@ fn merge_into(target: &Path, handlers: &Handlers) -> Result<String, HookFailure>
     }
     let mut updated = text.clone();
     let mut inserted = Vec::new();
+    // Inserted last to first (F1): each insertion goes immediately after the
+    // brace it is inserted under, so the last one written is the first one
+    // read, and the file ends up in the printed block's event order.
     for (event, command, timeout) in [
-        (
-            CREATE_EVENT,
-            handlers.create_command.clone(),
-            handlers.create_timeout,
-        ),
         (
             REMOVE_EVENT,
             handlers.remove_command.clone(),
             handlers.remove_timeout,
+        ),
+        (
+            CREATE_EVENT,
+            handlers.create_command.clone(),
+            handlers.create_timeout,
         ),
     ] {
         let present = serde_json::from_str::<serde_json::Value>(&updated)
@@ -353,6 +419,8 @@ fn merge_into(target: &Path, handlers: &Handlers) -> Result<String, HookFailure>
         updated = insert_handler(&updated, event, &command, timeout)?;
         inserted.push(event);
     }
+    // The note names them the way the block prints them.
+    inserted.reverse();
     if inserted.is_empty() {
         return Ok(format!("{} already carries the block", target.display()));
     }
@@ -364,36 +432,91 @@ fn merge_into(target: &Path, handlers: &Handlers) -> Result<String, HookFailure>
     ))
 }
 
+/// The file's own indentation: the leading whitespace of its first indented
+/// line, and two spaces when it has none to copy (F1).
+fn indent_unit(text: &str) -> String {
+    for line in text.lines() {
+        let indent: String = line
+            .chars()
+            .take_while(|value| *value == ' ' || *value == '\t')
+            .collect();
+        if !indent.is_empty() && indent.len() < line.len() {
+            return indent;
+        }
+    }
+    "  ".to_owned()
+}
+
+/// The leading whitespace of the line the byte at `at` sits on.
+fn line_indent(text: &str, at: usize) -> String {
+    let start = text[..at].rfind('\n').map(|index| index + 1).unwrap_or(0);
+    text[start..at]
+        .chars()
+        .take_while(|value| *value == ' ' || *value == '\t')
+        .collect()
+}
+
+/// A value rendered the way `setup` prints it -- pretty, one member to a
+/// line -- but in the file's indentation and at the file's depth (F1).
+///
+/// `serde_json` pretty-prints with two spaces; every line's leading pair is
+/// exchanged for `unit`, and every line but the first is placed at `indent`.
+/// The values here are this tool's own handler objects, whose strings carry
+/// no raw newline, so counting leading spaces is exact.
+fn rendered(value: &serde_json::Value, indent: &str, unit: &str) -> String {
+    let pretty = serde_json::to_string_pretty(value).unwrap_or_default();
+    let mut out = String::with_capacity(pretty.len() * 2);
+    for (index, line) in pretty.lines().enumerate() {
+        if index > 0 {
+            out.push('\n');
+            out.push_str(indent);
+        }
+        let depth = line.chars().take_while(|value| *value == ' ').count() / 2;
+        for _ in 0..depth {
+            out.push_str(unit);
+        }
+        out.push_str(line.trim_start_matches(' '));
+    }
+    out
+}
+
 /// Insert one handler group textually, so every byte outside the insertion
-/// is the file's own.
+/// is the file's own, and the insertion itself reads like the block `setup`
+/// prints (F1).
 fn insert_handler(
     text: &str,
     event: &str,
     command: &str,
     timeout: u64,
 ) -> Result<String, HookFailure> {
-    let handler = serde_json::to_string(&handler_value(command, timeout)).unwrap_or_default();
+    let unit = indent_unit(text);
+    let handler = handler_value(command, timeout);
     if let Some(hooks) = value_start(text, "hooks", 1) {
         if let Some(array) = value_start(text, event, 2).filter(|position| *position > hooks) {
             // The event exists: add this handler to its array.
             let at = array + 1;
+            let indent = format!("{}{unit}", line_indent(text, array));
             let separator = if next_meaningful(text, at) == Some(']') {
                 String::new()
             } else {
                 ",".to_owned()
             };
-            return Ok(splice(text, at, &format!("{handler}{separator}")));
+            let group = rendered(&handler, &indent, &unit);
+            return Ok(splice(text, at, &indent, &format!("{group}{separator}")));
         }
         let at = hooks + 1;
+        let indent = format!("{}{unit}", line_indent(text, hooks));
         let separator = if next_meaningful(text, at) == Some('}') {
             String::new()
         } else {
             ",".to_owned()
         };
+        let array = rendered(&serde_json::json!([handler]), &indent, &unit);
         return Ok(splice(
             text,
             at,
-            &format!("\"{event}\": [{handler}]{separator}"),
+            &indent,
+            &format!("\"{event}\": {array}{separator}"),
         ));
     }
     let open = text.find('{').ok_or_else(|| {
@@ -403,22 +526,26 @@ fn insert_handler(
         )
     })?;
     let at = open + 1;
+    let indent = format!("{}{unit}", line_indent(text, open));
     let separator = if next_meaningful(text, at) == Some('}') {
         String::new()
     } else {
         ",".to_owned()
     };
+    let object = rendered(&serde_json::json!({ event: [handler] }), &indent, &unit);
     Ok(splice(
         text,
         at,
-        &format!("\"hooks\": {{\"{event}\": [{handler}]}}{separator}"),
+        &indent,
+        &format!("\"hooks\": {object}{separator}"),
     ))
 }
 
-fn splice(text: &str, at: usize, insertion: &str) -> String {
-    let mut updated = String::with_capacity(text.len() + insertion.len() + 2);
+fn splice(text: &str, at: usize, indent: &str, insertion: &str) -> String {
+    let mut updated = String::with_capacity(text.len() + insertion.len() + indent.len() + 2);
     updated.push_str(&text[..at]);
     updated.push('\n');
+    updated.push_str(indent);
     updated.push_str(insertion);
     updated.push_str(&text[at..]);
     updated

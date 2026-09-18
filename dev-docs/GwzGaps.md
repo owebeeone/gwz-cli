@@ -21,7 +21,8 @@ aren't lost.
 `gwz-core/dev-docs/history/GWZAddPlan.md`.)
 
 ## `gwz stash`
-- Spec exists (`gwz-cli/dev-docs/GwzStashSpec.md` + `GwzStashPlan.md`), **not implemented**.
+- Implemented (gwz-cli `9e60109`); `docs/commands/stash.md`. The spec and plan
+  moved to `dev-docs/history/`. Nothing deferred.
 
 ## SSH transport: unknown host key (added 2026-09-11)
 - **No host-key trust decision anywhere** — libgit2 checks the server host key

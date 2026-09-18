@@ -438,7 +438,13 @@ fn ordinary_dispose_deletes_a_preserved_lane_and_refuses_unique_history_end_to_e
     let json: Value = serde_json::from_slice(&machine.stdout).unwrap();
     assert_eq!(json["errors"][0]["code"], UNWAIVED_HAZARD);
     let message = json["errors"][0]["message"].as_str().unwrap();
-    assert!(message.contains("<unpreserved-history>"), "{message}");
+    // gwz-core reports by category and prints the exact waiver command
+    // (gwz-core `dev-docs/GwzLaneCleanFixes.md` R9, R10).
+    assert!(message.contains("unique to the lane 1:"), "{message}");
+    assert!(
+        message.contains("`gwz local dispose B --force unpreserved-history`"),
+        "{message}"
+    );
     assert!(message.contains(&unique), "{message}");
     assert!(message.contains("nothing was removed"), "{message}");
     assert!(json.get("local_family_members").is_none());

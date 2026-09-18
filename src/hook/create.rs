@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use super::env::HookEnv;
 use super::estimate::{check_free_space, check_lane_ceiling, estimate};
-use super::family::{FamilyRead, clone_lane, is_absent, is_family_busy, read_family};
+use super::family::{
+    FamilyRead, clone_lane, is_absent, is_family_busy, lane_incompleteness, read_family,
+};
 use super::input::{CreateInput, validate_lane_name, validate_session_token};
 use super::{Classification, HookContext, HookFailure, HookSuccess, fallback};
 
@@ -107,6 +109,15 @@ fn create_lane(
         };
         match decide(&family, &input.name, &destination, &input.session_id) {
             Decision::Reuse => {
+                // D6 allows the reuse only when the lane passes the same
+                // completeness check a fresh create reports (F2).
+                if let Some(detail) = lane_incompleteness(&root, &destination) {
+                    return Err(HookFailure::refused(
+                        format!("the lane `{}` is incomplete: {detail}", input.name),
+                        "retire it: `gwz local list`, then the retirement procedure in \
+                         docs/ClaudeCode.md",
+                    ));
+                }
                 return Ok(success(&root, &destination, context, "reused"));
             }
             Decision::Refuse(failure) => {
@@ -256,12 +267,14 @@ fn success(
             path: canonical(destination),
             class: Classification::Lane,
             outcome,
+            name: None,
         }
     } else {
         HookSuccess {
             path: canonical(&destination.join(relative)),
             class: Classification::MemberInLane,
             outcome,
+            name: None,
         }
     }
 }

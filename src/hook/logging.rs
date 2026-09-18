@@ -88,6 +88,10 @@ pub(crate) struct LogRecord {
 }
 
 impl LogRecord {
+    /// A refusal, with the name and the path the hook itself learned
+    /// preferred over what the payload spelled (F4): the remove payload
+    /// carries no `name` at all, and a refusal whose path was known should
+    /// not log `path=-`.
     pub(crate) fn refusal(
         event: &'static str,
         name: &str,
@@ -96,10 +100,14 @@ impl LogRecord {
     ) -> Self {
         Self {
             event,
-            name: name.to_owned(),
+            name: failure.name.clone().unwrap_or_else(|| name.to_owned()),
             session_id: session_id.to_owned(),
             class: failure.class,
-            path: String::new(),
+            path: failure
+                .path
+                .as_ref()
+                .map(|path| path.to_string_lossy().into_owned())
+                .unwrap_or_default(),
             outcome: "refused".to_owned(),
             exit: 1,
             message: Some(failure.line()),
