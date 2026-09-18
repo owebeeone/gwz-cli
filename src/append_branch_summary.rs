@@ -1,5 +1,6 @@
 mod branch_stash;
 mod common;
+mod fetch;
 mod human_branch_summary;
 mod human_changes;
 mod human_status;
@@ -8,6 +9,7 @@ mod response_listing;
 
 pub(crate) use branch_stash::*;
 pub(crate) use common::*;
+pub(crate) use fetch::*;
 pub(crate) use human_branch_summary::*;
 pub(crate) use human_changes::*;
 pub(crate) use human_status::*;

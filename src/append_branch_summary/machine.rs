@@ -49,6 +49,17 @@ pub(crate) fn response_json(response: &CliResponse) -> serde_json::Value {
     // in `gwz-core/protocol/fixtures/cli_parity/`, which this lane does not
     // own, so the family rows are added only to a family response instead of
     // appearing as `null` on every other one.
+    // Same reason as the family rows below: the canonical cross-driver key
+    // set is pinned elsewhere, so fetch's rows appear on a fetch response and
+    // nowhere else rather than as `null` on every verb.
+    if let Some(repos) = &response.fetch_repos
+        && let Some(object) = value.as_object_mut()
+    {
+        object.insert(
+            "fetch_repos".to_owned(),
+            repos.iter().map(fetch_repo_json).collect::<Vec<_>>().into(),
+        );
+    }
     if let Some(family) = &response.local_family
         && let Some(object) = value.as_object_mut()
     {

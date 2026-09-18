@@ -625,6 +625,60 @@ This changed after gwz 1.0.12, which reported every row of a push with nothing
 to publish, and its aggregate, as `Ok`. A script that treats only `Ok` as
 success must also accept `Noop`.
 
+## Fetch JSON
+
+`gwz --json fetch` renders the ordinary member entries plus a `fetch_repos`
+array, one object per selected repository in the same order. The key appears on
+a fetch response and on no other response.
+
+```json
+{
+  "kind": "response",
+  "meta": { "action": "Fetch", "aggregate_status": "Ok" },
+  "members": [ { "member_id": "mem_core", "status": "Ok" } ],
+  "fetch_repos": [
+    {
+      "member_id": "mem_core",
+      "member_path": "gwz-core",
+      "source_kind": "Git",
+      "result": "Updated",
+      "remote": "origin",
+      "branch": "main",
+      "before": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+      "after": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432",
+      "upstream": "refs/remotes/origin/main",
+      "ahead": 0,
+      "behind": 3
+    }
+  ]
+}
+```
+
+`result` is the field to switch on:
+
+- `Updated`: the remote-tracking ref moved. `before` and `after` are its object
+  ids either side of the fetch; `before` is absent when the ref did not exist
+  yet.
+- `Unchanged`: the repository was contacted and its tracking ref did not move.
+  This is a successful read, not a skip — `gwz fetch` never skips the network.
+- `NoUpstream`: the repository has no fetch remote, or no attached branch whose
+  tracking ref could move. `remote`, `before` and `after` may all be absent.
+  It is a reported row, not a failure.
+- `Failed`: the remote refused, or the fetch errored. The reason is on the
+  matching `members` entry's `error`, where every other verb puts it.
+
+`ahead` and `behind` count the repository's current branch against `after`,
+after the fetch. They are absent when there is nothing to count against.
+
+Aggregates follow `gwz push`'s exit codes with one difference worth knowing:
+because `Unchanged` means contacted-and-answered rather than skipped, a batch
+in which one remote failed and every other repository read cleanly is `Partial`
+(exit `1`, the report is incomplete) even though no row is `Ok`. `Rejected`
+(exit `2`) means nothing was contacted at all.
+
+`gwz fetch` never integrates and never writes a workspace artifact, so a
+`fetch_repos` row never implies a branch, HEAD, index or lock change.
+
 ## Status JSON
 
 `gwz --json status` includes `workspace_git_status`:

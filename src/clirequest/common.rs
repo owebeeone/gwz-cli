@@ -59,6 +59,9 @@ pub(crate) enum CliRequest {
     PullHead(gwz_core::PullHeadRequest),
     PullSnapshot(gwz_core::PullSnapshotRequest),
     Push(gwz_core::PushRequest),
+    /// `gwz fetch`: contact every selected repository's remote and report
+    /// what moved. Integrates nothing.
+    Fetch(gwz_core::FetchRequest),
     Capture(gwz_core::CaptureRequest),
     Commit(gwz_core::CommitRequest),
     Stage(gwz_core::StageRequest),
@@ -95,6 +98,7 @@ pub(crate) fn operation_label(request: &CliRequest) -> &'static str {
         CliRequest::InitFromSources(_) => "initializing",
         CliRequest::UpdateBootstrap { .. } => "updating",
         CliRequest::PullSnapshot(_) => "pulling",
+        CliRequest::Fetch(_) => "fetching",
         _ => "working",
     }
 }

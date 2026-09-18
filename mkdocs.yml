@@ -90,6 +90,7 @@ nav:
           - merge: commands/merge.md
           - stash: commands/stash.md
           - materialize: commands/materialize.md
+          - fetch: commands/fetch.md
           - pull: commands/pull.md
           - push: commands/push.md
           - SSH identity: commands/auth.md

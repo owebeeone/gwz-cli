@@ -25,7 +25,7 @@ GWZ — manage a workspace of Git repositories
 
 Usage: gwz [OPTIONS] <COMMAND>
 
-Inspect:    status  ls  diff  log
+Inspect:    status  ls  diff  log  fetch
 Change:     add  commit  branch  tag  stash  merge  pull  push
 Workspace:  init  clone  snapshot  capture  materialize
 Members:    repo add|create|clone|detach|attach|sync
@@ -1124,6 +1124,137 @@ Examples:
   gwz diff --stat
   gwz diff --name-status
   gwz diff --quiet --exit-code
+```
+
+### `gwz fetch`
+
+```text
+Contact every selected repository's remote and report what moved.
+
+`gwz fetch` fetches the configured remote of each selected workspace target,
+updates that repository's remote-tracking refs, and reports one line per
+repository: the tracking ref before and after, how far the current branch is
+ahead of and behind it, or `no change`. By default that includes the workspace
+root (`@root`) plus configured member repositories, and the selectors are
+`push`'s: `--target`, `--member`, `--member-path`, `--all`, `--no-target @root`.
+
+What it does NOT do:
+  - It never integrates. No merge, no rebase, no fast-forward, no reset: no
+    branch, no HEAD, no index and no working-tree file changes. Use `gwz pull`
+    to integrate what a fetch showed you.
+  - It never writes workspace artifacts: no lock, no manifest, no boundary
+    sync. Because of that it is one of the few network verbs that still runs
+    while a merge is open.
+  - It never prunes.
+
+It always contacts the remotes. There is no `--check-remotes` and no
+`unchanged since the last fetch` short-circuit as there is on `gwz push`: a
+fetch that does not connect has answered nothing.
+
+Exit codes follow `gwz push`: 0 when every selected repository answered,
+1 when some answered and some failed (the report is incomplete), and 2 when
+the request was refused before any remote was contacted.
+
+Usage: gwz fetch [OPTIONS]
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
+
+      --target <selector>
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
+          ready local clone family name binds to that workspace instead; on `merge` the name is
+          family-only (`gwz merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz fetch
+  gwz fetch --json
+  gwz --no-target @root fetch
+  gwz --member mem_app fetch
+  gwz --remote upstream fetch
 ```
 
 ### `gwz forall`

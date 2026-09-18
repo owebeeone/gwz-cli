@@ -284,6 +284,12 @@ pub(crate) enum CommandArgs {
     )]
     Diff(DiffArgs),
     #[command(
+        about = "Fetch every selected repository's remote and report what moved (no integration)",
+        long_about = FETCH_LONG,
+        after_long_help = FETCH_AFTER
+    )]
+    Fetch,
+    #[command(
         about = "Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c <string>"
     )]
     Forall(ForallArgs),
