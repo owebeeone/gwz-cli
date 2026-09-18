@@ -256,12 +256,14 @@ fn success(
             path: canonical(destination),
             class: Classification::Lane,
             outcome,
+            name: None,
         }
     } else {
         HookSuccess {
             path: canonical(&destination.join(relative)),
             class: Classification::MemberInLane,
             outcome,
+            name: None,
         }
     }
 }

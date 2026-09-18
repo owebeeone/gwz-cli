@@ -854,6 +854,97 @@ fn removal_classifies_by_canonical_path_and_not_by_name() {
     assert!(fixture.lane("lane9").exists(), "the real lane is untouched");
 }
 
+/// F4 (the probe of 2026-09-18, §7): the remove path's log fields. `name=`
+/// is the lane name the family row gave, not the destination's basename;
+/// `path=` on a refusal is the path that was known; and the exit-zero
+/// `absent` outcome is its own class, not a refusal.
+#[test]
+fn the_remove_paths_log_fields_name_the_lane_and_its_path() {
+    let fixture = Fixture::new("hook-fields");
+    let root = fixture.root();
+    let env = TestEnv::new().with_home(fixture.container.path());
+    let created = run_worktree_create(&env, &context(&root), &create_input("lane10", "s1"))
+        .expect("a lane is created");
+    let requested = created.path.to_string_lossy().into_owned();
+    // The destination's basename is `ws-lane10`; the lane is `lane10`.
+    assert!(requested.ends_with("ws-lane10"), "{requested}");
+
+    let outcome = run_worktree_remove(
+        &env,
+        &context(&root),
+        &RemoveInput {
+            worktree_path: requested.clone(),
+            session_id: "s1".to_owned(),
+        },
+    );
+    // The basename is what the driver has before the hook runs; the hook's
+    // own answer is what the log must carry.
+    let basename = "ws-lane10";
+    match outcome {
+        Ok(success) => {
+            assert_eq!(success.name.as_deref(), Some("lane10"));
+            let record = LogRecord {
+                event: "worktree-remove",
+                name: success.name.clone().unwrap_or_else(|| basename.to_owned()),
+                session_id: "s1".to_owned(),
+                class: success.class,
+                path: success.path.to_string_lossy().into_owned(),
+                outcome: success.outcome.to_owned(),
+                exit: 0,
+                message: None,
+            };
+            let line = record.line(&env);
+            assert!(line.contains("name=lane10"), "{line}");
+        }
+        Err(failure) => {
+            assert_eq!(failure.name.as_deref(), Some("lane10"));
+            assert_eq!(failure.path.as_deref(), Some(created.path.as_path()));
+            let line = LogRecord::refusal("worktree-remove", basename, "s1", &failure).line(&env);
+            assert!(line.contains("name=lane10"), "{line}");
+            assert!(!line.contains("path=-"), "{line}");
+            assert!(line.contains(&requested), "{line}");
+        }
+    }
+
+    // A path that no longer exists: exit zero, and a class of its own.
+    let absent = run_worktree_remove(
+        &env,
+        &context(&root),
+        &RemoveInput {
+            worktree_path: fixture
+                .container
+                .path()
+                .join("never-existed")
+                .to_string_lossy()
+                .into_owned(),
+            session_id: "s1".to_owned(),
+        },
+    )
+    .expect("an absent path exits zero");
+    assert_eq!(absent.outcome, "absent");
+    assert_eq!(absent.class, Classification::AlreadyAbsent);
+    assert_eq!(Classification::AlreadyAbsent.word(), "already-absent");
+
+    // A refusal the hook itself made still carries the path it was about.
+    let impostor = fixture.container.path().join("decoy2").join("ws-lane10");
+    std::fs::create_dir_all(&impostor).unwrap();
+    let failure = run_worktree_remove(
+        &env,
+        &context(&root),
+        &RemoveInput {
+            worktree_path: impostor.to_string_lossy().into_owned(),
+            session_id: "s1".to_owned(),
+        },
+    )
+    .expect_err("a decoy path must refuse");
+    assert_eq!(
+        failure.path.as_deref(),
+        Some(canonical(&impostor).as_path())
+    );
+    let line = LogRecord::refusal("worktree-remove", basename, "s1", &failure).line(&env);
+    assert!(!line.contains("path=-"), "{line}");
+}
+
 /// The removal runs from the family root, never from inside the lane, so a
 /// process working directory inside the lane still disposes (D8).
 #[test]

@@ -113,7 +113,9 @@ fn report(
                 location,
                 &LogRecord {
                     event,
-                    name: name.to_owned(),
+                    // The lane name the hook recovered from the family row,
+                    // where the remove payload has none to give (F4).
+                    name: success.name.clone().unwrap_or_else(|| name.to_owned()),
                     session_id: session_id.to_owned(),
                     class: success.class,
                     path: success.path.to_string_lossy().into_owned(),

@@ -101,6 +101,7 @@ pub(crate) fn create_worktree(
                 path: canonical(&worktree),
                 class: Classification::FallbackWorktree,
                 outcome: "reused",
+                name: Some(name.to_owned()),
             });
         }
         return Err(HookFailure::refused(
@@ -138,6 +139,7 @@ pub(crate) fn create_worktree(
         path: canonical(&worktree),
         class: Classification::FallbackWorktree,
         outcome: "created",
+        name: Some(name.to_owned()),
     })
 }
 

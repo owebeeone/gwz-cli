@@ -135,10 +135,13 @@ pub(crate) fn run_worktree_remove(
     if !requested.exists() {
         // The other placement's handler, or a hand retirement, removed it
         // first (D5).
+        // Exit zero, and not a refusal: the other placement's handler, or
+        // a hand retirement, removed it first (D5, F4).
         return Ok(HookSuccess {
             path: requested,
-            class: Classification::RefusedByHook,
+            class: Classification::AlreadyAbsent,
             outcome: "absent",
+            name: None,
         });
     }
     let path = canonical(&requested);
@@ -148,10 +151,14 @@ pub(crate) fn run_worktree_remove(
         let repository = canonical(&repository);
         if fallback::registered_worktrees(&repository).contains(&path) {
             fallback::remove_worktree(&repository, &path)?;
+            let name = path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned());
             return Ok(HookSuccess {
                 path,
                 class: Classification::FallbackWorktree,
                 outcome: "removed",
+                name,
             });
         }
     }
@@ -164,6 +171,7 @@ pub(crate) fn run_worktree_remove(
             ),
             "remove it by hand if it is no longer wanted",
         )
+        .at(&path)
     })?;
     let lane_root = canonical(&lane_root);
     dispose(env, context, &lane_root, &path)
@@ -183,14 +191,16 @@ fn dispose(
                 return Err(HookFailure::refused(
                     format!("{} is in no local clone family", lane_root.display()),
                     "remove it by hand if it is no longer wanted",
-                ));
+                )
+                .at(requested));
             }
             Err(error) if is_family_busy(&error) => {
                 if env.now() >= deadline {
                     return Err(HookFailure::busy(format!(
                         "the family lock was still held after {}s",
                         context.options.wait_secs
-                    )));
+                    ))
+                    .at(requested));
                 }
                 env.sleep(ATTEMPT_SLEEP);
                 continue;
@@ -199,7 +209,8 @@ fn dispose(
                 return Err(HookFailure::refused(
                     error.message,
                     "resolve the workspace refusal above, then retry",
-                ));
+                )
+                .at(requested));
             }
         };
         let family_root = family
@@ -211,6 +222,7 @@ fn dispose(
                     format!("{} names no family root", lane_root.display()),
                     "remove it by hand if it is no longer wanted",
                 )
+                .at(requested)
             })?;
         // Exactly one `ready` row of that family must have a canonical path
         // equal to the lane root (D8). A basename that happens to match a
@@ -227,8 +239,9 @@ fn dispose(
                 // is a removal somebody else completed (D8).
                 return Ok(HookSuccess {
                     path: requested.to_path_buf(),
-                    class: Classification::RefusedByHook,
+                    class: Classification::AlreadyAbsent,
                     outcome: "absent",
+                    name: None,
                 });
             }
             return Err(HookFailure::refused(
@@ -239,7 +252,8 @@ fn dispose(
                 ),
                 "retire it by hand: `gwz local list`, then the retirement procedure in \
                  docs/ClaudeCode.md",
-            ));
+            )
+            .at(requested));
         };
         let name = row.name.clone();
         let wait = Duration::from_secs(context.options.wait_secs);
@@ -250,13 +264,15 @@ fn dispose(
                     path: requested.to_path_buf(),
                     class: Classification::Lane,
                     outcome: "disposed",
+                    name: Some(name),
                 });
             }
             Err(error) if is_absent(&error) => {
                 return Ok(HookSuccess {
                     path: requested.to_path_buf(),
-                    class: Classification::RefusedByHook,
+                    class: Classification::AlreadyAbsent,
                     outcome: "absent",
+                    name: Some(name),
                 });
             }
             Err(error) if is_family_busy(&error) => {
@@ -266,7 +282,9 @@ fn dispose(
                     return Err(HookFailure::busy(format!(
                         "the family lock was still held after {}s",
                         context.options.wait_secs
-                    )));
+                    ))
+                    .at(requested)
+                    .named(&name));
                 }
                 env.sleep(ATTEMPT_SLEEP);
             }
@@ -277,7 +295,9 @@ fn dispose(
                         "integrate it first: `gwz merge --remote {name}` from the main \
                          workspace, then `gwz local dispose {name}`"
                     ),
-                ));
+                )
+                .at(requested)
+                .named(&name));
             }
         }
     }
