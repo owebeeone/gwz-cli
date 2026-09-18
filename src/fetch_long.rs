@@ -21,6 +21,13 @@ It always contacts the remotes. There is no `--check-remotes` and no
 `unchanged since the last fetch` short-circuit as there is on `gwz push`: a
 fetch that does not connect has answered nothing.
 
+`--dry-run` is the one exception, and it is not git's. `git fetch --dry-run`
+contacts the remote and then declines to write the refs; `gwz --dry-run fetch`
+contacts no remote at all. It resolves the selection and prints the planned
+rows, one per repository it would have contacted, and stops there. So it
+answers `which repositories would be contacted` and never `what moved`: the
+rows carry no result from any remote.
+
 Exit codes follow `gwz push`: 0 when every selected repository answered,
 1 when some answered and some failed (the report is incomplete), and 2 when
 the request was refused before any remote was contacted.";

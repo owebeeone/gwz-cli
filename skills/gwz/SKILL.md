@@ -36,6 +36,10 @@ whole scope is intended. `--all` selects targets; it does **not** mean stage-all
 Preserve unrelated work and staging. A metadata-only root commit does not mean
 member edits were committed.
 
+`gwz fetch` contacts each selected repository's remote and reports what moved,
+integrating nothing; use it before `gwz pull` to learn what changed upstream,
+and `gwz push` to publish. `gwz --dry-run fetch` contacts no remote at all.
+
 Verify the requested outcome before reporting success: inspect status and the
 relevant files/history (`gwz log --full`, `gwz diff`). Check every requested
 repository, including the root. A successful command or plausible summary is

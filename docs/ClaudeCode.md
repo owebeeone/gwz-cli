@@ -93,6 +93,14 @@ the compiled-in defaults stand: a 300 s wait and 600 s timeouts.
    `../<root-dirname>-<name>`; when the session started inside a member, the
    printed path is that member's directory inside the lane, so the session lands
    where it started. The lane is registered with the session's id as its owner.
+
+   **Claude Code shows nothing while `WorktreeCreate` runs.** There is no
+   progress line, no spinner and no message: the session simply does not start
+   until the hook returns. On this workspace a lane takes about two minutes to
+   appear (observed 97 to 146 s for a 380k-file, 135 GB logical workspace on
+   APFS), and longer when other lanes or builds are competing for the disk.
+   Silence is the copy in progress, not a hang. Wait it out rather than
+   interrupting: a hook killed mid-copy leaves a `creating` row and its files.
 2. **Work.** The session edits, builds and tests inside the lane. Commit in the
    lane with `gwz add` and `gwz commit` from the lane root. The lane is on
    whatever branches the workspace was on: the hook creates no `worktree-<name>`
@@ -151,10 +159,12 @@ Two guards protect the copy, never a reuse:
   NTFS 0%). `--min-free-gb` is a floor on top of it. The share figures and the
   per-file time cost are conservative estimates, not measurements; no probe
   has measured them and none is scheduled.
-- **A ceiling of ready lanes**, `--max-lanes`, default 8. Until the lane
-  clean-up lands (below), every lane counts against it until you retire it by
-  hand, so a busy workspace will meet this ceiling; the refusal names the
-  retirement procedure.
+- **A ceiling of ready lanes**, `--max-lanes`, default 8. Every ready lane
+  counts against it. On gwz 1.0.17 the remove hook retires an integrated lane
+  on its own, so the count only climbs where a removal was refused or never
+  ran; on 1.0.14 and 1.0.16 every lane waits for a retirement by hand, and a
+  busy workspace will meet this ceiling. The refusal names the retirement
+  procedure either way.
 
 What a session builds afterwards is not guarded, and is out of scope: a build
 that fills the disk is the same failure Claude Code's own worktrees have.
@@ -175,20 +185,58 @@ gwz local dispose <name>
 Add `--wait <secs>` to the dispose: with any other family command in flight
 the bare form fails in milliseconds on the family lock.
 
-With gwz 1.0.14, `dispose` still refuses every verbatim lane of a large
-workspace even after its merge, because the copy inherited build caches,
-stashes and ignored user data that disposal counts as `dirty` hazards — and
-under local adoption `.claude/settings.local.json` and `.claude/.cc-writes/`
-are among them, carried into the lane by the copy before any session runs.
-What 1.0.14 no longer raises for a *merged* lane is `unpreserved-history`:
-the identical-copy witness does its job, so the waiver for one is `dirty`
-alone. Keep `dirty,unpreserved-history` for an unmerged lane. Retiring such a
-lane takes your own comparison against the family, then
-`gwz local dispose <name> --force dirty --wait 600`. `--force` and
-`--keep` are always your choice, never the hook's. The clean-up requirements
-(`GwzLaneCleanFixes`, R0 to R19) remove those false hazards; their first phase
-is merged and unreleased. **Unmeasured:** the release in which an integrated
-lane disposes in one command (S3.5).
+**From gwz 1.0.17, an integrated lane needs no waiver, so the remove hook
+retires it on its own.** The hook runs the bare `gwz local dispose <name>`,
+and that succeeds once the family holds everything the lane holds, however
+much the session built in the lane. The copy's inherited build caches,
+stashes and ignored user data no longer refuse: a cache is recognised as
+regenerable by its markers, and what the clone copied and nobody touched is
+recognised against the record the clone wrote. So the ordinary end of a lane
+session is that the lane goes away and you do nothing.
+
+On gwz 1.0.14 and 1.0.16 it does not. There `dispose` refuses every verbatim
+lane of a large workspace even after its merge, because the copy inherited
+build caches, stashes and ignored user data that disposal counts as `dirty`
+hazards, and under local adoption `.claude/settings.local.json` and
+`.claude/.cc-writes/` are among them, carried into the lane by the copy before
+any session runs. Retiring a lane on those releases takes your own comparison
+against the family, then `gwz local dispose <name> --force dirty --wait 600`
+(`dirty,unpreserved-history` for an unmerged lane).
+
+**A refused removal is still yours to resolve**, on every release. The hook
+never passes `--force` and never passes `--keep`; a refusal keeps the lane and
+the session, and prints one summary line. The refusal happens when the lane
+holds something the family does not: commits made in the lane and never
+merged, or files the lane created or edited that live nowhere else. The report
+names them under `changed copy` and `unique to the lane`. Read it, then pick
+one:
+
+- **The work is wanted.** Merge it, then dispose:
+
+  ```sh
+  gwz --target @all merge --remote <name>
+  ```
+
+  ```sh
+  gwz local dispose <name> --wait 600
+  ```
+
+  Use `@all` so the lane's root commits travel with its member commits; a
+  member-only merge leaves the lane's root history unpreserved and the dispose
+  refuses again.
+
+- **The work is not wanted.** Waive exactly what the refusal named, and
+  nothing else. The refusal prints that command itself:
+
+  ```sh
+  gwz local dispose <name> --force dirty --wait 600
+  ```
+
+- **You are not sure yet.** `gwz local dispose <name> --keep` detaches the row
+  and the pointer and deletes nothing; the directory stays where it is as an
+  ordinary GWZ workspace. Decide later.
+
+`--force` and `--keep` are always your choice, never the hook's.
 
 Lanes the hook cannot retire: chips and background sessions whose removal was
 refused, headless `-p` runs (which never call the remove hook), crashed
@@ -276,7 +324,7 @@ with the full report left to `gwz local dispose`.
 | lane of this session incomplete | retire it |
 | family lock still busy at the deadline (create or remove) | retry; another gwz family command is running |
 | workspace cannot be used (open coordinated merge, unreadable lock or marker, manifest newer than the binary) | gwz's own message says what to do |
-| dispose hazard refusal (dirt, unpreserved history) | merge, compare, then `--force` by hand |
+| dispose hazard refusal (dirt, unpreserved history) | read the report, then merge the lane, or `--force` exactly what it named, or `--keep` it ([retiring lanes](#retiring-lanes)) |
 | fallback worktree dirty or locked | finish or clean the other session's work |
 
 ## The log

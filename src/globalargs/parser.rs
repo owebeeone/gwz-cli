@@ -166,7 +166,7 @@ pub(crate) struct GlobalArgs {
         global = true,
         value_name = "name",
         help = "Select the git remote name",
-        long_help = "Select the git remote name used by operations that contact remotes. On `pull` and `push` a ready local clone family name binds to that workspace instead; on `merge` the name is family-only (`gwz merge --remote <name> [<ref>]`)."
+        long_help = "Select the git remote name used by operations that contact remotes. On `fetch` it selects the remote each selected repository contacts. On `pull` and `push` a ready local clone family name binds to that workspace instead; on `merge` the name is family-only (`gwz merge --remote <name> [<ref>]`)."
     )]
     pub(crate) remote: Option<String>,
 

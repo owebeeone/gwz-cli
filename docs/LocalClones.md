@@ -325,7 +325,17 @@ configured Git remotes; it does not transfer work between local-family lanes.
 `gwz local dispose <name>` deletes the lane's directory — and refuses unless
 the lane's history is verifiably preserved in another surviving family
 member. After a completed default merge, ordinary disposal needs no separate
-root merge. If you explicitly merged members only, the lane's root history may
+root merge.
+
+**A lane whose work is merged disposes with `gwz local dispose <name>` and no
+waiver, even after building in it.** Disposal compares the lane against the
+surviving family, and against the record the clone wrote of what it copied, so
+build output and an untouched copy are reported without refusing. A verbatim
+lane carries the source's caches, its ignored user data and its stash and
+reflog entries from the moment it is made, and none of that is a reason to
+refuse: the family still has it. What refuses is what only the lane holds.
+
+If you explicitly merged members only, the lane's root history may
 still be unpreserved, producing a refusal like this:
 
 ```sh
@@ -348,6 +358,87 @@ gwz local dispose A
 status: Ok
 deleted local clone `A`: /Users/you/work/demo-A removed, its row removed
 ```
+
+#### What the report says
+
+Every refusal sorts what it found into four categories, prints each one with
+its count and with the paths or object ids it holds, and prints the empty
+categories too, so a refusal says what it did *not* find as well.
+
+- **regenerable** is data a tool made and the same tool remakes: build
+  directories, caches, compiled bytecode, compiled extension modules. It is
+  reported and it never refuses.
+- **unchanged copy** is data the clone copied, the lane has not touched, and a
+  surviving family member still holds. Reported, and it never refuses.
+- **changed copy** is data the clone copied that is not the family's any more.
+  The lane edited it, or its fingerprint (size, mtime, inode) no longer
+  matches what the clone recorded. This refuses.
+- **unique to the lane** is what the lane alone holds: work it created, and any
+  protected root (a branch, `HEAD`, a tag, a reflog entry, a stash) that no
+  single surviving family repository preserves whole. This refuses.
+
+The refusal then prints the exact `--force <categories>` command that waives
+exactly what it found, and names nothing more. A lane whose only refusing
+entry is dirt is offered `--force dirty` alone, even when the same report lists
+regenerable entries and unchanged copies beside it, because those refuse
+nothing and need no waiver. A lane built in and then merged, holding one file
+the lane itself edited, reports this:
+
+```text
+gwz: UnwaivedHazard: local dispose `C` at /Users/you/work/demo-C: unwaived hazard(s) by category: regenerable 5: `@root` ignored user data (ignored does not mean disposable) (__pycache__/), `@root` ignored user data (ignored does not mean disposable) (cache/), `@root` untracked file, text content (target/CACHEDIR.TAG), `@root` untracked file, text content (target/bin), `mem_api` untracked file, binary content (__pycache__/m.cpython-311.pyc); unchanged copy 0; changed copy 1: `@root` ignored user data (ignored does not mean disposable), text content (notes.txt); unique to the lane 0; to delete anyway, naming every loss it waives: `gwz local dispose C --force dirty`; or --keep to detach and retain every file; nothing was removed; effects: []
+```
+
+Five regenerable entries, and the waiver command does not mention them.
+
+A forced deletion reports what it was **actually** forced past, not the names
+you typed. A waiver that covered a refusing entry is listed after
+`forced past:`, in the waiver vocabulary's own order; a waiver you named that
+covered nothing is listed after `unused waiver:`, in the order you gave it. So
+naming both waivers on a lane whose history was preserved answers:
+
+```text
+deleted local clone `A`: /Users/you/work/demo-A removed, its row removed; forced past: dirty; unused waiver: unpreserved-history
+```
+
+That is the report's own record of what the deletion cost, and it is worth
+reading: an `unused waiver` line means you waived more than the lane needed.
+
+#### What counts as regenerable
+
+Recognition is by marker and by shape, **never by a directory's name**. A
+directory called `target` with no cargo marker inside it is the lane's own
+data, and so is a `cache` directory with no valid `CACHEDIR.TAG`. This build
+recognises exactly these:
+
+- A directory holding a `CACHEDIR.TAG` whose first bytes are the Cache
+  Directory Tagging Specification's signature line. A file of that name with
+  other contents is not a tag and is not read as one.
+- A `__pycache__/` holding nothing but `.pyc` and `.pyo` files. One source
+  file, one subdirectory or one unreadable entry in it and the directory stays
+  the lane's own.
+- An `*.egg-info/` holding a `PKG-INFO` file.
+- A `bazel-*` or `razel-*` symlink whose target lies outside the workspace.
+  The link is read as a link and never followed. A link that stays inside the
+  workspace is an ordinary link the lane may well have made, and a link whose
+  target cannot be read is not recognised.
+- A file ending `.so`, `.pyd` or `.dylib` inside a repository's worktree.
+- A build directory whose tool wrote no `CACHEDIR.TAG`, recognised by the
+  markers that tool does write: cargo's `.rustc_info.json`, or a
+  `debug/.fingerprint` beside a `debug/deps` (likewise for `release/`), or a
+  `pyvenv.cfg` at the top of a virtual environment.
+
+Three things follow from how the test is made:
+
+- **The copy record is not consulted.** A cache the lane rebuilt is still a
+  cache, and a cache the lane created that the family never had is still a
+  cache.
+- **Unreadable is not regenerable.** Every probe that fails leaves the entry
+  unrecognised, so it stays the lane's own data and still refuses.
+- **An ignored build tree is reported once**, because Git reports an ignored
+  directory once; an untracked one is reported file by file, because Git's
+  untracked walk recurses. A file is recognised through the directories it
+  lies inside, up to the repository boundary, so a single `.pyc` that no
+  `.gitignore` covers is as regenerable as the `__pycache__` holding it.
 
 There are three exits from a lane, and only one of them destroys anything:
 
@@ -442,6 +533,10 @@ can be repeated after an error, and it never deletes a directory.
 
 ## The Deletion Position, In Plain Terms
 
+- **An integrated lane costs one command and no waiver.** If the family holds
+  everything the lane holds, `gwz local dispose <name>` deletes it, however
+  much build output it accumulated. A waiver is for a loss, and there is no
+  loss here.
 - **`dispose` refuses unless the lane's history is verifiably preserved**
   in another surviving family member: every protected root of every
   repository in the lane's tree — its root repository and every member —
@@ -525,13 +620,14 @@ before anything is written. The messages are what the current build prints.
   Git remote answers:
 
   ```text
-  gwz: MissingRemote: missing remote 'A'
+  gwz: GitCommandFailed: remote 'A' does not exist
   ```
 
   Integrate from the receiving side with `gwz merge --remote <name>` instead.
-- `--dry-run` is refused for every local family verb
-  (`local family operations with dry_run is not supported by this gwz-core
-  build`).
+- `--dry-run` is refused for every local family verb, before any write:
+  `local create with dry_run is not supported by this gwz-core build` for
+  `gwz local clone`, and `local family operations with dry_run is not
+  supported by this gwz-core build` for `list`, `dispose` and `disband`.
 - Disposal cannot verify a GWZ stash record, so a lane holding one refuses
   ordinary deletion as unknown evidence (above).
 
