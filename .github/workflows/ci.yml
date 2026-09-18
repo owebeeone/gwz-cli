@@ -1,0 +1,25 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  release-script:
+    # scripts/release.py's unit tests (gwz-core dev-docs/GwzCratesIoPlan.md
+    # S3.1), wired in by S3.2. The Rust driver is tested on the whole
+    # workspace tuple by gwz-dev's "GWZ workspace recovery" run on every root
+    # push; this repository's Python modules need only this checkout and
+    # Python. Name each new test module here.
+    name: Release script unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Release script unit tests
+        run: python -m unittest scripts/test_release.py -v

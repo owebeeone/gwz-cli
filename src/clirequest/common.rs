@@ -68,6 +68,12 @@ pub(crate) enum CliRequest {
     Diff(Box<DiffInvocation>),
     /// Log owns a finite output spool and an EPIPE-aware no-pager lifecycle.
     Log(Box<LogInvocation>),
+    /// `gwz hook claude-code ...`: the hook owns its stdin, its single line
+    /// of stdout and its exit code, so it never flows through the response
+    /// renderer either.
+    Hook(HookInvocation),
+    /// `gwz claude-code setup`: writes another program's settings file.
+    ClaudeCodeSetup(crate::hook::setup::SetupRequest),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

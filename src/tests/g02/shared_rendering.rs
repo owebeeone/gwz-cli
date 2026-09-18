@@ -118,6 +118,55 @@ pub(crate) fn human_renderer_surfaces_response_messages() {
     assert!(rendered.contains("no snapshot or marker commit evidence was available"));
 }
 
+/// GwzOpenDecisions D3. `gwz ls` prints one path per line for scripts, and a
+/// row carrying a `note` is exactly the row whose path is not on disk -- the
+/// lock claims it, the filesystem does not have it -- so that one line says
+/// why instead of handing over a path that fails. `--json` reports
+/// `materialized: false` and the same reason, and every ordinary row is
+/// unchanged with a null note.
+#[test]
+pub(crate) fn a_noted_member_reports_unmaterialized_with_its_reason_in_both_modes() {
+    let mut envelope = branch_response_envelope();
+    envelope.meta.action = gwz_core::ActionKind::Ls;
+    let mut response = CliResponse::envelope(envelope);
+    response.listing = Some(ArtifactListing::Members {
+        entries: vec![
+            gwz_core::MemberEntry {
+                id: "mem_app".to_owned(),
+                path: "repos/app".to_owned(),
+                abspath: "/work/ws/repos/app".to_owned(),
+                materialized: true,
+                target_kind: Some(gwz_core::TargetKind::Member),
+                note: None,
+            },
+            gwz_core::MemberEntry {
+                id: "mem_secret".to_owned(),
+                path: "repos/secret".to_owned(),
+                abspath: "/work/ws/repos/secret".to_owned(),
+                materialized: false,
+                target_kind: Some(gwz_core::TargetKind::Member),
+                note: Some("private, skipped".to_owned()),
+            },
+        ],
+        local: true,
+    });
+
+    assert_eq!(
+        render_response(&response, OutputMode::Human),
+        "repos/app\nrepos/secret\t(private, skipped)"
+    );
+
+    let json: serde_json::Value =
+        serde_json::from_str(&render_response(&response, OutputMode::Json)).unwrap();
+    assert_eq!(json["kind"], "members");
+    let entries = &json["entries"];
+    assert_eq!(entries[0]["materialized"], true);
+    assert_eq!(entries[0]["note"], serde_json::Value::Null);
+    assert_eq!(entries[1]["id"], "mem_secret");
+    assert_eq!(entries[1]["materialized"], false);
+    assert_eq!(entries[1]["note"], "private, skipped");
+}
+
 fn branch_response_envelope() -> gwz_core::ResponseEnvelope {
     gwz_core::ResponseEnvelope {
         meta: gwz_core::ResponseMeta {

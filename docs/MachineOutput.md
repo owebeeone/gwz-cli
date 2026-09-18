@@ -519,11 +519,26 @@ Read-only listing commands render listing objects with `--json` or `--jsonl`.
       "id": "gwz-cli",
       "path": "gwz-cli",
       "abspath": "/work/gwz-dev/gwz-cli",
-      "materialized": true
+      "materialized": true,
+      "note": null
+    },
+    {
+      "id": "mem_secret",
+      "path": "repos/secret",
+      "abspath": "/work/gwz-dev/repos/secret",
+      "materialized": false,
+      "note": "private, skipped"
     }
   ]
 }
 ```
+
+`materialized` is observed, not the lock's claim: the lock records the member
+*and* its directory exists. `note` is an explicit `null` on every ordinary row,
+and human text on a row where the two disagree — `private, skipped` for a
+private member `gwz clone` was refused access to and quietly skipped, otherwise
+`recorded in the lock but absent on disk`. Switch on `materialized`; the note is
+for a person to read. See [`gwz ls`](commands/ls.md#what-materialized-means).
 
 `gwz --json tag --list`:
 
@@ -559,6 +574,14 @@ Read-only listing commands render listing objects with `--json` or `--jsonl`.
 `local_family_members`, with the family root's path beside the rows under
 `local_family_root_path`; see the
 [`gwz local` command page](commands/local.md#machine-output).
+
+Each row carries `name`, `kind`, `recorded_state`, `observed_state`, `path`,
+`last_error` and `owner`. `owner` is the opaque token a
+`gwz local clone --owner <token>` recorded on that row, reported verbatim and
+never interpreted by gwz; it is `null` for the root, for a row created without
+`--owner`, and for every row of a family index still in format 1. It is
+written once, by the index write that reserves the row, and no command
+changes it afterwards. `path` stays relative to `local_family_root_path`.
 
 ## Push JSON
 

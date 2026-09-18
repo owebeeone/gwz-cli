@@ -5,7 +5,7 @@ repository.
 
 ```text
 gwz merge <source> [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]
-gwz merge --remote <name> [<ref>]
+gwz merge --remote <name> [<ref>] [--wait <secs>]
 gwz merge --status [<merge-id>]
 gwz merge --continue
 gwz merge --abort [--preserve]
@@ -460,6 +460,41 @@ The selector is accepted only when starting a merge — not with `--continue`,
 `--abort`, `--status` or `--gc` — and family bindings are resolved from the
 index at operation time. They are never written into `gwz.conf/gwz.yml` and
 never become Git remotes.
+
+### Waiting for the family lock (`--wait <secs>`)
+
+A family merge takes the family lock before it imports anything, and holds it
+across the import and the merge itself. While another family operation holds
+it — a `gwz local clone`, a `gwz local dispose`, a `gwz local disband`, or
+another family merge — the merge refuses immediately:
+
+```text
+error: another local-family operation holds the family lock
+```
+
+That is the right answer for a person at a terminal and the wrong one for two
+unattended invocations fired for one request. `--wait <secs>` keeps retrying
+instead:
+
+```sh
+gwz merge --remote A --wait 120
+```
+
+GWZ retries the try-lock at a short fixed interval until the deadline; there
+is no blocking acquisition, so the wait stays portable and is bounded by the
+number you give. Only a busy lock is retried — a malformed index, an
+unsupported platform lock or an I/O failure is the answer, immediately. A wait
+that wins the lock rereads the family index before it resolves `<name>`, so a
+merge that waited behind a create or a dispose is answered by the family that
+operation left, not by the view it saw before the wait.
+
+Omitting `--wait`, or passing `--wait 0`, is the unchanged behaviour: one
+attempt, then the refusal above.
+
+`--wait` is accepted only together with `--remote <name>`. An ordinary merge
+takes no family lock, so `gwz merge feature/x --wait 30` is refused rather
+than accepted and ignored. The same spelling and the same semantics are on
+`gwz local clone`, `gwz local dispose` and `gwz local disband`.
 
 ## Crash recovery and filesystems
 

@@ -27,6 +27,18 @@ impl MergeArgs {
                 "--remote <name> is accepted only when starting a merge",
             ));
         }
+        // D1: `--wait <secs>` waits for the FAMILY lock, and only a family
+        // merge takes one. Refused here, when the request is built, because
+        // that is where the global `--remote` token is in hand -- Clap cannot
+        // express `requires` against a global argument declared on the root
+        // command. Core refuses it again (`merge::validate`) and stays the
+        // authority; this is the fail-fast, better-worded copy.
+        if self.wait.is_some() && local_source_name.is_none() {
+            return Err(CliError::invalid_request(
+                "--wait <secs> waits for the local-family lock and is accepted only with \
+                 --remote <name>",
+            ));
+        }
         if self.ff_only && self.no_ff {
             return Err(CliError::invalid_request(
                 "--ff-only and --no-ff are mutually exclusive",
@@ -71,6 +83,7 @@ impl MergeArgs {
             preserve: self.preserve.then_some(true),
             filesystem_strict: self.filesystem_strict.then_some(true),
             local_source_name,
+            wait_seconds: self.wait,
         }))
     }
 }

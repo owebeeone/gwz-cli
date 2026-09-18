@@ -1,12 +1,23 @@
 # GWZ and Claude Code Integration Plan
 
-Status: **DRAFT 2026-09-12, round-1 review folded.** Written by Fable at the
-operator's request after the 1.0.11 release; reviewed the same day
+Status: **ADOPTED 2026-09-17; S0.1 done; accepted at sha256 `c0bba7fa…`
+(with gwz-core `GwzLaneCleanFixes.md` at `c5f06e41…`) after
+`GwzClaudeIntegrationPlan-ReviewConsistency-6.md` and
+`-ReviewSafety-6.md` both reported GO; this accepts the plan text and the
+R20 to R22 requirements only, no code.** Drafted 2026-09-12 by Fable at
+the operator's request after the 1.0.11 release; reviewed the same day
 (`GwzClaudeIntegration-S0.1-Review.md`: GO-WITH-CONDITIONS, 4 P1, 8 P2,
-6 P3) and every finding folded below (trail in section 7). Not adopted; no
-code, settings or scripts have changed. Implementation is chartered for
-non-Fable agents (Opus builders) under the usual review loop once the
-operator confirms the decisions in section 3.
+6 P3) and every finding folded (trail in section 7); updated 2026-09-17 for
+the lane disposal clean-up requirements. The operator confirmed D2 to D7
+and D9 to D11 as written on 2026-09-17, replaced D1 (gwz itself is the hook,
+and a gwz command writes the settings) and simplified D8 (one test: is the
+project a GWZ workspace). No code or settings have changed yet.
+Implementation is chartered for non-Fable agents (Opus builders) under the
+usual review loop: S1.1 onward once GwzLaneCleanFixes R20 and R21 are in
+an installed gwz (the redesign route chosen on 2026-09-17 after the
+round-3 review; section 7). Amended A1 on 2026-09-17 by the operator's
+decision, without re-review: the copy-cost guard estimates at run time by
+filesystem and S1.0 is withdrawn (D6, S1.2, S3.2, section 7).
 
 ## Goal
 
@@ -19,10 +30,11 @@ In a GWZ workspace the members are separate repositories, git-ignored by the
 root, so such a worktree has no members: nothing builds, nothing tests, and
 the session cannot do the work it was spawned for. A lane is a whole
 workspace, and its lifecycle (integrate, dispose) stays under GWZ's
-protections. Where `gwz` is not installed, or the project is not a GWZ
-workspace, the same hooks fall back to a plain git worktree laid out the way
-Claude Code lays it out by default, so they can live in user-level settings
-without breaking other projects.
+protections. The hook is `gwz` itself (D1). Where the project is not a GWZ
+workspace, the same hook falls back to a plain git worktree laid out the way
+Claude Code lays it out by default, as far as a hook can (D8 names what it
+cannot), so it can live in user-level settings without breaking other
+projects.
 
 ## 1. Facts this plan rests on
 
@@ -34,7 +46,9 @@ Claude Code 2.1.247, from the official documentation
   `isolation: "worktree"`, or for a background session", and "configuring a
   WorktreeCreate hook replaces that default git behavior".
 - The hook reads JSON on stdin with the common fields (`session_id`, `cwd`,
-  `transcript_path`, `hook_event_name`) plus `name`, "a slug identifier for
+  `transcript_path`, `hook_event_name`; `session_id` is a UUID in every
+  observed hook payload, to be confirmed in S1.3, and D6 validates it
+  before use) plus `name`, "a slug identifier for
   the new worktree, either specified by the user or auto-generated". There is
   no branch or path field, and no field says whether the caller is a session,
   a background session or a subagent.
@@ -105,24 +119,68 @@ GWZ, from `gwz local --help`, `gwz local clone --help` and
 - "Keep the source quiet for the whole copy. GWZ takes its family lock, which
   serializes family commands, but nothing stops an editor, a build, or a raw
   `git` command from writing into the source while it is being copied."
-  Family commands serialize on that lock, so two creations at once run one
-  after the other rather than failing.
+  The lock is advisory, on `<root>/.gwz/local-family.lock`, taken with
+  `try_lock` (`flock(LOCK_EX | LOCK_NB)`), and refused as `Busy` at once
+  when held; nothing in gwz 1.0.13 waits or retries, and `local list`
+  reads without it. A clone holds it for the whole copy, so a second
+  family command during a copy fails rather than queues. R21 (below) adds
+  an opt-in wait.
 - Integration is `gwz merge --remote NAME` run from the receiving workspace.
   `gwz local dispose NAME` "refuses unless the lane's history is verifiably
   preserved"; a dirty lane is a hazard in its own right; `--force <hazard,...>`
   waives named hazards; `--keep` "removes only the pointer and the index row"
   and retains every file. The root is never disposed.
+- Every verbatim lane of gwz-dev has refused disposal so far: 28 lanes in
+  L1's register, three on 2026-09-10 and 25 merged on 2026-09-15 and
+  2026-09-16, each after its merge, with gwz 1.0.12 and then 1.0.13 (gwz-dev
+  `dev-docs/GwzLaneIssues.md`, L1; the register records that 1.0.13,
+  installed 2026-09-16, changes nothing for L1). Each
+  reported `dirty` and `unpreserved-history`; from the second round on, the
+  same 112 entries every time, all inherited by the copy: build and cache
+  directories, `__pycache__`, stash entries and commits only a reflog still
+  reaches. Retiring such a lane takes the operator's own comparison against
+  the family, then `gwz local dispose NAME --force dirty,unpreserved-history`.
+  Dispose has no check-only mode.
+- The gwz-core requirements that would let an integrated lane dispose in one
+  command, and make `--clean` work, are drafted in gwz-core
+  `dev-docs/GwzLaneCleanFixes.md` (R0 to R19). None is implemented; this plan
+  cites them by number. On 2026-09-17 this plan added three of its own to
+  that document: R20, an owner token recorded on the family row in the
+  same write that reserves it and shown by `local list`; R21, an opt-in
+  `--wait <secs>` on every family command that retries a `Busy` lock until
+  a deadline; R22, the concurrent-create and older-reader tests. R20 bumps
+  the index schema to `gwz.local-family/v2`; an older gwz refuses a v2
+  index as a whole, naming the minimum version, so every gwz used on a
+  workspace must be at or above the R20 release once any such gwz has
+  written the family index (a dispose, a `--keep` or a family merge is a
+  write too, not only a create), and the acceptance runbook's pin moves
+  with it. The two carry
+  gwz-cli work as well as gwz-core work (the clap arguments, the generated
+  `docs/CLI.md`, the long help, the `local list` sample and the
+  machine-output contract; §3.6's scope note). S1.1 onward needs R20 and
+  R21 in the installed gwz.
 - The gwz-dev workspace is 65 GB on disk, most of it cargo target trees. On
   APFS the verbatim copy is a copy-on-write clone, cheap until a lane builds;
   a full build in a lane then writes its own tens of gigabytes (the 2026-09-11
   disk-full incident came from exactly this). Free space at the time of
   writing: 31 GB.
+- Block sharing on copy is a filesystem property and never crosses a
+  filesystem boundary: APFS (`clonefile`), XFS and btrfs (`FICLONE`),
+  OpenZFS 2.2 and bcachefs, and ReFS (block cloning) share; ext4 and NTFS
+  copy every byte. gwz's copy backend already takes the clone path where
+  the platform offers it (LocalClones.md: "natively" versus "ordinarily").
+  A clone's wall time is bound by file count, not bytes, on every sharing
+  filesystem.
 - `gwz` refuses `root`, `origin` and git's reserved ref names as lane names.
-- `gwz --root DIR status` in a directory without a manifest exits 1 with
-  `ManifestNotFound`; the agent skill also names `WorkspaceNotFound`. Status
-  fails for other reasons too (an open coordinated merge, an unreadable lock
-  or marker, a binary older than the workspace's schema), which are not
-  "this is not a workspace".
+- Creation also refuses a destination that is already a workspace or lies
+  inside a family member (`PathCollision`). Dispose refuses `open-merge`,
+  `dirty` and `unpreserved-history`, each waived only by name, never
+  disposes the root, and refuses the member the caller is standing in
+  ("contains the working directory"). A lane does not carry `.gwz/`; it
+  holds `.gwz/family-root` naming the family and the root's path, and the
+  family index lives on the root. In gwz-dev `/.gwz/` is ignored only through
+  the GWZ-managed block in `.git/info/exclude`, not a tracked `.gitignore`
+  rule.
 
 ## 2. What is not confirmed
 
@@ -138,12 +196,19 @@ integration is documented for other users.
   lane.
 - U3. Whether an interactive session's `EnterWorktree` fires the hook.
 - U4. Whether Claude Code checks for an existing directory before calling the
-  hook for a reused name, and which path wins if two settings files both
-  define a path-returning `WorktreeCreate` hook.
+  hook for a reused name. The second half of the original question (which
+  path wins when two settings files both define a `WorktreeCreate` hook) was
+  resolved 2026-09-17 by D5: identical handlers run once, and differing
+  handlers print the same path for the same session, so no winner is
+  needed. That holds because gwz records the owner in the same index write
+  as the row (R20) and the second handler keeps polling while the first's
+  `creating` row is its own session's (D6's attempt loop); the
+  resolution is conditional on R20 being in the installed gwz.
 - U5. What the desktop app's "Worktree location" and branch-prefix settings do
   once a hook owns creation.
 - U6. How the dispose refusal reads when Claude reports it, and whether the
-  message names the remedy.
+  message names the remedy. GwzLaneCleanFixes R9 and R10 set what it should
+  say.
 - U7. Whether a hook-created git worktree under `.claude/worktrees/<name>`
   behaves identically to one Claude Code creates itself: the docs say the
   automatic sweep skips hook-created worktrees, and the `.worktreeinclude`
@@ -158,27 +223,56 @@ integration is documented for other users.
 - U10. What `git worktree lock`, which Claude Code takes on a running agent's
   worktree, does when the directory is a lane rather than a git worktree of
   the main repository.
-- U11. The exact machine-readable error codes that mean "not a workspace"
-  (`ManifestNotFound` observed; `WorkspaceNotFound` named by the skill); S1.1
-  pins the set by test.
+- U11. Resolved 2026-09-17 by D8: the hook is gwz, so it finds the workspace
+  the way `--root` resolution does, in process, and never interprets its own
+  error codes. The question was only meaningful for an external script.
 
-## 3. Scope decisions (proposed; the operator confirms or changes them at S0.1)
+## 3. Scope decisions (confirmed by the operator on 2026-09-17; D1 and D8 changed at adoption)
 
-- D1. **Ship the integration from gwz-cli.** New directory
-  `gwz-cli/integrations/claude-code/` holding the two hook scripts, a
-  `settings.hooks.json` fragment, and a README. Users copy the scripts into
-  the place their settings invoke; the docs page in Phase 4 explains it.
-  Alternative rejected: bake the scripts into the agent skill, because hooks
-  are settings, not skill content, and the skill is copied to
-  `~/.claude/skills`.
-- D2. **The lane name is Claude's `name` slug**, validated by the script
+- D1. **gwz is the hook, and gwz writes the settings.** Two subcommands in
+  gwz-cli, `gwz hook claude-code worktree-create` and
+  `gwz hook claude-code worktree-remove`, read Claude's hook JSON on stdin,
+  do the work, log (D10), and print the path as the last stdout line. Their
+  contract, stated once here and tested in S1.1: **the create hook prints
+  only a path it created or verified in this invocation, and the remove hook
+  deletes only the lane or worktree that `worktree_path` canonically names.**
+  Nothing else is ever printed on stdout, and nothing else is ever deleted.
+  Every knob the hooks have is a command-line option on the hook
+  (`--min-free-gb`, `--max-lanes`, `--wait-secs`, `--base-ref`, `--log`),
+  because the
+  desktop app passes no environment variables of ours (section 1); the
+  environment variables the tests use to force values are not user
+  configuration. A third subcommand,
+  `gwz hook claude-code setup --project | --user [--local] [--write]
+  [--command PATH] [hook options]`, prints the hooks block and, with
+  `--write`, merges it idempotently into `.claude/settings.json` (or
+  `settings.local.json` with `--local`) of the workspace root, or
+  `~/.claude/settings.json`. The default handler is the bare command
+  `gwz hook ...` with no options, resolved through `PATH`, so a committed
+  project block is machine-independent and identical everywhere, which is
+  what Claude's same-handler dedupe keys on; `--command PATH` pins an
+  absolute binary in a user's own settings if the desktop app's `PATH` lacks
+  it, and hook options baked into the handler make it differ too (D5 says
+  why that is harmless). The writer edits another program's configuration,
+  so it parses the existing file first and refuses one that does not parse
+  or is not a regular file; writes a temporary file beside the target,
+  fsyncs, re-parses it, and renames over the original; and changes no byte
+  outside the inserted block. Consequences: no shell scripts, no `jq` or
+  `python3`, no copy step, and the same binary serves Windows, where Claude
+  Code runs the command through `powershell.exe` (D11). Hook behaviour is
+  versioned with the installed gwz, which is the right coupling: the lane
+  semantics are gwz's. Original D1 (scripts in
+  `gwz-cli/integrations/claude-code/`, copied by users) was replaced at
+  adoption; the rejected alternative of baking hooks into the agent skill
+  stands rejected, because hooks are settings, not skill content.
+- D2. **The lane name is Claude's `name` slug**, validated by the hook
   against GWZ's refused names and characters outside `[A-Za-z0-9._-]`, and the
-  destination is GWZ's default sibling `../<root-dirname>-NAME`. The script
+  destination is GWZ's default sibling `../<root-dirname>-NAME`. The hook
   checks that the parent of the workspace is not inside a repository, by
   walking up looking for `.git` rather than by asking git, because on the
   operator's Mac an empty `~/.git` file makes `git rev-parse` fail with
   "invalid gitfile format" for every directory under `$HOME` that is not in a
-  repository; that error counts as "no enclosing repository". The script
+  repository; that error counts as "no enclosing repository". The hook
   warns on stderr when `<root>/.claude/worktrees/` is non-empty, because a
   verbatim copy carries those worktrees' `.git` pointers into the lane (S1.3
   probes what that does; S4.1 advises keeping the directory empty).
@@ -186,64 +280,212 @@ integration is documented for other users.
   softer.** The remove hook never passes `--force` or `--keep`. A refusal
   (unpreserved history, or dirt) makes the hook exit non-zero, which keeps the
   lane and the session. That is the safe outcome and is documented as such.
-  Retiring a refused lane is a terminal procedure (S3.4). Subagent worktree
-  isolation is not used in GWZ workspaces until clean lanes exist (D7): each
-  subagent that changes anything would otherwise leave a lane behind. The
-  hook cannot enforce that rule unless U9 finds a signal, so it is a
-  documented rule for agent briefs and the skill.
+  A fourth outcome is not a refusal: the family lock still busy when the
+  hook's wait deadline passes (D8). It also exits non-zero and keeps the
+  session, but it is logged and printed as "family busy; retry" and never
+  as a hazard, so nobody is sent to S3.4 for a lane that needed a minute.
+  With gwz 1.0.12 and 1.0.13 it is also the only outcome for a verbatim lane,
+  merged or not (section 1), so every Claude-created lane is retired through the
+  terminal procedure (S3.4) until GwzLaneCleanFixes R0 lands. After that, a
+  refusal means the lane holds something the family does not, and the hook
+  still waives nothing: the narrower waiver names of R11 remain the
+  operator's choice. Subagent worktree isolation is not used in GWZ
+  workspaces until an integrated lane disposes in one command
+  (GwzLaneCleanFixes R0, reached through verbatim-lane fixes or clean lanes;
+  D7, S3.5): each subagent would otherwise leave a lane behind. The hook
+  cannot enforce that rule unless U9 finds a signal, so it is a documented
+  rule for agent briefs and the skill.
 - D4. **No automatic merge-back.** Integration remains the operator's
   `gwz merge --remote NAME` from the receiving workspace. A helper the
   operator runs by hand may come later; hooks never integrate.
 - D5. **gwz-dev adopts first, locally, then commits.** Phases 1 and 2 run
   with the hooks in the operator's `.claude/settings.local.json`; the block
   moves into the root's committed `.claude/settings.json` only after S1.3 has
-  evidence (S1.4). The hooks live in exactly one settings file per machine,
-  project or user, never both: two different commands that both print a path
-  both run, and the winner is undefined (U4). S4.1 tells users which to
-  choose.
-- D6. **A free-space guard in the create hook.** Creation refuses, with a
-  plain stderr message, when free space on the workspace volume is below
-  `GWZ_LANE_MIN_FREE_GB`. The default is a floor for the copy alone, set from
-  the S1.0 measurement and no higher than half the free space on the dogfood
-  machine at that time; S3.2 raises it with build numbers and states what a
-  building lane costs. The guard is not a substitute for S3.4.
+  evidence (S1.4). A block may sit in both the project and the user settings
+  of one machine: identical handler text runs once (section 1), and that is
+  the normal state of a gwz-dev clone on a machine whose user settings also
+  carry the block. Differing handlers (one pinned with `--command`, or
+  carrying options) both run, in parallel, for the same `name` and
+  `session_id`; the plan makes that harmless rather than forbidden, through
+  one gwz-core facility this plan requires (GwzLaneCleanFixes R20, section
+  1), the owner token gwz records on the family row in the same write that
+  reserves it, and D6's attempt loop in the hook. (R21's `--wait` is the
+  remove hook's dependency, D8; creation does not use it.) The second
+  handler sees the first's `creating` row
+  owned by its own session and keeps polling (D6's attempt loop) while the
+  first holds the lock for the whole copy; when the row is `ready` it
+  reuses it and prints the same path, so Claude receives one path twice
+  (D6). On removal, the hook whose `worktree_path` is already gone exits
+  zero and logs it. A parallel handler can still refuse for a reason of its
+  own (a pinned `--command` naming a binary without the `hook` family, a
+  malformed handler, or a wait that outlives its deadline): then Claude
+  aborts the creation the first handler completed, and that lane is an
+  orphan whose inventory is `gwz local list` and whose retirement is S3.4;
+  `gwz hook claude-code setup` warns, and does not refuse, when another
+  placement on the machine carries a differing handler, naming both files
+  and this consequence.
+  S1.4 requires user-level blocks on the dogfood machines to be removed or
+  identical before the project block is committed, so the parallel case is
+  rare in practice. S4.1 recommends one placement and explains this.
+- D6. **Two guards in the create hook, and a strict reuse rule.** (Amended
+  A1, 2026-09-17.) The guard protects the copy, not what a session builds
+  afterwards: a build that fills the disk is a failure mode Claude's own
+  worktrees already have, and the operator has ruled it out of scope. The
+  copy's cost depends on the filesystem, so the hook estimates it at run
+  time rather than carrying a measured constant. Estimate: walk the source
+  once for apparent size and file count (the walk the completeness check
+  needs anyway); probe the destination's parent by writing one 64 MB file
+  there and cloning it with the platform's reflink call (`clonefile`,
+  `FICLONE`, ReFS block cloning), reading the `df` delta; a failed clone,
+  or a destination on a different filesystem from the source, means no
+  sharing. Cost = apparent size × (1 − share) + a fixed margin, with
+  share from a pessimistic table by filesystem: 94% for APFS, XFS and
+  btrfs; 70% for ReFS; 70% for any other filesystem whose probe clones
+  successfully; 0% for ext4, NTFS and any filesystem whose probe fails to
+  clone. The table's numbers are placeholders until S3.2 measures them.
+  Creation therefore refuses, with one stderr line naming the S3.4
+  retirement procedure, when either holds: free space on the filesystem
+  that holds the destination's parent directory (not the workspace's
+  volume, which can differ under a symlinked or mounted root) is below the
+  estimated cost, or below `--min-free-gb` when the handler carries that
+  option as a floor; or the family already holds `--max-lanes` rows in
+  state `ready` (default 8). Both are hook options baked into the
+  handler by `setup` (D1), with compiled-in defaults, so the bare handler
+  is guarded too. The guards apply only to an attempt that will create; the
+  reuse rule is evaluated first, and a reuse consumes nothing, so it is
+  never refused by a guard. The hook takes no lock of its own and keeps no
+  state of its own. It runs a bounded attempt loop until its deadline, the
+  `--wait-secs` option (compiled-in default 300 s, or, when `setup` bakes
+  it, the estimated copy time: file count × a per-file cost from the same
+  table, pessimistic; Claude's create timeout is one wait plus one
+  estimated copy plus 60 s, A1): each
+  attempt re-reads the family index lock-free (as `local list` does),
+  evaluates the table below, re-evaluates both guards, and only then runs
+  `local clone` in process with `--owner <session_id>` (R20) and no wait;
+  a `Busy` result sleeps briefly and loops. An attempt that reaches the
+  clone pays the clone's pre-lock source inventory before it can learn the
+  lock is busy (the clone inventories the source at its step 4 and takes
+  the lock at step 5), so against an unrelated family command the
+  effective poll period is that inventory, not the sleep; the per-file
+  cost the estimate uses covers it, and S3.2 measures it. The clone holds the family lock
+  for the copy and records the owner in the same index write as the row,
+  so there is no second store and no window between the row and its
+  owner. The guards are therefore fresh at every attempt; the residual
+  bound, stated here and accepted, is that two attempts admitted in the
+  same instant can exceed `--max-lanes` by one. The hook validates
+  `session_id` against R20's token grammar before using it and refuses
+  with its own message otherwise. Reuse of an existing destination is
+  allowed only when all of these hold: the index has a `ready` row for
+  `NAME` whose recorded path canonicalises to the destination; the row's
+  owner equals this invocation's `session_id`; and the lane's repositories
+  pass the same completeness check a fresh create reports, which writes
+  nothing. Every other terminal combination refuses: exit non-zero, nothing
+  on stdout, one stderr line naming the state and its remedy. The table,
+  evaluated on every attempt:
+  - no row, nothing at the destination: attempt the create.
+  - no row, a directory at the destination (an unrelated tree, or a
+    manual copy): refuse; choose another name or move the directory.
+  - a `creating` row owned by this session: another handler for this
+    session is mid-copy; keep looping until it settles or the deadline
+    passes.
+  - a `creating` row with no owner or another owner (an interrupted or
+    foreign create): refuse; retire it through S3.4.
+  - a `disposing` row: refuse; retire it through S3.4.
+  - a `ready` row whose path differs from the destination: refuse; the
+    name is taken by a lane elsewhere.
+  - a `ready` row at the destination with no owner (a lane made by hand,
+    or before this workspace's first owned lane): refuse, fail-closed;
+    retire it through S3.4 or choose another name.
+  - a `ready` row at the destination owned by another session: refuse,
+    naming that session.
+  - a `ready` row at the destination owned by this session, complete:
+    reuse, print the path.
+  - a `ready` row at the destination owned by this session, incomplete:
+    refuse; retire it through S3.4.
+  - the lock still busy, or the row still `creating`, when the deadline
+    passes: refuse, naming the wait; Claude aborts, and any lane the other
+    holder completes is the orphan D5 describes.
+  A hook that Claude kills at its timeout mid-copy leaves a `creating` row
+  and its files and writes no log line; `gwz local list` is the inventory
+  and S3.4 the retirement, and the next attempt for that name refuses as
+  above. The hook never prints a path it did not create or verify. The
+  guards are not a substitute for S3.4.
 - D7. **Verbatim lanes for now.** Clean lanes (`--clean`) are a GWZ product
-  feature with its own plan; this plan measures the verbatim cost first
-  (S3.2) and records whether clean lanes are needed for Claude use.
-- D8. **Fall back to a git worktree only when GWZ is provably not in play.**
-  The create hook resolves the workspace root by walking up from
-  `CLAUDE_PROJECT_DIR` to the nearest directory holding `gwz.conf/gwz.lock.yml`
-  (a candidate filter only), then asks `gwz --root CANDIDATE --json status`
-  for the final word. Outcomes:
-  - `gwz` on `PATH` and status succeeds: a lane of that workspace. When the
-    session started inside a member, the printed path is that member's
-    directory inside the lane, so the session lands where it started (S1.3
-    checks Claude accepts it: the directory is its own repository).
-  - `gwz` missing, or no candidate root, or status fails with one of the
-    not-a-workspace codes pinned in S1.1 (U11): Claude Code's default is
-    reproduced, `git worktree add -b worktree-NAME .claude/worktrees/NAME
-    <base>` in the project repository, with the base taken from
-    `origin/<default-branch>` when it resolves and `HEAD` otherwise, and that
-    path is printed.
-  - status fails for any other reason: creation aborts, non-zero, with gwz's
-    message on stderr. The fallback is never the answer to an unexpected
-    error, because a member-less worktree of the root is the failure this
-    plan exists to prevent.
-  The remove hook decides by inspection of `worktree_path`: a registered git
-  worktree of the project is removed with `git worktree remove` (never
-  `--force`; a dirty worktree makes the hook fail and keeps the session,
-  matching D3); a sibling lane of a workspace root, or a member directory
-  inside one, is disposed with GWZ. Anything else is refused. Every decision
-  is logged (D10) so a session that expected a lane and got a worktree can
-  see why.
+  feature. Their requirements (R14 to R16), with those that let a verbatim
+  lane dispose without a waiver (R1 to R8), are in gwz-core
+  `dev-docs/GwzLaneCleanFixes.md`. This plan consumes them and implements
+  neither: it measures the verbatim cost first (S3.2), and records at S3.3
+  which route Claude use waits on.
+- D8. **One test: is the project a GWZ workspace.** The create hook resolves
+  the workspace root from `CLAUDE_PROJECT_DIR` exactly as `--root` resolution
+  does for every other gwz command (the nearest enclosing manifest, loaded in
+  process). Outcomes:
+  - A workspace: a lane of it. When the session started inside a member, the
+    printed path is that member's directory inside the lane, so the session
+    lands where it started (S1.3 checks Claude accepts it: the directory is
+    its own repository).
+  - Not a workspace: Claude Code's default is reproduced as far as a hook
+    can. `git worktree add -b worktree-NAME .claude/worktrees/NAME <base>`
+    in the project repository, with the base taken from `--base-ref` when
+    the handler carries it, else `origin/<default-branch>` when it resolves
+    and `HEAD` otherwise; when `.claude/worktrees/NAME` already exists and
+    is a registered worktree of the project on branch `worktree-NAME`
+    (Claude's own earlier creation, or this hook's), it is reused and
+    printed rather than failed, with no session check, unlike a lane: a
+    plain worktree is cheap and recreatable, `git worktree remove` without
+    `--force` protects a dirty tree, and it also refuses a locked worktree,
+    which is what Claude holds on a running agent's worktree (section 1;
+    S1.3 records that the lock is present for a fallback worktree, U10),
+    so the plan accepts that two sessions naming the same slug share it
+    (what Claude's own default does for a reused name is unconfirmed, U4;
+    S1.3's fallback probe records it); the `.worktreeinclude` copy that Claude
+    skips when a hook owns creation (section 1) is performed by the hook
+    only for a worktree this invocation created (the same gitignore-style
+    patterns Claude documents, matched against the project root's
+    untracked files); on reuse nothing is written, and a listed file
+    missing from the reused worktree is reported on stderr, not supplied;
+    and that path is printed. What the fallback cannot reproduce is the
+    automatic sweep, which never runs for hook-created worktrees, so they
+    accumulate until removed by hand (`git worktree list`, then
+    `git worktree remove`); S4.1 states this. S1.1 picks the git CLI or
+    git2's worktree API; the layout and these three behaviours are what
+    matter.
+  - A workspace that cannot be used (an open coordinated merge, an unreadable
+    lock or marker, a manifest newer than the binary): creation aborts,
+    non-zero, with gwz's message on stderr. These are ordinary gwz errors,
+    not a third branch: a member-less worktree of the root is the failure
+    this plan exists to prevent, so a workspace never falls back.
+  There is no "`gwz` missing" branch: if `gwz` is not on the desktop app's
+  `PATH` the hook does not run, Claude aborts creation with its own error,
+  and S2.1 confirms `PATH` once. The remove hook decides by inspection of
+  `worktree_path`, canonicalised first: a registered git worktree of the
+  project is removed with `git worktree remove` (never `--force`; a dirty
+  worktree makes the hook fail and keeps the session, matching D3); a path
+  that is a lane root, or a member directory inside one, is resolved to its
+  lane root through `<lane>/.gwz/family-root`, and disposed only when
+  exactly one `ready` row of that family has a canonical path equal to the
+  lane root; the dispose runs with an explicit `--root` naming the family
+  root, `--wait <wait-secs>` (R21, the same deadline as the create hook)
+  and a working directory at the family root, never inside the lane
+  (dispose refuses the directory the caller stands in). A path that no
+  longer exists exits zero and logs it (the other placement's handler, or a
+  hand retirement, removed it first), and so does a dispose that finds the
+  row already gone after classification. Anything else is refused. Every
+  decision is logged (D10), and the log line distinguishes three classes:
+  a refusal by the hook's own classification, a hazard refusal by gwz, and
+  the family lock still busy at the deadline (D3), so a session that
+  expected a lane and got a worktree, or a removal that failed for a reason
+  D3 does not intend, can be seen for what it is. Original D8 (an external script
+  probing `gwz --json status` and interpreting not-a-workspace codes) was
+  simplified at adoption.
 - D9. **Lanes keep the source branches.** The hook does not create
   `worktree-NAME` branches in the lane's repositories; a lane is the workspace
   as it sits, on whatever branches it sits on, and integration is
   `gwz merge --remote NAME`. Claude's branch-based views (the desktop's diff
-  and PR flows) therefore do not describe a lane session; S1.3 records what
+  and PR flows) therefore do not describe a lane session; S2.1 records what
   the desktop shows for one and S4.1 says so. Alternative held in reserve:
   the hook creates the branch in the root and every member after the copy,
-  if S1.3 shows the branch-based views matter more than the extra commands
+  if S2.1 shows the branch-based views matter more than the extra commands
   per lane.
 - D10. **A lane is a snapshot of a live source.** The hook always runs while
   the parent session is alive and possibly building; LocalClones.md's quiet
@@ -251,17 +493,41 @@ integration is documented for other users.
   verified by gwz (`dest-complete`); unsaved edits and build outputs in
   flight are copied best effort and a session in the lane may need to
   rebuild. The hook warns on stderr when a `cargo` process holds the source's
-  target directory open. Both scripts log one line per decision to a fixed
+  target directory open. Both hooks log one line per decision to a fixed
   file, `<root>/.gwz/claude-hooks.log` for a workspace and
   `~/.claude/gwz-lane-hooks.log` for the fallback, because the desktop app
-  cannot pass an environment variable to switch logging on;
-  `GWZ_LANE_HOOK_LOG` overrides the location when it is set.
-- D11. **POSIX hosts first.** The scripts are POSIX sh and need `jq` or
-  `python3` (they fall back from one to the other for the two fields they
-  read). Windows, where Claude Code runs hooks through `powershell.exe`, is a
-  named later step (S5.1), not an omission; the Rust test that executes the
-  scripts is unix-only behind an explicit `cfg_if!` boundary, per the
-  standing rule on conditional compilation.
+  cannot pass an environment variable to switch logging on; the `--log`
+  hook option overrides the location. A log line carries exactly: a
+  timestamp, the event, `name`, `session_id`, the resolved classification
+  (lane, member-in-lane, fallback worktree, refused-by-hook,
+  refused-by-hazard, family-busy; the three refusal classes D8 names), the
+  path printed or acted on, the outcome, and the exit code; never
+  `transcript_path` or
+  `cwd`. Every non-zero exit also prints one stderr line of the form
+  `gwz: <cause>; <the one command that resolves it>`, and the log records
+  that same line. The file is bounded at 1 MB and truncated to its newest
+  half when it passes that. The log is the only file the hook writes
+  inside a workspace on its own account; the in-process create also
+  writes, at the root and under `/.gwz/`, the family index (where the
+  owner lives, R20) and the lock file, and it regenerates the root's
+  managed `.git/info/exclude` block, which is what keeps all of them out of
+  `git status`. The ignore check below governs the log alone; S1.1's
+  fixture asserts the exclude block's content before and after a creation
+  so the other writes are seen for what they are. Before writing the log,
+  the hook checks that the location is ignored by the
+  enclosing repository (in gwz-dev `/.gwz/` is ignored through the managed
+  exclude block, not a tracked rule), because an untracked file in a
+  member blocks every lane merge (gwz-dev L2) and counts as a `dirty`
+  hazard at disposal. A log location that would appear in `git status` is
+  not used, the user-level log is used instead, and a stderr note says so.
+- D11. **POSIX hosts first, Windows from the same binary.** The hooks are gwz
+  subcommands (D1), so there is nothing platform-specific to write twice;
+  the platform-bound pieces (free-space measurement for D6, the busy-build
+  check for D10, `HOME` resolution for the fallback log) live behind
+  explicit `cfg_if!` boundaries per the standing rule on conditional
+  compilation, and the fallback test runs on every platform. Windows is
+  verified, not implemented, in a named later step (S5.1): Claude Code runs
+  the same `gwz hook ...` command through `powershell.exe`.
 
 ## 4. Phases
 
@@ -275,97 +541,220 @@ targets, not limits.
   D11 and the unconfirmed list. Output: this file's status line updated with
   a dated adoption note.
 
-### Phase 1: hook scripts and the CLI path (milestone: `claude --worktree NAME` in gwz-dev lands in a GWZ lane, and exiting with removal disposes it)
+### Phase 1: hook subcommands and the CLI path (milestone: `claude --worktree NAME` in gwz-dev lands in a GWZ lane, and exiting with removal runs dispose, keeping the lane whenever dispose refuses)
 
-- **S1.0: creation cost, measured once** *(evidence; independent of S1.1;
-  ~30 minutes)*. From the gwz-dev root, `gwz local clone probe-cost`, timed,
-  with `df` before and after and `du -sh` of the lane; then dispose it. The
-  numbers set D6's default and the creation timeout in S1.1 (sized for two
-  copies back to back, since two creations serialize on the family lock).
-- **S1.1: the scripts** *(gwz-cli, `integrations/claude-code/`; ~160 lines
-  of POSIX sh plus ~200 lines of test)*. `gwz-lane-create.sh` reads `name`
-  (`jq`, else `python3`), validates it (D2), resolves the workspace root as
-  D8 says, applies the free-space guard (D6) and the busy-build warning
-  (D10), reuses an existing lane directory if present (idempotent, covers
-  U4), runs `gwz --root ROOT local clone NAME` with all output on stderr, and
-  prints the lane path (or the member path inside it) as the last line with
-  `pwd -P`. In the D8 fallback case it creates the git worktree under
-  `.claude/worktrees/NAME` and prints that path; in the abort case it exits
-  non-zero with gwz's message. `gwz-lane-remove.sh` classifies
-  `worktree_path` (D8): a registered git worktree is removed with
-  `git worktree remove`; a lane, or a member directory inside one, is
-  disposed with `gwz --root ROOT local dispose NAME`, never `--keep` or
-  `--force` (D3); anything else is refused. Exit codes propagate. Both scripts
-  log to the fixed file (D10).
-  Tests: a Rust integration test in `gwz-cli/tests/claude_code_hooks.rs`,
-  unix-only behind a `cfg_if!` boundary (D11), runs both scripts with a stub
-  `gwz` on `PATH` that replays recorded JSON: a workspace (lane path printed,
-  name validation, guard, idempotent reuse, dispose exit codes, member-rooted
-  session resolving to the lane's member directory); `gwz` present and a
-  workspace present but status failing with an unrelated code (creation
-  aborts, nothing created); each not-a-workspace code (fallback taken and
-  logged, U11 pinned here); an empty `PATH` in a plain git repository
-  (worktree created under `.claude/worktrees/NAME` on branch
-  `worktree-NAME`, removed cleanly, refused when dirty); `jq` absent
-  (`python3` fallback). `settings.hooks.json` carries the two hook entries
-  with the S1.0 timeout, and the README documents the copy step (D1, S1.2).
-- **S1.2: local adoption in gwz-dev** *(gwz-dev root; ~30 lines, not
-  committed)*. Copy the scripts to `gwz-dev/.claude/hooks/` (the root owns
-  what its settings invoke; a missing or detached gwz-cli member must not
-  break creation) and add the hooks block to the operator's
-  `.claude/settings.local.json` (D5). The settings command first checks the
-  script exists and otherwise explains on stderr. Confirm the desktop app's
-  environment supplies `PATH` with `gwz` (section 1).
-- **S1.3: the CLI probe** *(evidence only; ~2 hours of operator time)*. From
-  the gwz-dev root run `claude --worktree probe-YYYYMMDD`. Record: the
-  session's working directory is the lane; `gwz status` and `gwz ls` work
-  inside it; a `cargo build -p gwz` inside the lane succeeds and what it cost
-  in time and disk; whether Bash commands that run `gwz` or `git` inside a
-  member are allowed by the isolation check (U2), with the exact refusal text
-  if not; what the desktop's diff and PR views show for a lane session (D9);
+- **S1.0: withdrawn by amendment A1 (2026-09-17).** The creation-cost
+  measurement it described is replaced by the run-time estimate in D6 (a
+  source walk, a reflink probe, and a pessimistic table by filesystem),
+  which `setup` also uses to bake `--wait-secs` and both handlers'
+  timeouts (S1.2). No lane is created and retired for measurement; S3.2
+  validates the estimate against a real clone once the hooks exist. The
+  number is kept so cross-references stay stable.
+- **S1.1: the hook subcommands** *(gwz-cli, new `hook` command family;
+  ~450 lines plus ~350 lines of test, above the aspiration; an implementer
+  may split it along create/remove, landing create with its tests first)*.
+  The contract is D1's: print only a created or verified path; delete only
+  what `worktree_path` names. `gwz hook claude-code worktree-create` reads
+  the hook JSON on stdin and takes `name` and `session_id`, validates the
+  name (D2), resolves the workspace root from `CLAUDE_PROJECT_DIR` as D8
+  says (falling back to the process's working directory when the variable
+  is absent, so the command can be run by hand), validates `session_id`
+  against R20's grammar, issues the busy-build warning (D10), and runs
+  D6's attempt loop until `--wait-secs`: on each attempt a lock-free read
+  of the index, the reuse table, then, only for an attempt that will
+  create, the two guards, then the local clone in process with `--owner
+  <session_id>` (R20) and all progress on stderr, sleeping and looping on
+  `Busy` or on a `creating` row of its own session; it prints the
+  canonical lane path (or the member path inside it) as the last stdout
+  line. In the D8 fallback
+  case it creates or reuses the git worktree under `.claude/worktrees/NAME`,
+  performs the `.worktreeinclude` copy only when it created the worktree,
+  and prints that path; on any error it exits non-zero with D10's one
+  stderr line and nothing on stdout. `gwz hook claude-code worktree-remove` reads
+  `worktree_path`, canonicalises and classifies it (D8): a registered git
+  worktree of the project is removed with `git worktree remove`; a lane
+  root, or a member directory inside one, is resolved through
+  `.gwz/family-root` to the one `ready` row whose path matches and disposed
+  with explicit `--root` from the family root, never `--keep` or `--force`
+  (D3); an absent path exits zero; anything
+  else is refused. Both log to the fixed file (D10). Also part of this
+  step, because gwz-cli enforces them: regenerate `docs/CLI.md` with
+  `scripts/generate_cli_reference.py --write` (the `g00` test compares it
+  byte-for-byte and the release gate re-checks it); place the `hook` family
+  under `Other:` in the curated grouping in `src/help.rs`; add
+  `docs/commands/hook.md` and its `mkdocs.yml` nav entry.
+  Tests, in gwz-cli's existing test tree, against a fixture workspace built
+  in a temporary directory: a workspace (lane path printed and canonical,
+  name validation including GWZ's refused names, each guard with a forced
+  value, the cost estimate on a same-filesystem destination whose probe
+  clones (share from the table) and on a destination whose probe fails or
+  lies on another filesystem (share 0, the guard firing on apparent
+  size), the `--min-free-gb` floor applying on top of the estimate, the busy-build warning, same-session reuse printing the same path
+  with the row still `ready`, dispose exit codes on a clean and a dirty
+  lane, a member-rooted `CLAUDE_PROJECT_DIR` resolving to the lane's member
+  directory and its removal disposing the right lane with a sibling lane
+  untouched, stdout carrying exactly one line); reuse refusals (a
+  `creating/incomplete` row with its files; an unrelated directory at the
+  destination; a row whose path points elsewhere; a row owned by another
+  `session_id`; a `ready` row with no owner; a `ready` row owned by this
+  session whose lane fails the completeness check; a `creating` row with
+  another owner; a `disposing` row; a `session_id` outside R20's grammar),
+  each exiting non-zero with nothing on stdout and a message naming the
+  state; two creations with the same `name` and `session_id` where the
+  second starts only after the first's `creating` row is visible in the
+  index (one lane, two zero exits, one path, no abort), repeated with the
+  family at `--max-lanes` minus one under differing handler text; the same
+  with the first create killed mid-copy (the second refuses fail-closed,
+  nothing on stdout); two creations of different names with the family at
+  `--max-lanes` minus one, the second starting only after the first's
+  `creating` row is visible in the index (exactly one new lane, the second
+  refused by the ceiling once the first is `ready`, nothing copied for it,
+  logged; the same-instant race D6 concedes is outside this test's scope); a
+  wait that passes its deadline behind a lock held by a stub (refused,
+  nothing created, the message naming the wait); a same-session reuse
+  succeeding with free space forced below `--min-free-gb`; a guard refusal
+  asserted to occur only when this attempt created nothing; the root's
+  managed exclude block asserted before and after a creation; a removal whose process
+  working directory is inside the lane still disposing; a `worktree_path`
+  whose basename matches a family name but whose canonical path does not
+  (refused); an absent `worktree_path` (exit zero, logged); a removal
+  against a family whose lock a stub holds past the deadline (refused,
+  classified busy, printed as "family busy; retry", lane intact); a
+  removal whose row disappears between classification and dispose (exit
+  zero, logged); a workspace
+  with an open coordinated merge (creation aborts, nothing created,
+  logged); a plain git repository (worktree created under
+  `.claude/worktrees/NAME` on branch `worktree-NAME` from
+  `origin/<default>` when present and `HEAD` otherwise, `--base-ref`
+  honoured, an existing worktree and branch pair reused, reused again by a
+  second `session_id` with the same path printed, a `.worktreeinclude`
+  file's untracked entries present in a created worktree, an included file
+  modified in the worktree surviving reuse byte-identical, an included
+  file deleted from the worktree reported on stderr and not recreated,
+  removed cleanly, refused when dirty, refused when `git worktree lock`
+  is held on it); a `worktree_path` that is neither
+  (refused); the log line's exact field set, the three refusal classes
+  distinguished, `git status --porcelain` unchanged in the fixture after a
+  creation and a removal, and a `--log` location that would show in
+  `git status` redirected to the user log; the field-set assertion admits
+  the three refusal classes of D10, and the busy-removal test asserts
+  `family-busy`. Malformed or missing stdin
+  fields exit non-zero with a message naming the field. The fallback tests
+  run on every platform; only the platform-bound helpers sit behind
+  `cfg_if!` (D11).
+- **S1.2: the setup command** *(gwz-cli, `hook claude-code setup`; ~200
+  lines plus ~150 lines of test)*. `gwz hook claude-code setup` prints the
+  hooks block
+  (`WorktreeCreate` and `WorktreeRemove`, each one command handler with
+  its own timeout, computed by `setup` at write time from D6's estimate
+  for the workspace it runs in (A1): `--wait-secs` baked as the estimated
+  copy time, one wait plus one estimated copy plus 60 s for create, one
+  wait plus 60 s for remove; outside a workspace, the compiled-in default
+  and 600 s; hook options passed through into the handler text). With `--write` it merges the block into the chosen file
+  (`--project` for `<root>/.claude/settings.json`, `--project --local` for
+  `settings.local.json`, `--user` for `~/.claude/settings.json`) the way D1
+  requires: parse first and refuse a file that does not parse or is not a
+  regular file, naming the offending construct; temporary file, fsync,
+  re-parse, rename; every byte outside the inserted block unchanged; the
+  file created when absent; nothing done when the block is already present.
+  It warns, naming both files, when another placement on this machine
+  carries a differing handler (D5), and `--command PATH` substitutes an
+  absolute binary for the bare `gwz` (D1). Also: regenerate `docs/CLI.md`,
+  place `claude-code` under `Other:` in `src/help.rs`, add
+  `docs/commands/claude-code.md` and its nav entry. Tests: a fresh file; a
+  file with unrelated hooks, unknown top-level keys and unusual formatting
+  (byte-identical outside the block after `--write`); a second run (no
+  change); a file that does not parse (refused, untouched); a write
+  interrupted before the rename (original bytes unchanged); a symlink
+  target (refused); the differing-handler warning; `--command` and hook
+  options appearing in the handler text; both handlers' timeouts present
+  and consistent with the block's `--wait-secs`.
+- **S1.3: local adoption and the CLI probe** *(evidence only; one command
+  at the gwz-dev root, not committed, then ~2 hours of operator time)*.
+  Run `gwz hook claude-code setup --project --local --write` at the gwz-dev
+  root
+  (D5). Then, from the gwz-dev root, run `claude --worktree probe-YYYYMMDD`.
+  Record: the session's working directory is the lane; `gwz status` and
+  `gwz ls` work inside it; what lane-local state the copy carried that
+  should not travel, such as `.gwz/url-scheme.yml` (O2); a
+  `cargo build -p gwz` inside the lane succeeds and what it cost in time and
+  disk; whether Bash commands that run `gwz` or `git` inside a member are
+  allowed by the isolation check (U2), with the exact refusal text if not;
   an edit plus `gwz add` and `gwz commit` in the lane; exit with removal,
   expecting the dispose refusal to keep the lane, and the exact refusal text
   (U6); then `gwz merge --remote probe-YYYYMMDD` from the main workspace and
-  a second removal that succeeds. Repeat creation while `cargo build` runs in
-  the source and record whether it completes and whether the lane's target
-  directory is usable (D10). Repeat creation with one plain git worktree
+  a second removal. With gwz 1.0.13 the second removal is refused too, for
+  the hazards the copy inherited (section 1): record its text, retire the
+  lane through S3.4, and leave the removal that succeeds to S3.5. Repeat
+  creation while `cargo build` runs in the source and record whether it
+  completes and whether the lane's target directory is usable (D10). Repeat
+  creation with one plain git worktree
   present under `<root>/.claude/worktrees/` and record what the lane contains
   and what Claude makes of it (D2). Start a session inside `gwz-core` and
   create a lane from there, confirming the member path inside the lane is
   accepted (D8). Confirm Claude's outside-any-repository check is not
   confused by the empty `~/.git` file (O4). Then probe the fallback: run
-  `claude --worktree probe-plain` in a throwaway plain git repository, and
-  once more in gwz-dev with `gwz` hidden from `PATH`, confirming both land in
-  `.claude/worktrees/probe-plain` and are removed on exit (U7). Write the
-  findings to `gwz-cli/dev-docs/GwzClaudeIntegration-Probe-YYYYMMDD.md` and
-  fold any script fix back into S1.1.
+  `claude --worktree probe-plain` in a throwaway plain git repository with
+  the hooks in user settings, confirming it lands in
+  `.claude/worktrees/probe-plain` and is removed on exit (U7), and
+  recording, while the session runs, whether `git worktree lock` is held
+  on that worktree and whether `git worktree remove` refuses it (U10 for
+  the fallback case, the protection D8 leans on); and once in
+  gwz-dev with `gwz` hidden from `PATH`, recording what Claude reports when
+  the hook command cannot run (D8 says creation aborts; confirm no
+  member-less worktree appears). For every abort met along the way (the
+  guards, the hidden `gwz`, a refused name), record exactly what the user
+  sees, and whether the hook's stderr line reaches them, so S4.1's table
+  describes observed text. Every lane this step creates is retired through
+  S3.4 before the step closes. Write the findings to
+  `gwz-cli/dev-docs/GwzClaudeIntegration-Probe-YYYYMMDD.md`, with owner
+  tokens (session ids) redacted from every `gwz local list` transcript
+  and hook-log excerpt, and fold any hook fix back into S1.1.
 - **S1.4: committed adoption** *(gwz-dev root; ~10 lines)*. With S1.3
-  evidence in hand, move the hooks block from `settings.local.json` to the
-  root's committed `.claude/settings.json` through
-  `gwz commit --target @root`, so every clone of the workspace has it (D5).
+  evidence in hand, remove the block from `settings.local.json`, remove or
+  make identical any user-level block on the dogfood machines (D5), run
+  `gwz hook claude-code setup --project --write`, and commit the root's
+  `.claude/settings.json` through `gwz commit --target @root`, so every
+  clone of the workspace has it (D5). A clone whose installed `gwz` predates
+  the `hook` family then carries a hook command that does not exist, and
+  Claude aborts creation there; so S1.4 waits for a gwz release that
+  contains S1.1 and S1.2, and S4.3 states the minimum version. Note for
+  the operator: this commits routine lane creation for every clone before
+  GwzLaneCleanFixes R0 lands, while retirement is still the L1 waiver
+  procedure; keeping the block in `settings.local.json` until R0 is the
+  one-line alternative, and the choice is the operator's at S1.4.
 
 ### Phase 2: desktop chips and background sessions (milestone: a "fix in worktree" chip and a background session start in a lane, or the gap is recorded)
 
-- **S2.1: the chip probe** *(evidence; needs the desktop app)*. Trigger a
-  task chip from a gwz-dev session, accept it, and check the new session's
-  working directory and the hook log (D10). If the chip does not go through
-  the hook (U1), record the observed behaviour, report it to Anthropic
-  through the app's feedback channel, and note the interim workaround: start
-  the spun-off work with `claude --worktree NAME` from the root instead.
-  Record what a user sees when creation aborts from a chip.
+- **S2.1: the chip probe** *(evidence; needs the desktop app)*. First
+  confirm the desktop app's environment supplies `PATH` with `gwz` (section
+  1, D8) by triggering one creation from the app and reading the hook log.
+  Then trigger a task chip from a gwz-dev session, accept it, and check the
+  new session's working directory and the hook log (D10). If the chip does
+  not go through the hook (U1), record the observed behaviour, report it to
+  Anthropic through the app's feedback channel, and note the interim
+  workaround: start the spun-off work with `claude --worktree NAME` from
+  the root instead. Record what a user sees when creation aborts from a
+  chip; whether an interactive session's `EnterWorktree` fires the hook
+  (U3); what the app's "Worktree location" and branch-prefix settings do
+  once the hook owns creation (U5); and what the desktop's diff and PR views
+  show for a lane session (D9). Every lane this step creates is retired
+  through S3.4 before the step closes.
 - **S2.2: the background-session probe** *(evidence)*. Start a background
   session (`/bg` or the desktop's parallel session) from gwz-dev; confirm the
   lane, the isolation behaviour, what the agent lock does to a lane (U10),
   and that deleting the session calls the remove hook with the dispose
   refusal semantics from S1.3, leaving the session listed.
 - **S2.3: the subagent rule** *(decision plus one probe)*. D3 already sets
-  the default: no subagent worktree isolation in GWZ workspaces until clean
-  lanes exist. The probe launches one subagent with `isolation: "worktree"`
-  from a gwz-dev session to record creation time, whether anything in the
-  hook input identifies it (U9), and what its finished-with-changes lane
-  looks like. If U9 finds a signal, the hook refuses subagent creations in
-  workspaces with a message naming the rule; if not, the rule lives in S4.1,
-  S4.2 and agent briefs.
+  the default: no subagent worktree isolation in GWZ workspaces until an
+  integrated lane disposes in one command (GwzLaneCleanFixes R0). The probe
+  launches one subagent with `isolation: "worktree"` from a gwz-dev session
+  to record creation time, whether anything in the hook input identifies it
+  (U9), and what its finished-with-changes lane looks like. A second subagent
+  that changes nothing records what the remove hook does when it finishes:
+  with gwz 1.0.13 dispose refuses and the lane stays. If U9 finds a signal,
+  the hook refuses subagent creations in workspaces with a message naming the
+  rule; if not, the rule lives in S4.1, S4.2 and agent briefs.
 
 ### Phase 3: lifecycle and cost (milestone: Claude-created lanes are cheap enough to make routinely and safe to retire)
 
@@ -374,40 +763,80 @@ targets, not limits.
   hook that exits zero and leaves the directory, and record whether Claude
   forgets the path. Make sure the refusal text a user sees through Claude
   names the remedy (`gwz merge --remote NAME` from the main workspace; U6). If
-  the message lacks the remedy, that is a gwz-core message change with its
-  own test.
+  the message lacks the remedy, record the gap against GwzLaneCleanFixes R9
+  and R10, which already require hazards reported by category and the exact
+  waiver command, rather than opening a separate gwz-core change.
 - **S3.2: cost measurement** *(evidence; ~60 lines in the probe note)*. On
-  the gwz-dev volume, measure: lane creation wall time (S1.0 repeated under
-  load); apparent and actual disk use of a fresh lane (`du` versus `df`
-  deltas, since APFS clones share blocks); growth after `cargo build -p gwz`
-  and after the gwz-core suite in the lane. Set the D6 default from the
-  numbers, and state in the docs what a building lane costs.
-- **S3.3: clean lanes decision** *(decision only)*. From S3.2 and S2.3,
-  decide whether Claude use needs `gwz local clone --clean` (a lane without
-  build outputs and dirt). If yes, open a separate plan in gwz-core; this
-  plan does not implement it.
+  the gwz-dev volume, measure: lane creation wall time, quiet and under
+  load, against the estimate `setup` baked (file count × per-file cost);
+  the clone's pre-lock inventory interval; apparent and actual disk use of
+  a fresh lane (`du` versus `df` deltas) against D6's estimate, giving the
+  measured share for APFS; the same on the Linux (aarch64) and Windows
+  hosts the acceptance runbook already uses, for ext4 or XFS and NTFS or
+  ReFS (btrfs was measured on the Linux host on 2026-09-18 and shares
+  within 1% of XFS, so the two keep one table entry and need no separate
+  measurement); growth after `cargo build -p gwz` and after the gwz-core suite in
+  the lane, for the docs only (out of the guard's scope, A1). Replace D6's
+  placeholder table entries with the measured values, keeping them
+  pessimistic, and state in the docs what a building lane costs.
+- **S3.3: disposal route decision** *(decision only)*. From S3.2 and S2.3,
+  decide which GwzLaneCleanFixes route Claude use waits on: verbatim lanes
+  that dispose once integrated (R1 to R8), clean lanes from
+  `gwz local clone --clean` (R14 to R16, which start with cold builds), or
+  both. Record the choice here and in that document. The gwz-core work is
+  planned there, not here.
 - **S3.4: inventory and retirement** *(gwz-cli docs; ~60 lines)*. The
   procedure for lanes Claude cannot retire: chips and background sessions
   whose removal was refused, headless runs that never call the hook, crashed
   sessions, and `creating/incomplete` rows. `gwz local list` is the
-  inventory; the order is `gwz merge --remote NAME` from the main workspace,
+  inventory (its owner column is a session id: redact it from anything
+  committed); the order is `gwz merge --remote NAME` from the main workspace,
   then `gwz local dispose NAME`, with `--force <hazard>` or `--keep` as the
-  operator's explicit choices, never the hook's. A weekly look at
-  `gwz local list` is the recommended habit until a Claude-side listing
-  exists.
+  operator's explicit choices, never the hook's. Until GwzLaneCleanFixes R0
+  lands, dispose refuses every verbatim lane even after the merge, so the
+  procedure includes the L1 check from gwz-dev `dev-docs/GwzLaneIssues.md`
+  before `--force dirty,unpreserved-history`. After R0, a refusal means the
+  lane holds unique work. Once the check-only mode of R12 exists, it is the
+  inventory's report for each lane. A weekly look at `gwz local list` is the
+  recommended habit until a Claude-side listing exists.
+- **S3.5: adopt the disposal fixes** *(evidence, then doc edits; waits on an
+  installed gwz that meets GwzLaneCleanFixes R0; ~40 lines in the probe
+  note)*. Repeat S1.3's removal sequence and S2.3's subagent probes, timing
+  the first disposal that succeeds, and size the remove handler's timeout
+  in S1.2's block as one wait plus that measured dispose plus 60 s (until
+  then it is one wait plus 60 s, adequate because a hook's dispose only
+  refuses, in 5 to 16 s on gwz-dev; forced disposals of 27 to 238 s in
+  gwz-dev L1 are the operator's, never the hook's). Confirm
+  that an unintegrated lane still refuses, that an integrated lane disposes
+  through the remove hook in one step, and that a subagent lane finishing
+  without changes is removed. Record whether sessions write Claude state
+  inside their lanes (O5). If every check passes, lift D3's subagent rule
+  and update S3.4, S4.1 and S4.2 to match.
 
 ### Phase 4: documentation and the skill (milestone: any GWZ user can adopt the integration from the docs)
 
 - **S4.1: the docs page** *(gwz-cli, `docs/ClaudeCode.md`, linked from
   `docs/AgentBootstrap.md` and the nav; ~200 lines)*. What the hooks do, the
-  settings block and the one-placement rule (D5), where the scripts live and
-  the copy step (D1), prerequisites (`jq` or `python3`; POSIX hosts, D11),
-  the lane lifecycle from Claude's point of view, the snapshot policy (D10),
+  settings block, `gwz hook claude-code setup`, the recommended single
+  placement
+  and why two placements are harmless (D1, D5) together with the one case
+  where they are not (a second handler that refuses for its own reason
+  orphans the first's lane; `gwz local list` is the inventory, S3.4 the
+  retirement), the migration for a machine that pinned `--command` before
+  the project block was committed,
+  prerequisites (`gwz` on the `PATH` the desktop app sees; the minimum gwz
+  version; POSIX hosts until S5.1, D11), the hook options and their
+  defaults (D6, D10; environment variables are not user configuration), the
+  lane lifecycle from Claude's point of view, the snapshot policy (D10),
   branch semantics (D9), the isolation behaviour observed in S1.3 and S2.x,
-  the cost numbers from S3.2, the retirement procedure (S3.4), the subagent
-  rule (D3), the caveats (launch from the main root, headless runs never
+  the cost numbers from S3.2, the retirement procedure (S3.4, before and
+  after GwzLaneCleanFixes R0), the subagent rule (D3), a table of every
+  refusal the hooks can print with its one-line remedy (D10, as observed in
+  S1.3), including "family busy; retry" as its own row (D3), the caveats (launch from the main root, headless runs never
   remove, hooks never merge, keep `.claude/worktrees/` empty in a root that
-  uses lanes, `baseRef` parity for the fallback), how to switch the hooks off
+  uses lanes, what the fallback drops: no automatic sweep, so `git worktree
+  list` and `git worktree remove` by hand, and no session ownership, so two
+  sessions naming the same slug share one worktree), how to switch the hooks off
   quickly (delete the block; `worktree.bgIsolation: "none"` for background
   sessions), and what a failed creation looks like from a chip (S2.1).
 - **S4.2: the skill** *(gwz-cli, `skills/gwz/SKILL.md`, "Local lanes"
@@ -415,28 +844,41 @@ targets, not limits.
   in a lane created by Claude Code, how to identify the source workspace, that
   integration happens from the receiving workspace, that it must not dispose
   the lane it is working in, and that it must not ask for subagent worktree
-  isolation in a GWZ workspace (D3).
+  isolation in a GWZ workspace until S3.5 lifts that rule (D3).
 - **S4.3: pointers** *(gwz-dev `README.md` and `AGENTS_GWZ.md`; ~10 lines)*.
   One paragraph each pointing at the docs page, next to the existing install
-  and clone instructions.
+  and clone instructions, naming the minimum gwz version that carries the
+  `hook` family (S1.4).
 
 ### Phase 5: Windows (deferred; milestone: the same behaviour through `powershell.exe`)
 
-- **S5.1: PowerShell twins** *(gwz-cli, `integrations/claude-code/*.ps1`;
-  ~200 lines plus a Windows-only test module)*. The same decisions, the same
-  log, the same fallback; probed on the Windows host the release process
-  already uses. Not scheduled until Phases 1 to 4 are done on POSIX.
+- **S5.1: Windows verification** *(evidence, plus fixes behind `cfg_if!`
+  boundaries if any; ~40 lines in the probe note)*. Run the S1.1 tests on
+  the windows-msvc job of the workspace matrix, then repeat S1.3's creation,
+  removal and fallback probes on the Windows host the release process
+  already uses, where Claude Code runs the same `gwz hook ...` command
+  through `powershell.exe`. Record path canonicalisation (drive letters,
+  `\\?\` prefixes) in the printed path, the free-space and busy-build helpers,
+  and the fallback log location. Not scheduled until Phases 1 to 4 are done
+  on POSIX.
 
 ## 5. Step dependency sketch
 
 ```
-S0.1 -> { S1.0, S1.1 } -> S1.2 -> S1.3 -> S1.4
+{ S0.1, GwzLaneCleanFixes R20 and R21 in an installed gwz } -> S1.1 -> S1.2 -> S1.3
+{ S1.3, a gwz release containing S1.1 and S1.2 } -> S1.4 -> { S4.1, S4.3 }
 S1.3 -> { S2.1, S2.2, S2.3, S3.1, S3.2, S3.4 } -> S3.3 -> { S4.1, S4.2, S4.3 } -> S5.1
+{ S2.3, S3.3, GwzLaneCleanFixes R0 in an installed gwz } -> S3.5 -> revisions of S3.4, S4.1, S4.2
 ```
 
-S1.0 and S1.1 are independent of each other. S2.x, S3.1, S3.2 and S3.4 are
+S2.x, S3.1, S3.2 and S3.4 are
 independent of each other and can be picked up by different agents; S4.x
-waits for their evidence so the docs describe measured behaviour.
+waits for their evidence so the docs describe measured behaviour. Three
+dependencies lie outside this plan's steps: S1.1 waits for an installed
+gwz that carries R20 and R21 (gwz-core work plus the gwz-cli surface
+named in §3.6's scope note, landed in one lane; S1.0 is withdrawn, A1); S1.4 waits for a gwz release that carries the `hook` and
+`claude-code` families; and S3.5 waits on gwz-core work for R0. Nothing
+else waits on S3.5, and its revisions follow whenever it lands.
 
 ## 6. Open items
 
@@ -447,12 +889,19 @@ waits for their evidence so the docs describe measured behaviour.
 - O3. The fallback cannot read `worktree.baseRef` from settings without
   parsing them; it follows the documented default (`origin/<default-branch>`,
   else `HEAD`). If the operator sets `baseRef: "head"`, the fallback differs
-  from Claude's own behaviour; S4.1 says so, and a `GWZ_LANE_BASE_REF`
-  environment variable is the cheap override if anyone needs it.
+  from Claude's own behaviour; S4.1 says so, and the `--base-ref` hook
+  option, baked into the handler by `setup` (D1), is the override; an
+  environment variable would not reach the desktop app (section 1).
 - O4. The stray empty `~/.git` file on the operator's Mac makes git report
   "invalid gitfile format" for any directory under `$HOME` that is not inside
-  a repository. D2 handles the script's own check; S1.3 confirms Claude
+  a repository. D2 handles the hook's own check; S1.3 confirms Claude
   Code's outside-any-repository check is not confused by it either.
+- O5. A session may write Claude state inside its lane, for example under
+  `.claude/`. Under GwzLaneCleanFixes R8 that is changed ignored data, so the
+  lane would still refuse after integration. That document leaves open
+  whether such state is user work or tool state (its section 6). S3.5 records
+  whether sessions write it, and the answer decides whether Claude lanes can
+  dispose in one command.
 
 ## 7. Adoption trail
 
@@ -464,7 +913,125 @@ waits for their evidence so the docs describe measured behaviour.
   D6 and the new S1.0; F3 into D3, S2.3 and the new S3.4; F4 into D10 and
   S1.3; F5 into D5, S1.2 and the new S1.4; F6 into D1 and S1.2; F7 into the
   new D9; F8 into D11 and the new Phase 5; F9 into D3 and S3.1; F10 into
-  D10; F11 into D2 and S1.3; F14 into S3.4 and section 1; F15 into D11; F16
+  D10; F11 into D2 and S1.3; F14 into S3.4 and section 1; F15 into D11
+  (since 2026-09-17, into D1: no `jq` or `python3` at all); F16
   and F17 into S4.1 and section 1; F18 into D2. Old O1 and O2 are resolved
   by D5 and S3.4; the open items were renumbered. Awaiting the operator's
   adoption.
+- 2026-09-17: updated at the operator's request for the lane disposal
+  clean-up requirements, gwz-core `dev-docs/GwzLaneCleanFixes.md` (R0 to
+  R19). Section 1 records that every verbatim lane has refused disposal, even
+  after its merge. U6, D3, D7, S1.0, S1.3, S2.3, S3.1, S3.3, S3.4, S4.1, S4.2
+  and the dependency sketch now cite those requirements; S3.5 and O5 are new.
+- 2026-09-17: **adopted** (S0.1 done). The operator confirmed D2 to D7 and
+  D9 to D11 as written, replaced D1 (gwz is the hook, through
+  `gwz hook claude-code worktree-create|worktree-remove`, and
+  `gwz claude-code setup` writes the settings block), and simplified D8 to a
+  single test (workspace: lane; otherwise: Claude's default git worktree;
+  no `gwz`-missing branch). Folded into the Goal, U11 (resolved), D1, D2,
+  D5, D8, D11, S1.1 (subcommands and Rust tests replace scripts and a stub),
+  S1.2 (setup command), S1.3 (fallback probes), S1.4 (minimum-version
+  condition), S4.1, S4.3 and S5.1 (verification, not PowerShell twins).
+  Version stamps note that gwz 1.0.13 changes nothing for L1.
+- 2026-09-17: round-2 dual peer-blind review of the adopted text,
+  `GwzClaudeIntegrationPlan-ReviewConsistency.md` (NO-GO: 2 P2, 7 P3) and
+  `GwzClaudeIntegrationPlan-ReviewSafety.md` (NO-GO: 1 P1, 6 P2, 2 P3).
+  Both axes converged blind on D5's one-placement rule. All eighteen
+  findings folded in one patch per `GwzClaudeIntegrationPlan-RemPlan.md`:
+  the hook contract and knobs-as-options into D1; placement into D5 and
+  U4; the two guards, the strict reuse rule and the session sidecar into
+  D6; the fallback's reuse, `.worktreeinclude` copy and sweep gap, and the
+  remove hook's canonical resolution, into D8; log fields, bound, ignore
+  check and the one-line stderr remedy into D10; generated CLI artefacts,
+  the full test list and the atomic settings writer into S1.1 and S1.2;
+  local adoption moved into S1.3 and the desktop `PATH` check into S2.1
+  (with U3, U5 and D9's views); S1.4's release gate into the sketch with
+  the R0 ordering left to the operator; O2 into S1.3; O3 and section 1's
+  dead error-code fact corrected; the lane count set to L1's 28.
+- 2026-09-17: round-2 re-verdicts, `-ReviewConsistency-2.md` (all nine
+  prior findings cured; NO-GO on 1 new P2, classified architectural, and
+  2 new P3) and `-ReviewSafety-2.md` (all nine closed; NO-GO on 2 new P2,
+  1 new P3). Every new finding came from the round-1 patch. Folded in one
+  patch per `GwzClaudeIntegrationPlan-RemPlan-2.md`, the last remediation
+  round the loop allows: D6 now holds the family lock across the clone and
+  the session record and enumerates the full row-by-record table, with
+  reuse evaluated before the guards; D5 names the lock and the orphan case;
+  U4's resolution is conditional on that; the fallback's
+  `.worktreeinclude` copy is scoped to a created worktree and its
+  unsession-keyed reuse is stated with its reason; D10's ignore check
+  covers the sidecar; D9 points at S2.1; the Goal's parity sentence is
+  qualified; S1.1's tests extended.
+- 2026-09-17: round-3 re-verdicts, `-ReviewSafety-3.md` (GO, one P3) and
+  `-ReviewConsistency-3.md` (NO-GO: a second NEW ARCHITECTURAL root cause,
+  A-P2-1: the round-2 cure assumed a family lock that waits and can be held
+  across an in-process clone; gwz-core's lock is `try_lock` only and the
+  clone takes it itself). The review loop's cap stopped the lane; the
+  operator chose the redesign route on the same day: two gwz-core
+  requirements, R20 (owner token on the family row, written with the row)
+  and R21 (opt-in `--wait` on family commands), with R22 as their test,
+  added to `GwzLaneCleanFixes.md`. This revision rests on them: the hook
+  takes no lock and keeps no sidecar; D5, D6, D10, U4, S1.1 and the sketch
+  rewritten; section 1's lock sentence corrected to the contract; the
+  round-3 P3s folded (D8's unsourced default-behaviour claim marked
+  unconfirmed under U4; S4.1 lists the orphan case and the shared fallback
+  worktree; the lock-nesting note is moot).
+- 2026-09-17: round-4 fresh dual review of the route-3 text,
+  `-ReviewConsistency-4.md` (NO-GO: 3 P2, 4 P3) and `-ReviewSafety-4.md`
+  (NO-GO: 4 P2, 4 P3); no architectural finding on either axis; both
+  converged blind on the remove hook's dispose having no wait and no busy
+  class. All fifteen folded in one patch per
+  `GwzClaudeIntegrationPlan-RemPlan-3.md`: the create hook now runs its
+  own attempt loop (reuse table and guards re-evaluated before every
+  attempt, a `creating` row of its own session means wait, `Busy` means
+  loop) with a compiled-in `--wait-secs` default of 300 s and Claude's
+  timeout derived from it; the remove hook's dispose carries `--wait` and
+  "family busy" is a fourth outcome in D3, D8, D10, S1.1 and S4.1; R20
+  states its schema contract (v2, older readers refuse naming the minimum
+  version) and §3.6 names the gwz-cli surface it carries; D6's table
+  covers `disposing`, the incomplete same-owner lane, the timeout-kill
+  residue and token validation; D10 names every file a create writes at
+  the root; owner tokens are redacted from committed notes; the fallback's
+  shared-worktree reason cites `git worktree remove` refusing a locked
+  worktree.
+- 2026-09-17: round-5 re-verdicts, `-ReviewSafety-5.md` (GO; 3 new P3)
+  and `-ReviewConsistency-5.md` (all seven prior findings closed; NO-GO on
+  3 new P2, 3 new P3, none architectural). Folded in one patch per
+  `GwzClaudeIntegrationPlan-RemPlan-4.md`, the last remediation round on
+  this object: S1.0 rewritten to D6's timeout formula and made to measure
+  the clone's pre-lock inventory; D10's classification vocabulary carries
+  the three refusal classes and S1.1's assertions match; the different-name
+  concurrency test sequenced so it is deterministic; D5 and U4 attribute
+  creation to R20 plus the attempt loop and R21 to the remove hook; S1.3's
+  fallback probe records the worktree lock (U10); D6 states the
+  per-attempt cost; R20's minimum-version rule keys on any index write;
+  S1.2 gives the remove handler its own timeout and D1 lists
+  `--wait-secs`.
+- 2026-09-17: round-6 final re-verdicts, `-ReviewSafety-6.md` (GO, no
+  findings) and `-ReviewConsistency-6.md` (GO, 2 P3). **Accepted** at
+  sha256 `c0bba7fa…` with `GwzLaneCleanFixes.md` at `c5f06e41…`. The two
+  P3s were folded after the GO, as the loop permits for P3s: section 1
+  names the family merge among the writes that trigger R20's
+  minimum-version rule, and S3.5 times the first succeeding dispose and
+  sizes the remove handler's timeout from it. Nothing else in the accepted
+  text changed. Across six rounds: 15 round-1 findings on the adopted
+  text, 6 on the first patch, 4 on the second (one architectural: a lock
+  the plan assumed and gwz-core lacks, which stopped the lane and led to
+  the R20 to R22 redesign), then on the redesigned text 15, 6 and 2, all
+  closed with re-traced counterexamples. Implementation may start once
+  R20 and R21 are in an installed gwz.
+- 2026-09-17: **amendment A1**, at the operator's decision and, by the
+  operator's instruction, without re-review. The free-space guard no
+  longer sizes itself from a one-off measured clone or from what a lane
+  builds afterwards (a build filling the disk is a failure mode Claude's
+  own worktrees already have, ruled out of scope): the hook estimates the
+  copy's cost at run time from a source walk, a reflink probe at the
+  destination's parent, and a pessimistic share table by filesystem (94%
+  APFS, XFS, btrfs; 70% ReFS and any other filesystem that clones; 0%
+  ext4, NTFS and any that does not), and `setup` bakes `--wait-secs` and
+  both handler timeouts from the same estimate. S1.0 is withdrawn, its
+  number retained; S3.2 measures the placeholders on the three hosts and
+  replaces them. Touched: D6, S1.0, S1.1 (tests), S1.2, S3.2, section 1
+  (a block-sharing fact), section 5, the status line.
+- 2026-09-18: amendment A2 (operator decision, Surface review):
+  `gwz claude-code setup` moved under `gwz hook claude-code setup`;
+  `--remove` added; S4.2 skill text landed.

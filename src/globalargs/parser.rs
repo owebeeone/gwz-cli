@@ -288,6 +288,11 @@ pub(crate) enum CommandArgs {
     )]
     Forall(ForallArgs),
     #[command(
+        about = "Serve another tool's hooks for the workspace a session starts in",
+        long_about = HOOK_LONG
+    )]
+    Hook(HookArgs),
+    #[command(
         about = "Create a workspace or initialize one from source URLs",
         long_about = INIT_LONG,
         after_long_help = INIT_AFTER
@@ -315,7 +320,7 @@ pub(crate) enum CommandArgs {
     Materialize(MaterializeArgs),
     #[command(
         about = "Merge a source ref across selected workspace repositories",
-        override_usage = "gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]\n       gwz merge --remote <name> [<ref>]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
+        override_usage = "gwz merge [source] [--dry-run] [--ff-only] [--no-ff] [--filesystem-strict] [-m <message>]\n       gwz merge --remote <name> [<ref>] [--wait <secs>]\n       gwz merge --status [merge-id]\n       gwz merge --continue\n       gwz merge --abort [--preserve]\n       gwz merge --gc [merge-id]"
     )]
     Merge(MergeArgs),
     #[command(
@@ -516,6 +521,21 @@ pub(crate) struct MergeArgs {
         help = "Use a custom merge commit-message body"
     )]
     pub(crate) message: Option<String>,
+    // GwzOpenDecisions D1: GwzLaneCleanFixes R21's `--wait <secs>` on the
+    // last family verb that lacked it. The flag lives on `merge`, which is
+    // one command for every merge, so it is meaningful only together with
+    // the global `--remote <name>`: that is the only merge that takes the
+    // family lock. The driver refuses the other spellings when it builds the
+    // request (`clirequest::merge`); core refuses them again and stays the
+    // authority.
+    #[arg(
+        long,
+        value_name = "secs",
+        value_parser = crate::clirequest::parse_wait_seconds,
+        help = "With --remote <name>, seconds to keep retrying a busy family lock",
+        long_help = "Seconds to keep retrying a busy family lock before reporting it busy, accepted only with --remote <name>. A family merge holds the family lock across the import and the merge itself, so an unattended merge fired while a create, a dispose or another family merge is running would otherwise refuse outright. GWZ retries the try-lock at a short fixed interval until the deadline; there is no blocking acquisition, so the wait stays portable and is bounded by the number you give. Omit it, or pass 0, and a busy lock refuses immediately, exactly as before. A wait that wins the lock rereads the family index before it resolves the source, so a merge that waited behind a create or a dispose is answered by the family that operation left, not by a stale view. An ordinary merge takes no family lock, so `--wait` without `--remote` is refused rather than accepted and ignored."
+    )]
+    pub(crate) wait: Option<i64>,
 }
 
 #[derive(Clone, Debug, Args)]

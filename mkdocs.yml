@@ -67,6 +67,7 @@ nav:
       - Troubleshooting: Troubleshooting.md
       - Merge Recovery Runbook: MergeRecovery.md
       - Local Clones: LocalClones.md
+      - Claude Code: ClaudeCode.md
       - Agent Bootstrap: AgentBootstrap.md
   - Reference:
       - CLI Reference: CLI.md
@@ -92,5 +93,6 @@ nav:
           - pull: commands/pull.md
           - push: commands/push.md
           - SSH identity: commands/auth.md
+          - hook: commands/hook.md
           - forall: commands/forall.md
   - Releases: Releases.md

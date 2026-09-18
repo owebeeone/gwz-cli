@@ -191,13 +191,23 @@ pub(crate) fn render_listing_text(listing: &ArtifactListing) -> String {
             lines.join("\n")
         }
         // Members render as raw paths, one per line (no header) — for `for i in $(gwz ls)`.
+        //
+        // GwzOpenDecisions D3: a row that carries a `note` is exactly a row
+        // whose path is NOT on disk — the lock claims it and the filesystem
+        // does not have it. Its path was never usable, so it is the one row
+        // that is annotated rather than printed bare, and a person reading
+        // the list is told why instead of being handed a path that fails.
         ArtifactListing::Members { entries, local } => entries
             .iter()
             .map(|member| {
-                if *local {
+                let path = if *local {
                     member.path.clone()
                 } else {
                     member.abspath.clone()
+                };
+                match &member.note {
+                    Some(note) => format!("{path}\t({note})"),
+                    None => path,
                 }
             })
             .collect::<Vec<_>>()
@@ -240,6 +250,10 @@ pub(crate) fn listing_json(listing: &ArtifactListing) -> serde_json::Value {
                     "path": member.path,
                     "abspath": member.abspath,
                     "materialized": member.materialized,
+                    // D3: null on every ordinary row; human text when the
+                    // lock and the filesystem disagree. Read `materialized`,
+                    // not this string.
+                    "note": member.note,
                 }))
                 .collect::<Vec<_>>(),
         }),

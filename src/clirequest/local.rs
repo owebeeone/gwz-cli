@@ -9,6 +9,50 @@ use super::*;
 /// name added there is not silently rejected here.
 pub(crate) const HAZARD_NAMES: &str = "open-merge, dirty, unpreserved-history";
 
+/// `--wait <secs>` help, identical on every family verb (GwzLaneCleanFixes
+/// R21) so one wrapper may pass it to all of them.
+const WAIT_HELP: &str = "Seconds to keep retrying a busy family lock";
+const WAIT_LONG_HELP: &str = "Seconds to keep retrying a busy family lock before reporting it busy. The family lock is held for the whole of a create, a dispose or a disband, so two unattended invocations fired for one request would otherwise refuse each other outright. GWZ retries the try-lock at a short fixed interval until the deadline; there is no blocking acquisition, so the wait stays portable and is bounded by the number you give. Omit it and a busy lock refuses immediately, exactly as before. A wait that wins the lock rereads the index before acting, so a create that waited behind another create of the same name is answered by the family that create left, not by a stale view.";
+
+/// `--owner <token>` (R20). The alphabet and the 128-byte limit are the
+/// model's (`gwz_family_model::OwnerToken`); this parser is the earlier
+/// answer, not the only one, so a token that would be refused after a
+/// workspace discovery and a family read is refused at parse instead.
+fn parse_owner_token(value: &str) -> Result<String, String> {
+    const LIMIT: usize = 128;
+    if value.is_empty() {
+        return Err("--owner <token> must not be empty".to_owned());
+    }
+    if value.len() > LIMIT {
+        return Err(format!(
+            "--owner <token> is at most {LIMIT} bytes; this one is {}",
+            value.len()
+        ));
+    }
+    if let Some(character) = value.chars().find(|character| {
+        !character.is_ascii_alphanumeric() && !matches!(character, '.' | '_' | ':' | '-')
+    }) {
+        return Err(format!(
+            "--owner <token> accepts only `[A-Za-z0-9._:-]`; `{character}` is not one of them"
+        ));
+    }
+    Ok(value.to_owned())
+}
+
+/// `--wait <secs>`: a count of seconds, so a negative one is not a wait.
+/// Shared with `gwz merge --remote <name> --wait <secs>` (GwzOpenDecisions
+/// D1), whose flag is declared with the other merge options but parses its
+/// value by exactly this rule.
+pub(crate) fn parse_wait_seconds(value: &str) -> Result<i64, String> {
+    let parsed = value
+        .parse::<i64>()
+        .map_err(|_| "--wait <secs> requires an integer number of seconds".to_owned())?;
+    if parsed < 0 {
+        return Err("--wait <secs> must be zero or greater".to_owned());
+    }
+    Ok(parsed)
+}
+
 #[derive(Clone, Debug, Args)]
 pub(crate) struct LocalArgs {
     #[command(subcommand)]
@@ -21,7 +65,7 @@ pub(crate) enum LocalCommandArgs {
         about = "Create a local clone of this workspace as a new family member",
         long_about = LOCAL_CLONE_LONG,
         after_long_help = LOCAL_CLONE_AFTER,
-        override_usage = "gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]"
+        override_usage = "gwz local clone <name> [dest] [--owner <token>] [--wait <secs>]"
     )]
     Clone(LocalCloneArgs),
     #[command(
@@ -29,12 +73,12 @@ pub(crate) enum LocalCommandArgs {
         long_about = LOCAL_LIST_LONG,
         after_long_help = LOCAL_LIST_AFTER
     )]
-    List,
+    List(LocalListArgs),
     #[command(
         about = "Dispose of a local family member, or detach it with --keep",
         long_about = LOCAL_DISPOSE_LONG,
         after_long_help = LOCAL_DISPOSE_AFTER,
-        override_usage = "gwz local dispose <name> [--keep]\n       gwz local dispose <name> --force <hazard,...>"
+        override_usage = "gwz local dispose <name> [--keep] [--wait <secs>]\n       gwz local dispose <name> --force <hazard,...> [--wait <secs>]"
     )]
     Dispose(LocalDisposeArgs),
     #[command(
@@ -42,7 +86,25 @@ pub(crate) enum LocalCommandArgs {
         long_about = LOCAL_DISBAND_LONG,
         after_long_help = LOCAL_DISBAND_AFTER
     )]
-    Disband,
+    Disband(LocalDisbandArgs),
+}
+
+/// `gwz local list`. Observation-only: it takes no family lock, so it carries
+/// no options at all (A2; Surface F6).
+#[derive(Clone, Debug, Args)]
+pub(crate) struct LocalListArgs {}
+
+/// `gwz local disband`.
+#[derive(Clone, Debug, Args)]
+pub(crate) struct LocalDisbandArgs {
+    #[arg(
+        long,
+        value_name = "secs",
+        value_parser = parse_wait_seconds,
+        help = WAIT_HELP,
+        long_help = WAIT_LONG_HELP
+    )]
+    pub(crate) wait: Option<i64>,
 }
 
 /// `gwz local clone <name> [dest]` (design §4; operator ruling 2026-09-06,
@@ -100,6 +162,24 @@ pub(crate) struct LocalCloneArgs {
         long_help = "Unsupported in this build; parsed but refused before copying. Copy from this family member or path instead of the current workspace. Accepts a family name recorded in the index or a filesystem path. Core resolves the token, and refuses one that names no readable source. The new clone is registered on the workspace root whichever member it was copied from."
     )]
     pub(crate) from: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "token",
+        value_parser = parse_owner_token,
+        help = "Record this opaque caller token on the new member row",
+        long_help = "Record this opaque token on the new member's row, in the same index write that reserves the row. Up to 128 bytes of `[A-Za-z0-9._:-]`. It is the caller's own identity for the caller's own reuse decisions: GWZ stores it, reports it in `gwz local list` (a column, and an `owner` field under --json), and never interprets, matches or acts on it. A row created without --owner records none, and no later command ever sets, changes or clears a row's token. Recording one makes the family index format 2, which gwz 1.0.14 and later read; an older gwz refuses the whole index and says so."
+    )]
+    pub(crate) owner: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "secs",
+        value_parser = parse_wait_seconds,
+        help = WAIT_HELP,
+        long_help = WAIT_LONG_HELP
+    )]
+    pub(crate) wait: Option<i64>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -127,6 +207,15 @@ pub(crate) struct LocalDisposeArgs {
         long_help = "Detach only: remove the pointer and the index row. The member's entire tree, its open merge and its history stay on disk and remain usable as an ordinary workspace. Mutually exclusive with --force."
     )]
     pub(crate) keep: bool,
+
+    #[arg(
+        long,
+        value_name = "secs",
+        value_parser = parse_wait_seconds,
+        help = WAIT_HELP,
+        long_help = WAIT_LONG_HELP
+    )]
+    pub(crate) wait: Option<i64>,
 }
 
 impl LocalArgs {
@@ -137,19 +226,23 @@ impl LocalArgs {
     ) -> Result<CliRequest, CliError> {
         let request = match &self.command {
             LocalCommandArgs::Clone(args) => return args.request(meta),
-            LocalCommandArgs::List => gwz_core::LocalFamilyRequest {
+            LocalCommandArgs::List(_) => gwz_core::LocalFamilyRequest {
                 meta,
                 op: gwz_core::LocalFamilyOp::List,
                 name: None,
                 keep: None,
                 force_hazards: Vec::new(),
+                // A listing takes no family lock, so there is nothing to wait
+                // for and the field stays unset.
+                wait_seconds: None,
             },
-            LocalCommandArgs::Disband => gwz_core::LocalFamilyRequest {
+            LocalCommandArgs::Disband(args) => gwz_core::LocalFamilyRequest {
                 meta,
                 op: gwz_core::LocalFamilyOp::Disband,
                 name: None,
                 keep: None,
                 force_hazards: Vec::new(),
+                wait_seconds: args.wait,
             },
             LocalCommandArgs::Dispose(args) => {
                 let force_hazards = args.force_hazards(force)?;
@@ -164,6 +257,7 @@ impl LocalArgs {
                     name: Some(args.name.clone()),
                     keep: args.keep.then_some(true),
                     force_hazards,
+                    wait_seconds: args.wait,
                 }
             }
         };
@@ -234,6 +328,12 @@ impl LocalCloneArgs {
                 // family name or path to copy *from*. Absent means the
                 // workspace this command was run in.
                 copy_source: self.from.clone(),
+                // R20: the caller's opaque token, already shape-checked by
+                // the value parser. Core checks the same shape again and
+                // owns what it means -- which is nothing.
+                owner: self.owner.clone(),
+                // R21: how long a busy family lock is retried.
+                wait_seconds: self.wait,
             },
         ))
     }

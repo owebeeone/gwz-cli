@@ -165,9 +165,9 @@ dependencies = [
 
 [[package]]
 name = "cfg-if"
-version = "1.0.4"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
+checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "chrono"
@@ -212,7 +212,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -282,7 +282,7 @@ checksum = "c6232dd377dcc64799954cbd3a9bb882e9cdc1308ccd87b1c098f1fb2eaf82a8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "1.0.13"
+version = "1.0.14"
 dependencies = [
  "clap",
  "console",
@@ -431,15 +431,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-copy-contract"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2a5c60caa4982f0b43ae7689c5bedd806c5e3ae92a1ca0e9d27d67f37c228c3"
+checksum = "7c0ef2eaacf634f3d2bf4b1121745a08b5bfcdf21821854f5ae317a9cd165087"
 
 [[package]]
 name = "gwz-core"
-version = "1.0.13"
+version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b53b784c5088f8dac4645ec0bd9a35c6726af11895bcb32871baacef3dadaa"
+checksum = "97209b457bed95d3cd6aa5449f39d514c2694bd772baedda3f5c78464798f59d"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
@@ -477,15 +477,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-family-model"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63cf33b5e06cc2e1d82cb3203f8dc5030aac77974beade8c039923f262526476"
+checksum = "f7c5a5785a129783fdcca60bd3cae265f78fd3c13e3e546a45ec1163cb36568c"
 
 [[package]]
 name = "gwz-family-store"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdae9c32100debf09452ac44d5b175b5ec8fcadbdf03dca188fc1b1109191825"
+checksum = "771cdcb7bcbcfbc34c121645c913287ad058f0d09139c31a6e2150cc0a943c7f"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -495,27 +495,27 @@ dependencies = [
 
 [[package]]
 name = "gwz-family-store-contract"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf30a65c5ec2761551204490389a19f5c7c1f3c48f02163d752b17f721185854"
+checksum = "44947013a0c9c63744d380ba71f83e075a348869afa5a174ef0cc3d80ea46785"
 dependencies = [
  "gwz-family-model",
 ]
 
 [[package]]
 name = "gwz-history-check"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afffd4b5c1ca11935a1feb8e56150beeb7b912acedf42fd948eb5360c1111c81"
+checksum = "0d5d3794ccd97a39fed0fdc28615a387933b75c78d8eca0c6546f341b7509f46"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-local-disposal"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61e8c55f5973551446c98cf47fa2353f3c6f0f45b805a5e5387c622add1a19f7"
+checksum = "b319d1f8636cf9a85adfed4c0fb7538b2d2fe90e448abddfc93e6814aa002ca7"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -525,9 +525,9 @@ dependencies = [
 
 [[package]]
 name = "gwz-local-import"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c258f86ae3135cf339125b15645e11e66b2402c2e64a6e7b7efbb0fa31dd8aba"
+checksum = "bb9ccb404b1e4d637490323446e49fb849271400d1ed9a33ac8bd403683c325f"
 dependencies = [
  "gwz-family-model",
  "gwz-repo-contract",
@@ -535,9 +535,9 @@ dependencies = [
 
 [[package]]
 name = "gwz-refcopy"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "537c3c3ba7dd86a253e81694d9db65671c1b4dddec7c882c917c4938366973d0"
+checksum = "136a3020ec5ed55c20d2a61a941cccfb604d048ef06389016ace709034294e9b"
 dependencies = [
  "gwz-copy-contract",
  "libc",
@@ -547,24 +547,24 @@ dependencies = [
 
 [[package]]
 name = "gwz-repo-contract"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6db7baa23a47f88bc6a819e9929f8f60e908eed175c2c230e95222713ec94754"
+checksum = "83d6397783e573f72a57c7939482286d2a8bf748dd1ed54109938af70079a64b"
 
 [[package]]
 name = "gwz-repo-factory"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6419a0ba6928940ec3cea12202cafb498c6cc99718e5d25edee4d9c2d9b4d556"
+checksum = "469712eada7abda702ea52f667d6293cbc1c79a669c2c4e6b07fb4223f49f7c7"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-repo-inspect"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c40006c3127c84bef9abbd99a28c9be69e3635cd63d7a32bec3487cb0f05b18"
+checksum = "e70b8af8de227acb4292e569774b29037c5a765ce26dd442f856bb59319c4d83"
 dependencies = [
  "git2",
  "gwz-repo-contract",
@@ -572,18 +572,18 @@ dependencies = [
 
 [[package]]
 name = "gwz-work-detector"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbfced05be7b89e0d58f99beeb1b4aea432b0f26183e74281a6c3b71bfca54a6"
+checksum = "90fc4c971084a059ef106fd362b2f53981b05de401e017494af5564c2098834b"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-workspace-install"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b37bbca2887224c4aeda57090adbbed9a7981d89965243aee5bb5389b653401"
+checksum = "fa8af60e8c77877b6d31d8b425eb175182a45a3cd8f9a819727539b36a86182a"
 dependencies = [
  "gwz-copy-contract",
  "gwz-family-model",
@@ -1023,9 +1023,9 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rustix"
-version = "1.1.4"
+version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190"
+checksum = "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d"
 dependencies = [
  "bitflags",
  "errno",
@@ -1083,7 +1083,7 @@ checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -1177,9 +1177,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "3.0.5"
+version = "3.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12df2e0110f65b775f769bb17ef989067a1d931b2eb822bd4346631eeada89f9"
+checksum = "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1194,7 +1194,7 @@ checksum = "901704edd0dfe137f1987838ee4f259e4e063c31371bdb423f7ae38ec6f77f02"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -1250,9 +1250,9 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.24"
+version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+checksum = "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954"
 
 [[package]]
 name = "unicode-normalization"
@@ -1352,7 +1352,7 @@ dependencies = [
  "bumpalo",
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.6",
  "wasm-bindgen-shared",
 ]
 
@@ -1631,7 +1631,7 @@ checksum = "33811428bee40dbceb6d545e95754741d17a6aef9a4849f0fd62e2ba4f412a78"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.6",
  "synstructure",
 ]
 
@@ -1652,7 +1652,7 @@ checksum = "f75b4683f6c7f45248d4d64056a24298c6281e0993356d7d1b4a1a962ef10d4a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.6",
  "synstructure",
 ]
 
@@ -1686,7 +1686,7 @@ checksum = "34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.6",
 ]
 
 [[package]]

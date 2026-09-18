@@ -1,6 +1,6 @@
 const RELEASE_WORKFLOW: &str = include_str!("../.github/workflows/release.yml");
 const PUBLISH_CRATE_WORKFLOW: &str = include_str!("../.github/workflows/publish-crate.yml");
-const CANDIDATE_WORKFLOW: &str = include_str!("../.github/workflows/workspace-candidate.yml");
+const CI_WORKFLOW: &str = include_str!("../.github/workflows/ci.yml");
 const DIST_WORKSPACE: &str = include_str!("../dist-workspace.toml");
 const CARGO_MANIFEST: &str = include_str!("../Cargo.toml");
 const RUST_TOOLCHAIN: &str = include_str!("../rust-toolchain.toml");
@@ -194,13 +194,14 @@ fn crate_publish_workflow_builds_with_the_toolchain_gwz_declares() {
 #[test]
 fn push_and_pull_request_ci_runs_the_release_script_unit_tests() {
     // S3.2 wires in S3.1's unit tests. This is gwz-cli's only push and
-    // pull-request workflow, and it names its unittest modules one by one, so
-    // a module nobody adds here never runs in CI.
-    assert!(has_line(CANDIDATE_WORKFLOW, "pull_request:"));
-    assert!(has_line(CANDIDATE_WORKFLOW, "branches: [main]"));
-    assert!(CANDIDATE_WORKFLOW.contains("uses: actions/setup-python@v5"));
+    // pull-request workflow (the Rust driver is tested on the workspace
+    // tuple by gwz-dev's root push), and it names its unittest modules one
+    // by one, so a module nobody adds here never runs in CI.
+    assert!(has_line(CI_WORKFLOW, "pull_request:"));
+    assert!(has_line(CI_WORKFLOW, "branches: [main]"));
+    assert!(CI_WORKFLOW.contains("uses: actions/setup-python@v5"));
     assert!(has_line(
-        CANDIDATE_WORKFLOW,
+        CI_WORKFLOW,
         "run: python -m unittest scripts/test_release.py -v"
     ));
 }

@@ -3,10 +3,10 @@
 Create, inspect and retire the local clone family of this workspace.
 
 ```text
-gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>]
-gwz local list
-gwz local dispose <name> [--keep | --force <hazard,...>]
-gwz local disband
+gwz local clone <name> [dest] [--clean | --bare] [-b <branch>] [--from <name|path>] [--owner <token>] [--wait <secs>]
+gwz local list [--wait <secs>]
+gwz local dispose <name> [--keep | --force <hazard,...>] [--wait <secs>]
+gwz local disband [--wait <secs>]
 ```
 
 A local clone is a second working copy of the whole workspace on the same
@@ -39,6 +39,8 @@ network.
 | `--bare` | Make the destination a share point of bare repositories (implies `--clean`). **Refused by this build.** |
 | `-b <branch>` | Create this branch in every destination repository before the clone is marked ready. `--clean`/`--bare` only, so **refused by this build** either way. |
 | `--from <name\|path>` | Copy from this family member or path instead of the current workspace. **Refused by this build.** |
+| `--owner <token>` | Record an opaque caller token on the new member row. Up to 128 bytes of `[A-Za-z0-9._:-]`. |
+| `--wait <secs>` | Keep retrying a busy family lock for this many seconds before reporting it busy. |
 
 Clone this workspace, tree and Git state as they sit:
 
@@ -67,6 +69,70 @@ build. Keep the source quiet for the whole invocation. `--from` names the
 or a filesystem path; a token that names neither is refused, and so is an
 empty one. In this build every `--from` is refused before that, as
 unsupported.
+
+### Lanes made by a tool
+
+A tool that creates lanes unattended — a hook, an agent, a CI job — has two
+options of its own, and neither changes what a create does.
+
+`--owner <token>` records an opaque token on the new member row. It is written
+by the same index write that reserves the row, so a row either has the token
+from the moment it exists or never has one; nothing afterwards sets, changes or
+clears it. GWZ stores it, reports it in `gwz local list`, and does not
+interpret, match or act on it — it is the caller's identity, for the caller's
+own reuse decisions. The shape is the whole of the contract: at most 128 bytes
+of `[A-Za-z0-9._:-]`, refused at parse otherwise.
+
+```sh
+gwz local clone A --owner claude-code:session_7
+```
+
+`--wait <secs>` addresses the other half. The family lock is a try-lock: it is
+held for the whole of a create, a dispose or a disband, and a second family
+operation that meets it refuses `Busy` at once. That is right for a person and
+wrong for two invocations fired for one request, so `--wait` keeps retrying the
+try-lock at a short fixed interval until the deadline. There is no blocking
+acquisition, so the wait is portable and bounded by the number you give. Omit
+it and the behaviour is exactly what it always was.
+
+```sh
+gwz local clone A --owner claude-code:session_7 --wait 120
+```
+
+A wait that wins the lock rereads the family before acting. So two creates of
+one name, fired together with `--wait`, do not make two lanes and do not answer
+from a stale view: one creates the lane, and the other reports the name as
+held, naming the owner the first one recorded.
+
+```text
+gwz: PathCollision: local clone `A` -> /Users/you/limbo/gwz-dev-A: ... name `A` already holds ../gwz-dev-A (owner `claude-code:session_7`) ...
+```
+
+`gwz local list` has no `--wait`: a listing takes no lock, so there is nothing
+to wait for.
+
+A lane whose owner token reads `claude-code:<session id>` was created by Claude
+Code's worktree hook; [Claude Code](../ClaudeCode.md) covers that integration
+and how such a lane is integrated and retired.
+
+### Index format 2
+
+Recording an owner needs a place to put it, so the family index carries a
+second format version, `gwz.local-family/v2`: format 1 plus the optional
+per-row `owner`. A gwz that reads v2 reads a v1 index unchanged and writes v2
+on its **first write of any kind** — a create, a dispose, a `--keep`, a family
+merge — whether or not an owner was ever recorded.
+
+Going the other way is a refusal, not a downgrade. The row format denies
+unknown fields and the schema is matched exactly, so an older gwz refuses a v2
+index as a whole and its refusal names the version to install:
+
+```text
+`schema: gwz.local-family/v2` is not `gwz.local-family/v1`; this file is not in a format this store reads; `gwz.local-family/v2` is read by gwz 1.0.14 and later, so upgrade gwz to at least 1.0.14
+```
+
+Every gwz used on one workspace must therefore be at or above 1.0.14 once any
+gwz at or above it has written that workspace's family index.
 
 ### Modes this build refuses
 
@@ -109,7 +175,8 @@ gwz: UnsupportedOperation: local create from an explicit copy source (--from <na
 
 Reports every member of the family: name, kind (checkout or bare), state, and
 path — the root first, then every member in name order. The listing is
-read-only: it takes no lock and repairs nothing.
+read-only: it takes no lock and repairs nothing. `--wait` is accepted and
+ignored here for exactly that reason.
 
 ```sh
 gwz local list
@@ -145,6 +212,23 @@ C     checkout  disposing/interrupted_disposal  /Users/you/limbo/gwz-dev-C
 hub   bare      ready/pointer_removed           /Users/you/limbo/gwz-dev-hub
 ```
 
+### The owner column
+
+A family in which nobody recorded an owner renders the four columns above and
+no more. As soon as any member carries the token a `gwz local clone --owner`
+wrote, an `owner` column appears between `state` and `path`, and rows without
+one show `-`:
+
+```text
+root  checkout  ready  -                        /Users/you/limbo/gwz-dev
+A     checkout  ready  claude-code:session_7    /Users/you/limbo/gwz-dev-A
+C     checkout  ready  -                        /Users/you/limbo/gwz-dev-C
+```
+
+The token is printed exactly as the index carries it. GWZ never parses,
+matches or abbreviates it; a caller that wrote one is the only party that
+knows what it means.
+
 Reporting is all this does. A row that says `incomplete` or
 `interrupted_disposal` stays exactly as it is until you act on it with
 `gwz local dispose`.
@@ -168,7 +252,8 @@ protocol records it; join the two for the absolute path the human table prints.
       "recorded_state": "ready",
       "observed_state": "ready",
       "path": ".",
-      "last_error": null
+      "last_error": null,
+      "owner": null
     },
     {
       "name": "B",
@@ -176,7 +261,8 @@ protocol records it; join the two for the absolute path the human table prints.
       "recorded_state": "creating",
       "observed_state": "incomplete",
       "path": "../gwz-dev-B",
-      "last_error": "copy interrupted at src/"
+      "last_error": "copy interrupted at src/",
+      "owner": "claude-code:session_7"
     }
   ]
 }
@@ -211,6 +297,9 @@ gwz local dispose C --force open-merge,dirty,unpreserved-history
 interrupted member is retained rather than force-deleted, and manual cleanup is
 the accepted recovery path.
 
+`--wait <secs>` keeps retrying a busy family lock until the deadline instead of
+refusing at once; a dispose that waits rereads the family before acting.
+
 `--keep` is the non-destructive alternative: `--keep` deletes nothing on
 disk. It removes only the pointer and the index row; the tree, its open merge
 and its history stay where they are and remain usable as an ordinary GWZ
@@ -243,7 +332,8 @@ gwz local disband
 
 Afterwards family names stop resolving, so `--remote <name>` on `pull`, `push`
 and `merge` falls back to ordinary Git remote resolution. Disband may be
-repeated after an error.
+repeated after an error. `--wait <secs>` keeps retrying a busy family lock
+until the deadline instead of refusing at once.
 
 ## Notes
 
