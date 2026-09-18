@@ -4,7 +4,7 @@ Status: **ADOPTED 2026-09-17; S0.1 done; accepted at sha256 `c0bba7fa…`
 (with gwz-core `GwzLaneCleanFixes.md` at `c5f06e41…`) after
 `GwzClaudeIntegrationPlan-ReviewConsistency-6.md` and
 `-ReviewSafety-6.md` both reported GO; this accepts the plan text and the
-R20 to R22 requirements only, no code.** Drafted 2026-09-12 by Fable at
+R20 to R22 requirements only, no code.** Released: S1.1 and S1.2 (the hook subcommands and `setup`, in the `gwz hook claude-code` shape of amendment A2) and R20 to R22 shipped in **gwz 1.0.14** on 2026-09-18, installed the same day; S1.3 onward can run on the installed gwz. Drafted 2026-09-12 by Fable at
 the operator's request after the 1.0.11 release; reviewed the same day
 (`GwzClaudeIntegration-S0.1-Review.md`: GO-WITH-CONDITIONS, 4 P1, 8 P2,
 6 P3) and every finding folded (trail in section 7); updated 2026-09-17 for
