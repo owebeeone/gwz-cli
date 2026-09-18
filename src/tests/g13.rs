@@ -854,6 +854,50 @@ fn removal_classifies_by_canonical_path_and_not_by_name() {
     assert!(fixture.lane("lane9").exists(), "the real lane is untouched");
 }
 
+/// F2 (the probe of 2026-09-18, §3): the reuse path runs the completeness
+/// check D6 and `hook.md` promise. A lane whose member has lost its `.git`
+/// is refused by name, and an intact one is still handed back.
+#[test]
+fn a_reuse_checks_the_lane_is_complete() {
+    let fixture = Fixture::new("hook-complete");
+    let root = fixture.root();
+    let member = root.join("docs");
+    std::fs::create_dir_all(&member).unwrap();
+    std::fs::write(member.join("note.md"), b"note\n").unwrap();
+    let env = TestEnv::new().with_home(fixture.container.path());
+    let context = context(&root);
+    let created = run_worktree_create(&env, &context, &create_input("whole", "s1"))
+        .expect("a lane is created");
+
+    let started = std::time::Instant::now();
+    let reused = run_worktree_create(&env, &context, &create_input("whole", "s1"))
+        .expect("an intact lane is reused");
+    let elapsed = started.elapsed();
+    assert_eq!(reused.outcome, "reused");
+    assert_eq!(reused.path, created.path);
+    eprintln!("reuse of an intact lane: {elapsed:?}");
+
+    // A member of the lane that lost its repository: the reuse must not hand
+    // the session a lane it cannot work in. (The fixture workspace's one
+    // member is its root, which is the same listing and the same check.)
+    std::fs::remove_dir_all(fixture.lane("whole").join(".git")).unwrap();
+    let started = std::time::Instant::now();
+    let failure = run_worktree_create(&env, &context, &create_input("whole", "s1"))
+        .expect_err("an incomplete lane is refused");
+    eprintln!("reuse of an incomplete lane: {:?}", started.elapsed());
+    assert_eq!(failure.class, Classification::RefusedByHook);
+    assert!(
+        failure.cause.contains("the lane `whole` is incomplete"),
+        "{}",
+        failure.cause
+    );
+    assert!(
+        failure.remedy.contains("gwz local list"),
+        "{}",
+        failure.remedy
+    );
+}
+
 /// F4 (the probe of 2026-09-18, §7): the remove path's log fields. `name=`
 /// is the lane name the family row gave, not the destination's basename;
 /// `path=` on a refusal is the path that was known; and the exit-zero

@@ -83,6 +83,62 @@ pub(crate) fn read_family(root: &Path) -> Result<FamilyRead, gwz_core::model::Mo
     })
 }
 
+/// D6's completeness check, on the reuse path (F2).
+///
+/// A reuse must stay a reuse, so this is deliberately cheap: gwz-core's own
+/// observation of the lane is already in the family row (`decide` requires
+/// `observed_state` to be `ready`, which is the pointer and the allocation
+/// marker), and what that does not cover is the lane's *contents* -- the
+/// repositories a session is about to work in. Those are checked against
+/// the source workspace's own member listing, by existence alone: never a
+/// tree walk, and never a fetch or a status.
+///
+/// Returns what is wrong with the first repository that is, or `None` when
+/// the lane is fit to hand back to a session.
+pub(crate) fn lane_incompleteness(source: &Path, lane: &Path) -> Option<String> {
+    if !lane.is_dir() {
+        return Some("its directory is gone".to_owned());
+    }
+    // The root is a repository of the workspace like any other, and `ls`
+    // does not list it.
+    if source.join(".git").exists() && !lane.join(".git").exists() {
+        return Some("its root is not a repository".to_owned());
+    }
+    let response = gwz_core::workspace_ops::handle_ls(
+        source,
+        gwz_core::LsRequest {
+            meta: meta(source),
+            include_unmaterialized: None,
+        },
+        new_operation_id(),
+    );
+    let members = match response {
+        Ok(response) => response.members.unwrap_or_default(),
+        Err(error) => {
+            return Some(format!(
+                "the workspace's members cannot be listed: {}",
+                error.message
+            ));
+        }
+    };
+    for member in members {
+        if !member.materialized {
+            continue;
+        }
+        let Ok(relative) = Path::new(&member.abspath).strip_prefix(source) else {
+            continue;
+        };
+        let in_lane = lane.join(relative);
+        if !in_lane.is_dir() {
+            return Some(format!("`{}` is missing", member.id));
+        }
+        if !in_lane.join(".git").exists() {
+            return Some(format!("`{}` is not a repository", member.id));
+        }
+    }
+    None
+}
+
 /// `gwz local clone <name>` at the family's default destination, in process,
 /// with this session recorded as the owner (R20) and progress on stderr.
 pub(crate) fn clone_lane(
