@@ -846,9 +846,16 @@ targets, not limits.
   the lane it is working in, and that it must not ask for subagent worktree
   isolation in a GWZ workspace until S3.5 lifts that rule (D3).
 - **S4.3: pointers** *(gwz-dev `README.md` and `AGENTS_GWZ.md`; ~10 lines)*.
-  One paragraph each pointing at the docs page, next to the existing install
-  and clone instructions, naming the minimum gwz version that carries the
-  `hook` family (S1.4).
+  **Done 2026-09-18.** One paragraph each pointing at the docs page, next to
+  the existing install and clone instructions, naming the minimum gwz version
+  that carries the `hook` family (S1.4: gwz 1.0.14). The `README.md` paragraph
+  is written. `AGENTS_GWZ.md` is a gwz-managed generated file and was not
+  edited: its body is
+  `gwz-core/src/workspace_ops/agents_gwz_template.md`, rendered by
+  `managed_agents_gwz_contents()` in
+  `gwz-core/src/workspace_ops/workspace_bootstrap.rs`, so the pointer sentence
+  is a gwz-core change routed by the lane owner, and every managed root picks
+  it up on its next `gwz init --update`.
 
 ### Phase 5: Windows (deferred; milestone: the same behaviour through `powershell.exe`)
 
@@ -867,7 +874,7 @@ targets, not limits.
 ```
 { S0.1, GwzLaneCleanFixes R20 and R21 in an installed gwz } -> S1.1 -> S1.2 -> S1.3
 { S1.3, a gwz release containing S1.1 and S1.2 } -> S1.4 -> { S4.1, S4.3 }
-S1.3 -> { S2.1, S2.2, S2.3, S3.1, S3.4 } -> S3.3 -> { S4.1, S4.3 } -> S5.1   (S3.2 postponed, D8; S4.2 done)
+S1.3 -> { S2.1, S2.2, S2.3, S3.1, S3.4 } -> S3.3 -> { S4.1 } -> S5.1   (S3.2 postponed, D8; S4.2 and S4.3 done)
 { S2.3, S3.3, GwzLaneCleanFixes R0 in an installed gwz } -> S3.5 -> revisions of S3.4, S4.1, S4.2
 ```
 
@@ -1019,6 +1026,19 @@ else waits on S3.5, and its revisions follow whenever it lands.
   the R20 to R22 redesign), then on the redesigned text 15, 6 and 2, all
   closed with re-traced counterexamples. Implementation may start once
   R20 and R21 are in an installed gwz.
+- 2026-09-18: the probe-free part of Phase 4 landed in a lane. S4.3 done:
+  gwz-dev `README.md` gained a Claude Code paragraph beside the install and
+  clone instructions naming gwz 1.0.14; `AGENTS_GWZ.md` was not edited,
+  because it is generated from
+  `gwz-core/src/workspace_ops/agents_gwz_template.md` (rendered by
+  `managed_agents_gwz_contents()` in
+  `gwz-core/src/workspace_ops/workspace_bootstrap.rs`) and that change is
+  routed to gwz-core by the lane owner. In `docs/ClaudeCode.md` the version
+  caveat became a plain prerequisite (gwz 1.0.14 or later, with the format-2
+  local-family index consequence stated), and, under D8, the copy-cost
+  guard's share table and per-file time cost are now stated as conservative
+  estimates rather than marked **Unmeasured**; the probe markers for S1.3,
+  S2.1, S2.2, S2.3 and S3.5 are untouched.
 - 2026-09-18: decision D8 (`GwzOpenDecisions.md`): S3.2's measurements are
   postponed indefinitely; S4.1 takes the placeholder cost table as a stated
   estimate and S3.3 draws on S2.3 alone; the sketch updated accordingly.

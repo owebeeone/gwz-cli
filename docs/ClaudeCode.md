@@ -3,8 +3,7 @@
 Status: draft written from the accepted plan before its probes have run.
 Paragraphs marked **Unmeasured** describe intended behaviour that no probe has
 yet confirmed; the plan's steps S1.3, S2.1, S2.2 and S3.2 replace them with
-observed behaviour. Requires a gwz that carries the `gwz hook` family
-(the release after 1.0.13); the installed 1.0.13 does not.
+observed behaviour.
 
 ## What it does
 
@@ -26,6 +25,11 @@ so they can live in user-level settings without changing other projects.
 
 ## Prerequisites
 
+- **gwz 1.0.14 or later**, the release that carries the `gwz hook` family.
+  One consequence is workspace-wide: once any 1.0.14 gwz has written a
+  workspace's local-family index, that index is format 2, so every gwz used on
+  that workspace from then on must also be 1.0.14 or later — an older one
+  refuses the whole index and says so.
 - `gwz` on the `PATH` the Claude Code desktop app sees. On macOS the app reads
   `PATH` from the shell profile and nothing else; no environment variable of
   ours reaches a hook, which is why every knob is an option on the handler.
@@ -138,16 +142,16 @@ Two guards protect the copy, never a reuse:
   run-time estimate of the copy's cost: a walk of the source for apparent size
   and file count, a block-sharing probe at the destination's parent, and a
   pessimistic share by filesystem (APFS, XFS and btrfs 94%; ReFS 70%; ext4 and
-  NTFS 0%). `--min-free-gb` is a floor on top of it. **Unmeasured:** the share
-  figures and the per-file time cost are placeholders until S3.2 measures them
-  on macOS, Linux and Windows.
+  NTFS 0%). `--min-free-gb` is a floor on top of it. The share figures and the
+  per-file time cost are conservative estimates, not measurements; no probe
+  has measured them and none is scheduled.
 - **A ceiling of ready lanes**, `--max-lanes`, default 8. Until the lane
   clean-up lands (below), every lane counts against it until you retire it by
   hand, so a busy workspace will meet this ceiling; the refusal names the
   retirement procedure.
 
-What a session builds afterwards is not guarded. A build that fills the disk
-is the same failure Claude Code's own worktrees have.
+What a session builds afterwards is not guarded, and is out of scope: a build
+that fills the disk is the same failure Claude Code's own worktrees have.
 
 ## Retiring lanes
 
