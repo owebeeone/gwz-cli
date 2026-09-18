@@ -19,7 +19,11 @@ copy the session should use. One test decides what it makes:
 - **Anything else** gets the worktree Claude Code would have made itself: a
   `git worktree` under `.claude/worktrees/<name>` on branch `worktree-<name>`,
   from `origin/<default-branch>` when it resolves and `HEAD` otherwise, with
-  the `.worktreeinclude` copy performed for a worktree the hook created.
+  the `.worktreeinclude` copy performed for a worktree the hook created. The
+  patterns are matched against the project root's own untracked files, by
+  their path relative to that root; `<root>/.claude/worktrees/` and the
+  project's `.git` are outside the enumeration, so one worktree's included
+  files are never copied into another.
 
 The contract is narrow on purpose: the hook prints only a path it created or
 verified in this invocation, and nothing else ever reaches standard output.
@@ -35,6 +39,14 @@ destination, the row belongs to this session, and the lane passes the
 completeness check. Every other state is refused, naming the state and its
 remedy — an unfinished create, a lane at another path, a lane owned by another
 session, a lane that is incomplete.
+
+The completeness check is cheap on purpose, because a reuse has to stay a
+reuse: gwz's own observation of the lane (the pointer and the allocation
+marker, which is what `gwz local list` reports), and then, for each
+repository the workspace lists, that its directory is there in the lane and
+holds a `.git`. It is not a tree walk, a `status` or a fetch, and it writes
+nothing. A lane that fails it is refused, named, and left for the retirement
+procedure.
 
 ### Guards
 
@@ -54,7 +66,10 @@ classifies it. A registered git worktree of the project is removed with
 `git worktree remove`, never `--force`. A lane root, or a member directory
 inside one, is disposed with `gwz local dispose` from the family root, never
 `--keep` and never `--force`: a hazard refusal keeps the lane and the session.
-A path that no longer exists exits zero. Anything else is refused.
+That refusal is one line — how many hazards there are, across how many
+repositories, and of which class — because the report itself belongs to
+`gwz local dispose`, which the remedy names. A path that no longer exists
+exits zero and is logged as `already-absent`. Anything else is refused.
 
 ## Options
 
@@ -66,7 +81,7 @@ removal consumes nothing, so none of the creation guards appear on it.
 | --- | --- | --- |
 | `--min-free-gb <gb>` | A floor on free space, on top of the estimate (default: no floor; only the estimate applies) | create |
 | `--max-lanes <n>` | Ready-lane ceiling (default 8) | create |
-| `--wait-secs <secs>` | Deadline for the attempt loop, and for a removal's family lock (default 300) | create, remove |
+| `--wait-secs <secs>` | Deadline for the attempt loop, and for a removal's family lock (default 300, which `setup` raises to the estimated copy time when that is longer) | create, remove |
 | `--base-ref <ref>` | Base for the fallback worktree (default `origin/<default-branch>`, else `HEAD`) | create |
 | `--log <path>` | Log location, instead of the fixed one | create, remove |
 
@@ -78,8 +93,12 @@ removal consumes nothing, so none of the creation guards appear on it.
 Each hook writes one line per decision: to `<root>/.gwz/claude-hooks.log` in a
 workspace and `~/.claude/gwz-lane-hooks.log` otherwise, or wherever `--log`
 names. A line carries a timestamp, the event, the name, the session id, the
-classification, the path, the outcome and the exit code — never the transcript
-path and never the working directory. A location that would appear in
+classification (`lane`, `member-in-lane`, `fallback-worktree`,
+`already-absent`, `refused-by-hook`, `refused-by-hazard`, `family-busy`), the
+path, the outcome and the exit code — never the transcript path and never the
+working directory. The name is the lane's, which on a removal the hook reads
+off the family row, because Claude's removal payload carries no name; the
+path is the one the hook printed or acted on, including on a refusal. A location that would appear in
 `git status` is not used; the user-level log is used instead and a note says
 so. The file is bounded at 1 MB and truncated to its newest half beyond that.
 
@@ -100,10 +119,14 @@ Usage: gwz hook claude-code setup <--project [--local] | --user> [--write | --re
 ```
 
 The block carries one `WorktreeCreate` handler and one `WorktreeRemove`
-handler, each with its own timeout. Inside a workspace the timeouts and the
-handlers' `--wait-secs` are computed from the same run-time estimate the create
-hook uses — one wait plus one estimated copy plus 60 s for creation, one wait
-plus 60 s for removal. Outside a workspace they are the compiled-in defaults.
+handler, each with its own timeout. Inside a GWZ workspace the timeouts and
+the handlers' `--wait-secs` are computed from the same run-time estimate the
+create hook uses: the wait is the compiled-in 300 s, which the estimated copy
+time can raise but never lower, and the timeouts are one wait plus one
+estimated copy plus 60 s for creation and one wait plus 60 s for removal.
+Outside a workspace — including in a plain repository, where the block is
+still written for the D8 fallback — no estimate is run and both are the
+compiled-in defaults: a 300 s wait and 600 s timeouts.
 
 The default handler is the bare command `gwz hook ...`, resolved through
 `PATH`, so a committed project block is machine-independent and identical
