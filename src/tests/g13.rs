@@ -762,9 +762,52 @@ fn a_dispose_refusal_is_classified_as_a_hazard_and_keeps_the_lane() {
                 "{}",
                 failure.remedy
             );
+            // F3: one line, not the dispose report. The full report stays
+            // `gwz local dispose`'s, which the remedy names.
+            let line = failure.line();
+            assert!(line.len() < 300, "{} bytes: {line}", line.len());
+            assert_eq!(line.lines().count(), 1, "{line}");
             assert!(created.path.exists(), "the lane is kept");
         }
     }
+}
+
+/// F3 (the probe of 2026-09-18, §6): a dispose hazard report of any size
+/// becomes one short line naming how many hazards there are, across how many
+/// repositories, and of which class.
+#[test]
+fn a_hazard_report_is_summarised_to_one_line() {
+    let report = "local dispose `probe` at /tmp/ws-probe: unwaived hazard(s): \
+        `@root` <dirty>: ignored user data (ignored does not mean disposable) \
+        (.claude/.cc-writes/), text content (.claude/settings.local.json), \
+        ignored user data (.cursor/), and 3 more; \
+        `mem_gwz_cli` <dirty>: ignored user data (__pycache__/); \
+        `mem_gwz_core` <unpreserved-history>: reflog-only commit; \
+        name each accepted loss with --force <hazard,...> to delete, or --keep to \
+        detach and retain every file; nothing was removed";
+    let summary = crate::hook::remove::summarise(report);
+    assert_eq!(
+        summary,
+        "8 hazards across 3 repositories (dirty, unpreserved-history)"
+    );
+
+    // One repository, one hazard, singular.
+    let single = "local dispose `a` at /tmp/ws-a: unwaived hazard(s): `@root` <dirty>: \
+        untracked file (note.txt); name each accepted loss with --force";
+    assert_eq!(
+        crate::hook::remove::summarise(single),
+        "1 hazard across 1 repository (dirty)"
+    );
+
+    // A refusal of another shape is cut to one readable line, never guessed
+    // at and never passed through at length.
+    let other = format!(
+        "removal stopped (permission denied); remaining: {}",
+        "x/".repeat(400)
+    );
+    let summary = crate::hook::remove::summarise(&other);
+    assert!(summary.len() < 200, "{} bytes: {summary}", summary.len());
+    assert!(summary.starts_with("removal stopped"), "{summary}");
 }
 
 /// A `worktree_path` that no longer exists exits zero and is logged; one
