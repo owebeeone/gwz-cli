@@ -173,6 +173,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                     status_mode: request.mode,
                     listing: None,
                     branch_repos: None,
+                    fetch_repos: None,
                     merge_response: None,
                     stash_bundles: None,
                     local_family: None,
@@ -191,6 +192,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                         local: *local,
                     }),
                     branch_repos: None,
+                    fetch_repos: None,
                     merge_response: None,
                     stash_bundles: None,
                     local_family: None,
@@ -273,6 +275,14 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             events,
         )
         .map(|response| CliResponse::envelope(response.response)),
+        CliRequest::Fetch(request) => gwz_core::workspace_ops::handle_fetch_with_events(
+            &backend,
+            start,
+            request.clone(),
+            operation_id,
+            events,
+        )
+        .map(CliResponse::fetch),
         CliRequest::Capture(request) => {
             gwz_core::workspace_ops::handle_capture(&backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
@@ -313,6 +323,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
                         response.snapshots.unwrap_or_default(),
                     )),
                     branch_repos: None,
+                    fetch_repos: None,
                     merge_response: None,
                     stash_bundles: None,
                     local_family: None,

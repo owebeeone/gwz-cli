@@ -9,7 +9,7 @@ GWZ — manage a workspace of Git repositories
 
 Usage: gwz [OPTIONS] <COMMAND>
 
-Inspect:    status  ls  diff  log
+Inspect:    status  ls  diff  log  fetch
 Change:     add  commit  branch  tag  stash  merge  pull  push
 Workspace:  init  clone  snapshot  capture  materialize
 Members:    repo add|create|clone|detach|attach|sync

@@ -33,6 +33,9 @@ pub(crate) struct CliResponse {
     pub(crate) status_mode: Option<gwz_core::StatusMode>,
     pub(crate) listing: Option<ArtifactListing>,
     pub(crate) branch_repos: Option<Vec<gwz_core::BranchRepoSummary>>,
+    /// `gwz fetch`: one row per selected repository, parallel to the
+    /// envelope's members and in the same order.
+    pub(crate) fetch_repos: Option<Vec<gwz_core::FetchRepoSummary>>,
     pub(crate) merge_response: Option<gwz_core::MergeResponse>,
     pub(crate) stash_bundles: Option<Vec<gwz_core::StashBundle>>,
     /// `gwz local list|dispose|disband`: the op and its
@@ -53,6 +56,7 @@ impl CliResponse {
             status_mode: None,
             listing: None,
             branch_repos: None,
+            fetch_repos: None,
             merge_response: None,
             stash_bundles: None,
             local_family: None,
@@ -67,6 +71,22 @@ impl CliResponse {
             status_mode: None,
             listing: None,
             branch_repos: response.repos,
+            fetch_repos: None,
+            merge_response: None,
+            stash_bundles: None,
+            local_family: None,
+            summary: None,
+        }
+    }
+
+    pub(crate) fn fetch(response: gwz_core::FetchResponse) -> Self {
+        Self {
+            envelope: response.response,
+            workspace_git_status: None,
+            status_mode: None,
+            listing: None,
+            branch_repos: None,
+            fetch_repos: response.repos,
             merge_response: None,
             stash_bundles: None,
             local_family: None,
@@ -81,6 +101,7 @@ impl CliResponse {
             status_mode: None,
             listing: None,
             branch_repos: None,
+            fetch_repos: None,
             merge_response: Some(response),
             stash_bundles: None,
             local_family: None,
@@ -95,6 +116,7 @@ impl CliResponse {
             status_mode: None,
             listing: None,
             branch_repos: None,
+            fetch_repos: None,
             merge_response: None,
             stash_bundles: response.bundles,
             local_family: None,
@@ -112,6 +134,7 @@ impl CliResponse {
             status_mode: None,
             listing: None,
             branch_repos: None,
+            fetch_repos: None,
             merge_response: None,
             stash_bundles: None,
             local_family: Some(LocalFamilyResponseView {
@@ -130,6 +153,7 @@ impl CliResponse {
             status_mode: None,
             listing: Some(listing),
             branch_repos: None,
+            fetch_repos: None,
             merge_response: None,
             stash_bundles: None,
             local_family: None,
@@ -272,6 +296,9 @@ pub(crate) fn render_human_response(response: &CliResponse, verbose: bool) -> St
     }
     if let Some(bundles) = &response.stash_bundles {
         return render_stash_response(response, bundles);
+    }
+    if let Some(repos) = &response.fetch_repos {
+        return render_fetch_response(response, repos);
     }
     // Only `local list` renders a listing. `dispose`/`disband` carry no rows
     // (design §7), so they fall through to the ordinary envelope below rather

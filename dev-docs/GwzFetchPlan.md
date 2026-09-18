@@ -130,14 +130,17 @@ One line per repository, root first when selected, then members in manifest
 order:
 
 ```
-gwz fetch
-@root            .              no change            (origin/main, +0 -0)
-mem_core         gwz-core       a1b2c3d..9f8e7d6     (origin/main, +0 -3)
-mem_cli          gwz-cli        no change            (origin/main, +2 -0)
-mem_py           gwz-py         no upstream
-mem_private      private        failed               RemoteRejected: ...
+$ gwz fetch
 status: Partial
+@root        .         no change          (origin/main, +0 -0)
+mem_core     gwz-core  a1b2c3d..9f8e7d6   (origin/main, +0 -3)
+mem_cli      gwz-cli   no change          (origin/main, +2 -0)
+mem_py       gwz-py    no upstream
+mem_private  private   failed             RemoteRejected: ...
 ```
+
+The `status:` line comes first, as it does under every other verb that renders
+an envelope.
 
 `+A -B` is ahead/behind of the current branch against the tracking ref after
 the fetch. Abbreviated object ids are 7 hex characters, as `git` renders them.

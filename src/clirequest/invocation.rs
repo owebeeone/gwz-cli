@@ -260,6 +260,11 @@ impl Cli {
                     meta,
                 }))
             }
+            // Unlike push, the remote token is NOT moved out of the policy:
+            // `FetchRequest` has no `remote` field (GwzFetchPlan.md D4/§2.3),
+            // so `--remote` rides in `meta.policy.remote` exactly as it does
+            // under `gwz pull`, and core resolves it there.
+            CommandArgs::Fetch => Ok(CliRequest::Fetch(gwz_core::FetchRequest { meta })),
             CommandArgs::Capture => Ok(CliRequest::Capture(gwz_core::CaptureRequest { meta })),
             CommandArgs::Commit(args) => {
                 // DR-5 fold (review P2-1): `--all` is the `@all` selector under every verb,
