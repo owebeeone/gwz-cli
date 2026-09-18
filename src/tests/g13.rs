@@ -903,6 +903,64 @@ fn the_fallback_creates_reuses_and_removes_a_plain_worktree() {
     assert!(!created.path.exists());
 }
 
+/// F7 (the probe of 2026-09-18, §9): the `.worktreeinclude` enumeration is
+/// scoped to the project's own files, so a second worktree never receives the
+/// first worktree's copies and a reuse never reports a present file missing.
+#[test]
+fn the_fallback_never_copies_one_worktrees_includes_into_another() {
+    let temp = plain_repository("hook-include-scope");
+    let root = temp.path().to_path_buf();
+    std::fs::write(root.join(".gitignore"), b"secrets.env\n").unwrap();
+    std::fs::write(root.join(".worktreeinclude"), b"secrets.env\n").unwrap();
+    std::fs::write(root.join("secrets.env"), b"TOKEN=abc\n").unwrap();
+    let env = TestEnv::new().with_home(temp.path());
+    let context = context(&root);
+
+    let first = run_worktree_create(&env, &context, &create_input("one", "s1"))
+        .expect("the first worktree is created");
+    assert!(first.path.join("secrets.env").is_file());
+
+    // The second creation walks a project root that now holds the first
+    // worktree, including its copy of the included file.
+    let second = run_worktree_create(&env, &context, &create_input("two", "s1"))
+        .expect("the second worktree is created");
+    assert!(
+        second.path.join("secrets.env").is_file(),
+        "the project's own included file is copied"
+    );
+    assert!(
+        !second.path.join(".claude").exists(),
+        "no other worktree's copy travels into this one: {:?}",
+        std::fs::read_dir(&second.path)
+            .unwrap()
+            .flatten()
+            .map(|entry| entry.file_name())
+            .collect::<Vec<_>>()
+    );
+    let copies = std::process::Command::new("find")
+        .arg(&second.path)
+        .args(["-name", "secrets.env"])
+        .output()
+        .expect("find runs");
+    assert_eq!(
+        String::from_utf8_lossy(&copies.stdout).lines().count(),
+        1,
+        "exactly one copy, at the top level: {}",
+        String::from_utf8_lossy(&copies.stdout)
+    );
+
+    // Reuse of the first worktree, whose included file is present, warns
+    // about nothing.
+    let reused = run_worktree_create(&env, &context, &create_input("one", "s1"))
+        .expect("the first worktree is reused");
+    assert_eq!(reused.outcome, "reused");
+    assert!(
+        !env.warned("missing from the reused worktree"),
+        "{:?}",
+        env.warnings()
+    );
+}
+
 /// `--base-ref` is honoured, and a locked worktree -- what Claude holds on a
 /// running agent's -- is refused rather than forced (D8).
 #[test]

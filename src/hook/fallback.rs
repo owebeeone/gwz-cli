@@ -162,7 +162,33 @@ fn include_patterns(repository: &Path) -> Patterns {
     Patterns::read(&repository.join(".worktreeinclude"))
 }
 
-/// The project-root files a `.worktreeinclude` names. Files already present
+/// The directory the fallback's own worktrees live in, relative to the
+/// project root. It is excluded from the enumeration below (F7).
+const WORKTREES_DIR: &str = ".claude/worktrees";
+
+/// True for a project-root-relative path that the include enumeration must
+/// never descend into or match: the project's own `.git`, and the directory
+/// holding the fallback's worktrees.
+///
+/// Without the second exclusion (the probe of 2026-09-18, §9, F7) an
+/// unanchored pattern such as `secrets.env` matches the *copy* of that file
+/// inside an existing worktree, at `.claude/worktrees/<other>/secrets.env`.
+/// On create that copies one worktree's included files into the next, one
+/// directory deeper each time; on reuse it reports a file as "listed and
+/// missing" while the real one is present. Since the documented use of
+/// `.worktreeinclude` is an untracked credential file, the first of those is
+/// a leak, not clutter.
+fn excluded(relative: &str) -> bool {
+    for directory in [".git", WORKTREES_DIR] {
+        if relative == directory || relative.starts_with(&format!("{directory}/")) {
+            return true;
+        }
+    }
+    false
+}
+
+/// The project-root files a `.worktreeinclude` names, as project-root-relative
+/// paths: the paths the patterns were written against. Files already present
 /// in the worktree are left exactly as they are: a created worktree holds
 /// the tracked files of its base, so what is missing from it is what the
 /// include list is for.
@@ -179,7 +205,7 @@ fn included_files(repository: &Path, patterns: &Patterns) -> Vec<PathBuf> {
                 continue;
             };
             let relative = relative.to_string_lossy().replace('\\', "/");
-            if relative == ".git" || relative.starts_with(".git/") {
+            if excluded(&relative) {
                 continue;
             }
             let is_directory = entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false);
