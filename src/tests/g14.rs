@@ -166,6 +166,77 @@ fn setup_merges_without_touching_a_byte_outside_the_block() {
     assert_eq!(std::fs::read_to_string(settings(&home)).unwrap(), merged);
 }
 
+/// F1 (the probe of 2026-09-18, §2): the merge writes the same pretty block
+/// it prints, in the file's own indentation and in the printed event order.
+/// A reviewer diffs this file, and S1.4 commits it.
+#[test]
+fn the_merge_is_pretty_indented_and_in_the_printed_order() {
+    let home = TempDir::new("setup-pretty");
+    std::fs::create_dir_all(home.path().join(".claude")).unwrap();
+    let original = "{\n  \"permissions\": {\n    \"allow\": []\n  }\n}\n";
+    std::fs::write(settings(&home), original).unwrap();
+    let env = SetupEnv::new(home.path());
+
+    let output = run_setup(&env, &SetupRoots::none(), &request(true)).expect("the block is merged");
+    let merged = std::fs::read_to_string(settings(&home)).unwrap();
+
+    // The same event order as the printed block, in the note and in the file.
+    assert!(
+        output
+            .note
+            .contains("merged WorktreeCreate and WorktreeRemove"),
+        "{}",
+        output.note
+    );
+    for text in [output.block.as_str(), merged.as_str()] {
+        let create = text.find("WorktreeCreate").expect("the create event");
+        let remove = text.find("WorktreeRemove").expect("the remove event");
+        assert!(create < remove, "{text}");
+    }
+
+    // Pretty, not minified: one member to a line, and indented in the
+    // file's own unit rather than pinned to column zero.
+    let command_line = merged
+        .lines()
+        .find(|line| line.trim_start().starts_with("\"command\": \"gwz hook"))
+        .expect("the command is on a line of its own");
+    assert!(
+        command_line.starts_with("      "),
+        "the handler is indented: {command_line:?}"
+    );
+    assert!(merged.contains("\n  \"hooks\": {"), "{merged}");
+    assert!(
+        !merged.lines().any(|line| line.len() > 120),
+        "a near-minified line survived:\n{merged}"
+    );
+    // And the original bytes are still the file's own.
+    assert!(
+        merged.contains("  \"permissions\": {\n    \"allow\": []\n  }"),
+        "{merged}"
+    );
+
+    // A file indented with tabs gets tabs.
+    let tabbed = TempDir::new("setup-pretty-tabs");
+    std::fs::create_dir_all(tabbed.path().join(".claude")).unwrap();
+    std::fs::write(settings(&tabbed), "{\n\t\"permissions\": {}\n}\n").unwrap();
+    let env = SetupEnv::new(tabbed.path());
+    run_setup(&env, &SetupRoots::none(), &request(true)).expect("the block is merged");
+    let merged = std::fs::read_to_string(settings(&tabbed)).unwrap();
+    assert!(merged.contains("\n\t\"hooks\": {"), "{merged}");
+    assert!(
+        merged.contains("\t\"type\": \"command\""),
+        "the file's own unit is used throughout: {merged}"
+    );
+    assert!(
+        !merged.contains("\n  "),
+        "no space indentation crept in: {merged}"
+    );
+    // It still parses, and still carries both events once.
+    let document = document(&settings(&tabbed));
+    assert_eq!(commands(&document, "WorktreeCreate").len(), 1);
+    assert_eq!(commands(&document, "WorktreeRemove").len(), 1);
+}
+
 /// A file that does not parse is refused and left exactly as it was, and so
 /// is one this writer cannot replace: neither leaves a half-written file.
 #[test]
