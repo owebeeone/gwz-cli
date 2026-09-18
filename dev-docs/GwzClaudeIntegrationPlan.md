@@ -829,7 +829,7 @@ targets, not limits.
   defaults (D6, D10; environment variables are not user configuration), the
   lane lifecycle from Claude's point of view, the snapshot policy (D10),
   branch semantics (D9), the isolation behaviour observed in S1.3 and S2.x,
-  the cost numbers from S3.2, the retirement procedure (S3.4, before and
+  the copy-cost estimate's placeholder table stated as a conservative estimate (S3.2 is postponed, D8), the retirement procedure (S3.4, before and
   after GwzLaneCleanFixes R0), the subagent rule (D3), a table of every
   refusal the hooks can print with its one-line remedy (D10, as observed in
   S1.3), including "family busy; retry" as its own row (D3), the caveats (launch from the main root, headless runs never
@@ -867,7 +867,7 @@ targets, not limits.
 ```
 { S0.1, GwzLaneCleanFixes R20 and R21 in an installed gwz } -> S1.1 -> S1.2 -> S1.3
 { S1.3, a gwz release containing S1.1 and S1.2 } -> S1.4 -> { S4.1, S4.3 }
-S1.3 -> { S2.1, S2.2, S2.3, S3.1, S3.2, S3.4 } -> S3.3 -> { S4.1, S4.2, S4.3 } -> S5.1
+S1.3 -> { S2.1, S2.2, S2.3, S3.1, S3.4 } -> S3.3 -> { S4.1, S4.3 } -> S5.1   (S3.2 postponed, D8; S4.2 done)
 { S2.3, S3.3, GwzLaneCleanFixes R0 in an installed gwz } -> S3.5 -> revisions of S3.4, S4.1, S4.2
 ```
 
@@ -1019,6 +1019,9 @@ else waits on S3.5, and its revisions follow whenever it lands.
   the R20 to R22 redesign), then on the redesigned text 15, 6 and 2, all
   closed with re-traced counterexamples. Implementation may start once
   R20 and R21 are in an installed gwz.
+- 2026-09-18: decision D8 (`GwzOpenDecisions.md`): S3.2's measurements are
+  postponed indefinitely; S4.1 takes the placeholder cost table as a stated
+  estimate and S3.3 draws on S2.3 alone; the sketch updated accordingly.
 - 2026-09-17: **amendment A1**, at the operator's decision and, by the
   operator's instruction, without re-review. The free-space guard no
   longer sizes itself from a one-off measured clone or from what a lane
