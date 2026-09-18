@@ -1,7 +1,10 @@
 # GWZ fetch: learn what moved upstream across the whole workspace without pulling
 
-Status: plan. Phase 1 is implemented in the lane that files this document;
-Phases 2 and 3 are not started.
+Status: plan. Phase 1 released in gwz 1.0.17 (2026-09-18), with two
+refinements the release review added: a `--dry-run` row is `Planned` /
+`would contact <remote>`, aggregates like the live run, and a `--remote <name>`
+no repository has is refused before the network on both paths (see
+`GwzRelease1017Docs-RemPlan.md`). Phases 2 and 3 are not started.
 
 ## 1. Goal and non-goals
 
