@@ -1,5 +1,17 @@
 # gwz 1.0.17 release documentation: remediation plan (round 1)
 
+Status: **accepted at root `fbaf6be`, gwz-cli `a886450`, gwz-core `75283dc`,
+gwz-py `fc42c8ab` after `GwzRelease1017Docs-ReviewSurface-4.md` and
+`GwzRelease1017Docs-ReviewConsistency-4.md` reported GO; this accepts the
+1.0.17 documentation, the fetch dry-run `Planned` result, the dry-run
+aggregate rule and the pre-network `--remote` refusal only.** Rounds: 1
+(docs and the `Planned` result), 2 (dry-run aggregate, Consistency C2-P2-1),
+3 (named-remote refusal and exit-code text, Surface P2-4 and P3-7), 4
+(doc-comment reassociation, Consistency C4-P3-1). Deferred follow-up, not a
+docs change: the dispose refusal renders a protected ref as `Ref { name:
+"refs/heads/main" }` (Surface P3-4); recorded in gwz-dev
+`dev-docs/GwzLaneIssues.md`.
+
 Object: gwz-cli `ad095e9` (root `4ff2834`, gwz-core `95138c7d`, gwz-py `68de94cc`).
 Reviews: `GwzRelease1017Docs-ReviewSurface.md` (NO-GO, P2-1..P2-3, P3-1..P3-6)
 and `GwzRelease1017Docs-ReviewConsistency.md` (NO-GO, P2-1..P2-3, P3-1..P3-5).
