@@ -1166,6 +1166,12 @@ rows, one per repository it would have contacted, and stops there. So it
 answers `which repositories would be contacted` and never `what moved`: the
 rows carry no result from any remote.
 
+A planned row says so in its own words. It reads `would contact <remote>`, and
+its machine result is `Planned`, which a live fetch never produces. `no change`
+and `Unchanged` keep their one meaning: the repository WAS contacted and its
+tracking ref did not move. A repository with no fetch remote is still `no
+upstream` under `--dry-run`, because that answer needs no network.
+
 Exit codes follow `gwz push`: 0 when every selected repository answered,
 1 when some answered and some failed (the report is incomplete), and 2 when
 the request was refused before any remote was contacted.
@@ -1267,10 +1273,11 @@ Global Options:
 
 Examples:
   gwz fetch
-  gwz fetch --json
   gwz --no-target @root fetch
   gwz --member mem_app fetch
   gwz --remote upstream fetch
+  gwz --json fetch
+  gwz --dry-run fetch
 ```
 
 ### `gwz forall`
@@ -1919,7 +1926,10 @@ One placement flag is required: --project for the workspace root's
 The block carries one WorktreeCreate handler and one WorktreeRemove handler,
 each with its own timeout. Inside a workspace the timeouts and the handlers'
 --wait-secs are computed from the same run-time estimate the create hook uses;
-outside one they are the compiled-in defaults. The remove handler carries only
+outside one they are the compiled-in defaults. --wait-secs is written onto a
+handler only when the estimate raises the wait above the compiled-in 300 s, so
+a small workspace's block carries no --wait-secs at all: its absence means the
+300 s default stands, not that no estimate ran. The remove handler carries only
 the options that leaf obeys.
 
 The default handler is the bare command `gwz hook ...`, resolved through PATH,

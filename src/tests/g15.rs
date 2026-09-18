@@ -126,6 +126,41 @@ fn selection_and_remote_reach_the_request() {
     assert_eq!(dry.meta.dry_run, Some(true));
 }
 
+/// A `--dry-run` row is a plan, not an answer, so it carries a token no live
+/// fetch can print: `would contact <remote>` on the human report and
+/// `"result": "Planned"` in the machine output.
+#[test]
+fn a_dry_run_row_says_it_would_contact_and_never_says_no_change() {
+    let mut planned = row("@root", ".", gwz_core::FetchResult::Planned);
+    planned.upstream = None;
+    planned.ahead = None;
+    planned.behind = None;
+
+    let response = fetch_response(
+        gwz_core::AggregateStatus::Noop,
+        vec![member("@root", ".", gwz_core::MemberStatus::Planned)],
+        vec![planned],
+    );
+
+    let rendered = render_response(&response, OutputMode::Human);
+    let lines: Vec<&str> = rendered.lines().collect();
+    assert_eq!(lines[0], "status: Noop");
+    assert!(
+        lines[1].contains("would contact origin"),
+        "the dry-run row names the remote it would contact: {rendered}"
+    );
+    assert!(
+        !rendered.contains("no change"),
+        "a dry run never borrows a live result's token: {rendered}"
+    );
+
+    let rendered = render_response(&response, OutputMode::Json);
+    let value: serde_json::Value = serde_json::from_str(&rendered).expect("valid json");
+    let repos = value["fetch_repos"].as_array().expect("fetch_repos rows");
+    assert_eq!(repos[0]["result"], "Planned");
+    assert_eq!(repos[0]["remote"], "origin");
+}
+
 /// One line per repository (plan §3.3): what the tracking ref did, then the
 /// ref it tracks with `+ahead -behind`. A `no upstream` row carries neither.
 #[test]

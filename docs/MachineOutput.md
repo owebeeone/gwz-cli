@@ -660,12 +660,44 @@ a fetch response and on no other response.
   ids either side of the fetch; `before` is absent when the ref did not exist
   yet.
 - `Unchanged`: the repository was contacted and its tracking ref did not move.
-  This is a successful read, not a skip — `gwz fetch` never skips the network.
+  This is a successful read, not a skip. Outside `--dry-run`, `gwz fetch` never
+  skips the network, and `Unchanged` always means contacted.
 - `NoUpstream`: the repository has no fetch remote, or no attached branch whose
   tracking ref could move. `remote`, `before` and `after` may all be absent.
   It is a reported row, not a failure.
 - `Failed`: the remote refused, or the fetch errored. The reason is on the
   matching `members` entry's `error`, where every other verb puts it.
+- `Planned`: `--dry-run` only. The repository would have been contacted and was
+  not, so the row carries no result from any remote. A live fetch never
+  produces it.
+
+### Telling a dry run apart
+
+`gwz --json --dry-run fetch` resolves the selection and returns before the
+network. Every repository it would have contacted carries `"result":
+"Planned"`, its `members[]` entry carries `"status": "Planned"`, and `upstream`,
+`before`, `after`, `ahead` and `behind` are all null:
+
+```json
+{
+  "member_id": "@root",
+  "member_path": ".",
+  "source_kind": "Git",
+  "result": "Planned",
+  "remote": "origin",
+  "branch": "main",
+  "before": null,
+  "after": null,
+  "upstream": null,
+  "ahead": null,
+  "behind": null
+}
+```
+
+A repository with no fetch remote is still `NoUpstream` under `--dry-run`,
+because that answer needs no network. So `Planned` is the one value that tells a
+consumer the report is a plan; a consumer that treats `Unchanged` as
+contacted-and-answered stays correct, because a dry run never returns it.
 
 `ahead` and `behind` count the repository's current branch against `after`,
 after the fetch. They are absent when there is nothing to count against.

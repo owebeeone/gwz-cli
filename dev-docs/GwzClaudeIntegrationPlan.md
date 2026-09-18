@@ -196,9 +196,11 @@ integration is documented for other users.
   Claude shows nothing while the hook runs: the session looked stalled for
   the ~2 min the hook took (lane directory born 7 s after the click, tree
   copy 106 s, copy record and index write 10 s; no other lane or build was
-  running), so the guide should say so. Originally: whether the chips
-  create their session through `WorktreeCreate`; the docs never name the
-  chips.
+  running), so the guide should say so. A second timing on the same workspace
+  the same day: a `gwz local clone` run by hand, with one other lane present,
+  took 146 s. These are two observations, not a measured range; the guide
+  states them as observations. Originally: whether the chips create their
+  session through `WorktreeCreate`; the docs never name the chips.
 - U2. How the isolation check that inspects command text for git treats a
   wrapper such as `gwz`, which runs git internally, when invoked inside a
   lane.

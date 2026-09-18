@@ -19,6 +19,7 @@ disposal clean-up that 1.0.14 and 1.0.16 began.
 `gwz fetch` contacts every selected repository's configured remote, updates
 that repository's remote-tracking refs, and prints one row each: the tracking
 ref before and after, how far the current branch is ahead of and behind it, or
+`new <after>` for a tracking ref that did not exist before, or `updated`,
 `no change`, `no upstream`, `failed`. Plain `gwz fetch` covers `@root` plus the
 configured members, and the selectors are `gwz push`'s. It answers "what moved
 upstream while I was working?" across the whole workspace in one pass, without
@@ -27,11 +28,11 @@ changing a file.
 ```text
 $ gwz fetch
 status: Partial
-@root     .         no change          (origin/main, +0 -0)
-mem_core  gwz-core  a1b2c3d..9f8e7d6   (origin/main, +0 -3)
-mem_cli   gwz-cli   no change          (origin/main, +2 -0)
-mem_local local     no upstream
-mem_priv  private   failed             RemoteRejected: connection refused
+@root      .         no change         (origin/main, +2 -0)
+mem_core   gwz-core  90ef552..330a174  (origin/main, +0 -3)
+mem_cli    gwz-cli   no change         (origin/main, +0 -0)
+mem_local  local     no upstream
+mem_priv   private   failed            RemoteRejected: member 'mem_priv' at 'private': failed to connect to 127.0.0.1: Connection refused
 ```
 
 What it never does:
@@ -43,12 +44,30 @@ What it never does:
   sync. Because of that it still runs while a coordinated merge is open,
   unlike `pull` and `push`.
 - **It never prunes.**
-- **It never skips the network.** There is no `--check-remotes` and no
-  "unchanged since the last fetch" short-circuit as there is on `gwz push`: a
-  fetch that does not connect has answered nothing. `--dry-run` is the one
-  exception, and it is not git's. `git fetch --dry-run` contacts the remote and
+- **It never skips the network, with one exception: `--dry-run`.** There is no
+  `--check-remotes` and no "unchanged since the last fetch" short-circuit as
+  there is on `gwz push`: a fetch that does not connect has answered nothing.
+  `--dry-run` is not git's. `git fetch --dry-run` contacts the remote and
   declines to write; `gwz --dry-run fetch` contacts no remote at all, resolving
   the selection and printing the planned rows.
+
+A planned row carries a token of its own, so it can never be read as an answer:
+
+```text
+$ gwz --dry-run fetch
+status: Noop
+@root      .         would contact origin
+mem_core   gwz-core  would contact origin
+mem_cli    gwz-cli   would contact origin
+mem_local  local     no upstream
+mem_priv   private   would contact origin
+```
+
+`would contact <remote>` is `"result": "Planned"` in the machine output, and no
+live fetch prints either. `no change` and `Unchanged` keep their one meaning:
+the repository was contacted and its tracking ref did not move. A repository
+with no fetch remote is still `no upstream` under `--dry-run`, because that
+answer needs no network.
 
 Exit codes follow `gwz push`, with one difference worth knowing: `no change`
 means contacted-and-answered rather than skipped, so a run in which one remote
@@ -79,7 +98,9 @@ and stash and reflog entries a verbatim copy inherits are reported without
 refusing. What refuses is what only the lane holds.
 
 A refusal sorts what it found into four categories, printing each with its
-count and with the paths or object ids it holds, the empty ones included:
+count and with a description of what it holds, the empty ones included. Most
+entries are paths; a protected root is described by its object id and the head
+or ref that reaches it:
 
 - **regenerable**: a tool made it and the same tool remakes it. Never refuses.
 - **unchanged copy**: the clone copied it, the lane has not touched it, and a
@@ -89,7 +110,7 @@ count and with the paths or object ids it holds, the empty ones included:
 - **unique to the lane**: the lane alone holds it, including any protected
   root no single surviving family repository preserves whole. Refuses.
 
-The refusal then prints the exact `--force <categories>` command that waives
+The refusal then prints the exact `--force <hazard,...>` command that waives
 exactly what it found, and names nothing more: a lane whose only refusing entry
 is dirt is offered `--force dirty` even when the same report lists regenerable
 entries and unchanged copies beside it.
@@ -146,9 +167,16 @@ No release notes were written for 1.0.14 (2026-09-18) or 1.0.16
   `owner`. A 1.0.14 or later gwz reads a v1 index unchanged and writes v2 on
   its first write of any kind, a create, a dispose, a `--keep` or a family
   merge. Going the other way is a refusal rather than a downgrade: an older gwz
-  refuses a v2 index as a whole, and its refusal names the minimum version that
-  reads it. **Once a 1.0.14 or later gwz has written a workspace's family
-  index, every gwz used on that workspace must be 1.0.14 or later.**
+  refuses a v2 index as a whole, and its refusal names no gwz version at all.
+  On 1.0.13 it reads ``gwz: ManifestInvalid: ... .gwz/local-family.yml is
+  malformed: `schema: gwz.local-family/v2` is not `gwz.local-family/v1` (format
+  version 1); this file is not in a format this store reads``. That line is
+  derived from the 1.0.13 source
+  (`v1.0.13:crates/family-store/src/format.rs:37-42`), not from a run on this
+  machine. It calls the file malformed, which it is not, and offers no remedy;
+  the remedy is to upgrade. **Once a 1.0.14 or later gwz has written a
+  workspace's family index, every gwz used on that workspace must be 1.0.14 or
+  later.**
 - **Lane disposal clean-up, Phase 1.** `gwz local clone` records what it
   copied per repository, and `gwz local dispose` uses that record so an
   unchanged copy the family still holds is reported instead of refusing. Where
@@ -255,9 +283,8 @@ way a merge was started.
 ## Compatibility Notes
 
 Behaviour a consumer of GWZ's output or metadata has to account for. Every
-note here describes **released** behaviour: the local clone family shipped in
-the 1.0 line (see [1.0.4](#104-the-10-line-ships)), and the merge, log and
-`gwz.conf/` notes below shipped in the 0.10 to 0.12 releases that preceded it.
+note here describes **released** behaviour: the log, merge, anchor-directory
+and `gwz.conf/` notes below all shipped across the 0.10 to 1.0 releases.
 Unreleased work is described in the version section it will ship in, not here.
 
 - `gwz log` adds one newest-first history across the workspace root and selected

@@ -28,6 +28,12 @@ rows, one per repository it would have contacted, and stops there. So it
 answers `which repositories would be contacted` and never `what moved`: the
 rows carry no result from any remote.
 
+A planned row says so in its own words. It reads `would contact <remote>`, and
+its machine result is `Planned`, which a live fetch never produces. `no change`
+and `Unchanged` keep their one meaning: the repository WAS contacted and its
+tracking ref did not move. A repository with no fetch remote is still `no
+upstream` under `--dry-run`, because that answer needs no network.
+
 Exit codes follow `gwz push`: 0 when every selected repository answered,
 1 when some answered and some failed (the report is incomplete), and 2 when
 the request was refused before any remote was contacted.";

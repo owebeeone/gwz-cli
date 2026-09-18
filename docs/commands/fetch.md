@@ -24,31 +24,61 @@ workspace, in one pass and one voice, without changing a single file.
   sync. Because of that it still runs while a merge is open, unlike `pull` and
   `push`.
 - **It never prunes.**
-- **It never skips the network.** There is no `--check-remotes` and no
-  "unchanged since the last fetch" short-circuit as there is on `gwz push`: a
-  fetch that does not connect has answered nothing.
+- **It never skips the network, with one exception: `--dry-run`.** There is no
+  `--check-remotes` and no "unchanged since the last fetch" short-circuit as
+  there is on `gwz push`: a fetch that does not connect has answered nothing.
+  The exception is [`gwz --dry-run fetch`](#a-dry-run-contacts-nothing), which
+  resolves the selection, prints one planned row per repository it would have
+  contacted, and stops before the network.
 
 ## Output
 
 ```text
 $ gwz fetch
 status: Partial
-@root     .         no change          (origin/main, +0 -0)
-mem_core  gwz-core  a1b2c3d..9f8e7d6   (origin/main, +0 -3)
-mem_cli   gwz-cli   no change          (origin/main, +2 -0)
-mem_local local     no upstream
-mem_priv  private   failed             RemoteRejected: connection refused
+@root      .         no change         (origin/main, +2 -0)
+mem_core   gwz-core  90ef552..330a174  (origin/main, +0 -3)
+mem_cli    gwz-cli   no change         (origin/main, +0 -0)
+mem_local  local     no upstream
+mem_priv   private   failed            RemoteRejected: member 'mem_priv' at 'private': failed to connect to 127.0.0.1: Connection refused
 ```
 
 - `<before>..<after>` — the remote-tracking ref moved, abbreviated as `git`
   abbreviates one.
+- `new <after>` — the remote-tracking ref did not exist before this fetch, so
+  there is no left-hand side to show. This is the row a first fetch prints.
+- `updated` — the ref moved but neither object id is known, so there is
+  nothing to print on either side.
 - `no change` — the repository was contacted and its tracking ref did not move.
 - `no upstream` — the repository has no fetch remote, or no attached branch
   whose tracking ref could move. A reported row, not a failure: one local-only
   member does not break a whole-workspace observation.
 - `failed` — the remote refused, or the fetch errored, with the reason.
+- `would contact <remote>` — `--dry-run` only. The repository was not
+  contacted; see below.
 - `(<remote>/<branch>, +A -B)` — how far the current branch is ahead of and
   behind the tracking ref, counted after the fetch.
+
+### A dry run contacts nothing
+
+`gwz --dry-run fetch` resolves the selection and reports the repositories it
+would contact, contacting none of them. Its rows say so in their own words:
+
+```text
+$ gwz --dry-run fetch
+status: Noop
+@root      .         would contact origin
+mem_core   gwz-core  would contact origin
+mem_cli    gwz-cli   would contact origin
+mem_local  local     no upstream
+mem_priv   private   would contact origin
+```
+
+`would contact <remote>` is a plan, not a result, and no live fetch prints it.
+Its machine value is `"result": "Planned"`. A repository with no fetch remote is
+still `no upstream` here, because that answer needs no network. Nothing in a
+dry-run row comes from a remote, so a dry run cannot tell you what moved: run
+`gwz fetch` for that.
 
 ## Examples
 
@@ -87,6 +117,9 @@ Resolve the selection and report what would be contacted, contacting nothing:
 ```sh
 gwz --dry-run fetch
 ```
+
+Every row reads `would contact <remote>`, or `no upstream` where there is no
+fetch remote to contact.
 
 ## Exit codes
 

@@ -2231,8 +2231,12 @@ fn generated_reference_and_command_page_cover_local() {
         assert!(page.contains("local clone family](local.md)"));
         assert!(page.contains("`--remote origin` keeps its usual meaning"));
         // The binding behind the name is core's and is not landed, so the page
-        // must not read as though it already works.
-        assert!(page.contains("`missing_remote` in this build"));
+        // must not read as though it already works. The fall-through answers
+        // GitCommandFailed, which is what the pages must name: MissingRemote
+        // is not what the binary prints.
+        assert!(page.contains("`GitCommandFailed` in this build"));
+        assert!(!page.contains("MissingRemote"));
+        assert!(!page.contains("missing_remote"));
     }
 }
 

@@ -40,8 +40,9 @@ gwz push --remote hub
 **This build does not serve it.** The family name is looked up and the flag
 then falls through to ordinary Git remote resolution, so a family name that
 is not also a Git remote fails every selected target with
-`MissingRemote: missing remote 'hub'` (`missing_remote` in this build's
-machine output). `--remote origin` keeps its usual meaning. Integrate from the
+`GitCommandFailed: remote 'hub' does not exist`
+(`GitCommandFailed` in this build's machine output).
+`--remote origin` keeps its usual meaning. Integrate from the
 receiving side with `gwz merge --remote <name>` instead; see
 [`gwz merge`](merge.md) and [Local Clones](../LocalClones.md).
 

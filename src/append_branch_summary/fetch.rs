@@ -24,6 +24,12 @@ fn movement(repo: &gwz_core::FetchRepoSummary) -> String {
         gwz_core::FetchResult::Unchanged => "no change".to_owned(),
         gwz_core::FetchResult::NoUpstream => "no upstream".to_owned(),
         gwz_core::FetchResult::Failed => "failed".to_owned(),
+        // `--dry-run` only: the repository was not contacted, so the row says
+        // what would happen rather than what did.
+        gwz_core::FetchResult::Planned => match &repo.remote {
+            Some(remote) => format!("would contact {remote}"),
+            None => "would contact".to_owned(),
+        },
     }
 }
 

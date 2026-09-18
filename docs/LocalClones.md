@@ -362,8 +362,11 @@ deleted local clone `A`: /Users/you/work/demo-A removed, its row removed
 #### What the report says
 
 Every refusal sorts what it found into four categories, prints each one with
-its count and with the paths or object ids it holds, and prints the empty
-categories too, so a refusal says what it did *not* find as well.
+its count and with a description of what it holds, and prints the empty
+categories too, so a refusal says what it did *not* find as well. Most entries
+are paths; a protected root that no surviving family repository preserves whole
+is described by its object id and the head or ref that reaches it, in the
+internal form the sample above shows, which is not a path you can pass to `git`.
 
 - **regenerable** is data a tool made and the same tool remakes: build
   directories, caches, compiled bytecode, compiled extension modules. It is
@@ -377,7 +380,7 @@ categories too, so a refusal says what it did *not* find as well.
   protected root (a branch, `HEAD`, a tag, a reflog entry, a stash) that no
   single surviving family repository preserves whole. This refuses.
 
-The refusal then prints the exact `--force <categories>` command that waives
+The refusal then prints the exact `--force <hazard,...>` command that waives
 exactly what it found, and names nothing more. A lane whose only refusing
 entry is dirt is offered `--force dirty` alone, even when the same report lists
 regenerable entries and unchanged copies beside it, because those refuse
@@ -528,7 +531,8 @@ disbanded local family fam_3fa95fa799ee9ec5b04999adba13e651: 1 pointer(s) and 1 
 Afterwards every directory is an ordinary, unrelated GWZ workspace. Family
 names stop resolving: `gwz merge --remote A` becomes a family miss, and
 `--remote A` on `pull` or `push` falls through to ordinary Git remote
-resolution (`MissingRemote` unless a Git remote of that name exists). Disband
+resolution (`GitCommandFailed: remote 'A' does not exist` unless a Git remote of
+that name exists). Disband
 can be repeated after an error, and it never deletes a directory.
 
 ## The Deletion Position, In Plain Terms

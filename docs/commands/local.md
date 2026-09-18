@@ -293,7 +293,9 @@ in. Only what the lane alone holds refuses.
 ### What the report says
 
 A refusal sorts what it found into four categories, prints each with its count
-and with the paths or object ids it holds, and prints the empty ones too:
+and with a description of what it holds, and prints the empty ones too. Most
+entries are paths; a protected root is described by its object id and the head
+or ref that reaches it:
 
 | Category | Meaning | Refuses |
 | --- | --- | --- |
@@ -302,7 +304,7 @@ and with the paths or object ids it holds, and prints the empty ones too:
 | `changed copy` | The clone copied it and it is not the family's any more: edited in the lane, or its recorded fingerprint (size, mtime, inode) no longer matches. | yes |
 | `unique to the lane` | The lane alone holds it: work it created, and any protected root no single surviving family repository preserves whole. | yes |
 
-The refusal then prints the exact `--force <categories>` command that waives
+The refusal then prints the exact `--force <hazard,...>` command that waives
 exactly what it found and nothing more, so a lane whose only refusing entry is
 dirt is offered `--force dirty` even when the same report lists regenerable
 entries and unchanged copies beside it.
