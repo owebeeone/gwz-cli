@@ -194,9 +194,11 @@ integration is documented for other users.
   entry appeared. Without the hooks installed the same chip had made a
   member-less git worktree under `.claude/worktrees/` earlier that day.
   Claude shows nothing while the hook runs: the session looked stalled for
-  the ~190 s the copy took, so the guide should say so. Originally: whether
-  the chips create their session through `WorktreeCreate`; the docs never
-  name the chips.
+  the ~2 min the hook took (lane directory born 7 s after the click, tree
+  copy 106 s, copy record and index write 10 s; no other lane or build was
+  running), so the guide should say so. Originally: whether the chips
+  create their session through `WorktreeCreate`; the docs never name the
+  chips.
 - U2. How the isolation check that inspects command text for git treats a
   wrapper such as `gwz`, which runs git internally, when invoked inside a
   lane.
