@@ -158,12 +158,23 @@ Follow `push`'s conventions exactly, through the unchanged
 | Aggregate | Exit | When |
 | --- | --- | --- |
 | `Ok` / `Noop` | 0 | every selected repository fetched, or nothing moved |
-| `Partial` | 1 | at least one `Ok` and at least one `Failed`/`Rejected`/`Skipped` |
-| `Failed` | 1 | every contacted repository failed |
-| `Rejected` | 2 | the request was refused before any remote was contacted |
+| `Partial` | 1 | at least one repository contacted and at least one failure |
+| `Failed` | 1 | every repository failed or was refused |
+| `Rejected` | 2 | nothing was contacted; every row was refused before the network |
 
-`fetch_aggregate_status` is `push_aggregate_status`'s rule, reused rather than
-re-derived.
+`fetch_aggregate_status` follows push's exit codes but is computed from
+fetch's own report rows, **not** delegated to `push_aggregate_status`
+(amended at step 1.3, after the handler's tests): the two verbs mean different
+things by a `Noop` row. Push's `Noop` is "nothing to publish"; fetch's
+`unchanged` is a repository that WAS contacted and answered. Delegating would
+report `Failed` for a batch where one remote refused and every other
+repository read cleanly, which claims nothing was read. So the rule is:
+
+- a failure alongside any contacted repository is `Partial`;
+- a batch in which nothing was contacted and every row was refused before the
+  network is `Rejected`;
+- otherwise any `updated` row is `Ok`, and a batch that moved nothing is
+  `Noop`.
 
 ### 3.6 What `gwz fetch` never does
 
