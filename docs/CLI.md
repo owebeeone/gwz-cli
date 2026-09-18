@@ -1174,7 +1174,10 @@ upstream` under `--dry-run`, because that answer needs no network.
 
 Exit codes follow `gwz push`: 0 when every selected repository answered,
 1 when some answered and some failed (the report is incomplete), and 2 when
-the request was refused before any remote was contacted.
+every selected repository was refused before the network, for example a
+`--remote <name>` that no selected repository has. A dry run exits with the
+same codes as the live run it rehearses, and refuses a `--remote` name a
+repository lacks just as the live run does.
 
 Usage: gwz fetch [OPTIONS]
 

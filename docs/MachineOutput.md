@@ -706,7 +706,10 @@ Aggregates follow `gwz push`'s exit codes with one difference worth knowing:
 because `Unchanged` means contacted-and-answered rather than skipped, a batch
 in which one remote failed and every other repository read cleanly is `Partial`
 (exit `1`, the report is incomplete) even though no row is `Ok`. `Rejected`
-(exit `2`) means nothing was contacted at all.
+(exit `2`) means every row was refused before the network and nothing was
+contacted; a `--remote <name>` no selected repository has is the ordinary way
+to reach it. Under `--dry-run` a `Planned` row counts as contacted for the
+aggregate, so a dry run and the live run of one selection aggregate alike.
 
 `gwz fetch` never integrates and never writes a workspace artifact, so a
 `fetch_repos` row never implies a branch, HEAD, index or lock change.

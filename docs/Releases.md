@@ -78,7 +78,13 @@ incomplete, even though nothing moved.
 | --- | --- |
 | `0` | every selected repository answered |
 | `1` | some answered and some failed; the report is incomplete |
-| `2` | the request was refused before any remote was contacted |
+| `2` | every selected repository was refused before the network, so nothing was contacted |
+
+Exit `2` is the whole-batch refusal, for example `--remote <name>` naming a
+remote no selected repository has; a refusal before there is a selection (no
+workspace, an unknown member id) is a typed error and exits `1` as on every
+verb. A dry run shares these codes with the live run it rehearses, and refuses
+a `--remote` name a repository lacks just as the live run does.
 
 The global `--remote <name>` selects the remote each selected repository
 contacts, and `--json` carries the rows under `fetch_repos`.

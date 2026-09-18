@@ -76,9 +76,13 @@ mem_priv   private   would contact origin
 
 `would contact <remote>` is a plan, not a result, and no live fetch prints it.
 Its machine value is `"result": "Planned"`. A repository with no fetch remote is
-still `no upstream` here, because that answer needs no network. Nothing in a
-dry-run row comes from a remote, so a dry run cannot tell you what moved: run
-`gwz fetch` for that.
+still `no upstream` here, because that answer needs no network. A
+`--remote <name>` that a repository does not have is refused here too, as
+`failed` with `MissingRemote`, because that answer is also local: a dry run
+never promises to contact a remote the live run cannot. Nothing in a dry-run
+row comes from a remote, so a dry run cannot tell you what moved: run
+`gwz fetch` for that. A dry run exits with the same codes as the live run of
+the same selection.
 
 ## Examples
 
@@ -132,7 +136,13 @@ incomplete — even though nothing moved.
 | --- | --- |
 | `0` | every selected repository answered |
 | `1` | some answered and some failed; the report is incomplete |
-| `2` | the request was refused before any remote was contacted |
+| `2` | every selected repository was refused before the network, so nothing was contacted |
+
+Exit `2` is the whole-batch refusal: for example `--remote <name>` naming a
+remote that no selected repository has. A refusal that stops the request
+before it has a selection at all, such as no workspace under the current
+directory or an unknown member id, is a typed error and exits `1`, as it does
+on every verb. A dry run shares these codes with the live run it rehearses.
 
 ## See also
 
