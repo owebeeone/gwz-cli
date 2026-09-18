@@ -256,5 +256,5 @@ small PR for `gwz config` list/get.
 ## Related
 
 - `history/GwzProgressSpec.md` — historical progress implementation plan
-- `GwzStashSpec.md` — alias example `wip = stash push …`
+- `history/GwzStashSpec.md` — alias example `wip = stash push …`
 - `gwz-cli/src/main.rs` — clap `Parser` / `try_parse_from` entry point
