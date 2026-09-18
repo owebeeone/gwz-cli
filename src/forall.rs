@@ -306,6 +306,7 @@ mod tests {
             abspath: std::env::temp_dir().to_string_lossy().into_owned(),
             materialized: true,
             target_kind: Some(gwz_core::TargetKind::Member),
+            note: None,
         }
     }
 

@@ -519,11 +519,26 @@ Read-only listing commands render listing objects with `--json` or `--jsonl`.
       "id": "gwz-cli",
       "path": "gwz-cli",
       "abspath": "/work/gwz-dev/gwz-cli",
-      "materialized": true
+      "materialized": true,
+      "note": null
+    },
+    {
+      "id": "mem_secret",
+      "path": "repos/secret",
+      "abspath": "/work/gwz-dev/repos/secret",
+      "materialized": false,
+      "note": "private, skipped"
     }
   ]
 }
 ```
+
+`materialized` is observed, not the lock's claim: the lock records the member
+*and* its directory exists. `note` is an explicit `null` on every ordinary row,
+and human text on a row where the two disagree — `private, skipped` for a
+private member `gwz clone` was refused access to and quietly skipped, otherwise
+`recorded in the lock but absent on disk`. Switch on `materialized`; the note is
+for a person to read. See [`gwz ls`](commands/ls.md#what-materialized-means).
 
 `gwz --json tag --list`:
 
