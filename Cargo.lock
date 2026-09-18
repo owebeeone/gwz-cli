@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "1.0.16"
+version = "1.0.17"
 dependencies = [
  "clap",
  "console",
@@ -431,15 +431,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-copy-contract"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8550ae4a1edf44b6ba04a2710ccb9bbe4c1f522a5391ed6ab972b4c3a612d2f4"
+checksum = "7830c4fc5d510b7a1f9ec168e5f88ff1ab3802524782b2226d0a8393745f58b2"
 
 [[package]]
 name = "gwz-core"
-version = "1.0.16"
+version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9563e039b4709a7671f7df3476ec11b77bac916f6a36fc18f96f44583db052c1"
+checksum = "74bd044f36227be92701fe15e64c2566b6c934d12f144cb11544281cba11ec34"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
@@ -477,15 +477,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-family-model"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "192c9efa091d471942d241230a59b8ce8dee483fb276fcb03a11187fc3584e55"
+checksum = "5808106a4622ee75a670916c38e3cfa91b3efb2babdc0706ff3f81b2b010b4d9"
 
 [[package]]
 name = "gwz-family-store"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b765fccd6f0e057b31065e890b739aa14316682c55e7837adc790d1dbbe5927"
+checksum = "5676fe3f05b71e5bacf2148af130e41b4438cd62cff4bb88cc59051cee856803"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -495,27 +495,27 @@ dependencies = [
 
 [[package]]
 name = "gwz-family-store-contract"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bc0b69482e52026e666942f420b43093c485996e222b795db6d68dc916a97f4"
+checksum = "85e31a49666015e64816703e59793ec0365959f592c1e663290cce7815505ec4"
 dependencies = [
  "gwz-family-model",
 ]
 
 [[package]]
 name = "gwz-history-check"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab132d5d7281783b911b761d6a2c5013f636c7719114930eef488ebb71016aec"
+checksum = "df796e2aa6436cebe56cb3fd32819bdfc86b0de7699438902657abaec426b24e"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-local-disposal"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf93c5eedf58b691bec3321f6de082d62538e34b5108903d4c0c76d0fccaea51"
+checksum = "57f469ee80253068448aac465e6a84b961e4a0f87e908e0d5a7960ec33423d45"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -525,9 +525,9 @@ dependencies = [
 
 [[package]]
 name = "gwz-local-import"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0870d8a8da21d280c54b6f820f78578bd32900a3157e53aae400313143e4ae4"
+checksum = "3d6bc1daf032ec716afb66a3e85d58e34c76ae4b6420e81239045868c4495d6e"
 dependencies = [
  "gwz-family-model",
  "gwz-repo-contract",
@@ -535,9 +535,9 @@ dependencies = [
 
 [[package]]
 name = "gwz-refcopy"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a5f53da98cdb91801c1c4286ccf0820d023ca059d732ffb88f221020ba9f9ff"
+checksum = "71f452fdc47956d17a4b36eca16e0455a7d014064acc4e846a5bbadaa40c8d95"
 dependencies = [
  "gwz-copy-contract",
  "libc",
@@ -547,24 +547,24 @@ dependencies = [
 
 [[package]]
 name = "gwz-repo-contract"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63e7536ee2475663df443973fc43c235df1775c82298e69080fd637ef4b085d6"
+checksum = "e6b8fe0496c991ed5fb65469040b876893e6f81dc3aadb0d33df0a46d42f908b"
 
 [[package]]
 name = "gwz-repo-factory"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f8eccc16f5f0d1829cc45e7e197e18b1cc1b8aa47e8fbf3e4b388b529628148"
+checksum = "bae385c7c1341d85fd7b75e813e457fc4cb060920ca42dd3cabba8187bc4294c"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-repo-inspect"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51f50c2884ce27f63f4a25603f7307cab6909b068886a04094c044e9a3431e10"
+checksum = "deabf90fccdf0edb11f4ef6fdfa95bf05eefb78b3d9ed3bc049c7f11a20a534a"
 dependencies = [
  "git2",
  "gwz-repo-contract",
@@ -572,18 +572,18 @@ dependencies = [
 
 [[package]]
 name = "gwz-work-detector"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb9d8b2d1330c00b88c0488caff76d2e1eb11db1df56f3f763c41ab5d3de50b6"
+checksum = "dc4773cc86737d1430211e3366ca338d96bcb4433f3b526eb0bec81a2e6b96cf"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-workspace-install"
-version = "0.0.7"
+version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d8618ce11a4f27363fd0e899420895c0b3ab9e290e7ce806e38094e34a06220"
+checksum = "fe91feec7c9c08f18a803eccbd75c79151eba70071616f7df3b9f1e7d72668f5"
 dependencies = [
  "gwz-copy-contract",
  "gwz-family-model",

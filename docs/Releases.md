@@ -9,6 +9,197 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
+## 1.0.17: `gwz fetch`, and lanes that dispose clean
+
+1.0.17 (2026-09-18) adds one read-only network verb and finishes the lane
+disposal clean-up that 1.0.14 and 1.0.16 began.
+
+### `gwz fetch`
+
+`gwz fetch` contacts every selected repository's configured remote, updates
+that repository's remote-tracking refs, and prints one row each: the tracking
+ref before and after, how far the current branch is ahead of and behind it, or
+`new <after>` for a tracking ref that did not exist before, or `updated`,
+`no change`, `no upstream`, `failed`. Plain `gwz fetch` covers `@root` plus the
+configured members, and the selectors are `gwz push`'s. It answers "what moved
+upstream while I was working?" across the whole workspace in one pass, without
+changing a file.
+
+```text
+$ gwz fetch
+status: Partial
+@root      .         no change         (origin/main, +2 -0)
+mem_core   gwz-core  90ef552..330a174  (origin/main, +0 -3)
+mem_cli    gwz-cli   no change         (origin/main, +0 -0)
+mem_local  local     no upstream
+mem_priv   private   failed            RemoteRejected: member 'mem_priv' at 'private': failed to connect to 127.0.0.1: Connection refused
+```
+
+What it never does:
+
+- **It never integrates.** No merge, no rebase, no fast-forward, no reset: no
+  branch, no `HEAD`, no index, no working-tree file. Use `gwz pull` to
+  integrate what a fetch showed you.
+- **It never writes workspace artifacts.** No lock, no manifest, no boundary
+  sync. Because of that it still runs while a coordinated merge is open,
+  unlike `pull` and `push`.
+- **It never prunes.**
+- **It never skips the network, with one exception: `--dry-run`.** There is no
+  `--check-remotes` and no "unchanged since the last fetch" short-circuit as
+  there is on `gwz push`: a fetch that does not connect has answered nothing.
+  `--dry-run` is not git's. `git fetch --dry-run` contacts the remote and
+  declines to write; `gwz --dry-run fetch` contacts no remote at all, resolving
+  the selection and printing the planned rows.
+
+A planned row carries a token of its own, so it can never be read as an answer:
+
+```text
+$ gwz --dry-run fetch
+status: Noop
+@root      .         would contact origin
+mem_core   gwz-core  would contact origin
+mem_cli    gwz-cli   would contact origin
+mem_local  local     no upstream
+mem_priv   private   would contact origin
+```
+
+`would contact <remote>` is `"result": "Planned"` in the machine output, and no
+live fetch prints either. `no change` and `Unchanged` keep their one meaning:
+the repository was contacted and its tracking ref did not move. A repository
+with no fetch remote is still `no upstream` under `--dry-run`, because that
+answer needs no network.
+
+Exit codes follow `gwz push`, with one difference worth knowing: `no change`
+means contacted-and-answered rather than skipped, so a run in which one remote
+failed and every other repository read cleanly exits `1`, because the report is
+incomplete, even though nothing moved.
+
+| Exit | Meaning |
+| --- | --- |
+| `0` | every selected repository answered |
+| `1` | some answered and some failed; the report is incomplete |
+| `2` | every selected repository was refused before the network, so nothing was contacted |
+
+Exit `2` is the whole-batch refusal, for example `--remote <name>` naming a
+remote no selected repository has; a refusal before there is a selection (no
+workspace, an unknown member id) is a typed error and exits `1` as on every
+verb. A dry run shares these codes with the live run it rehearses, and refuses
+a `--remote` name a repository lacks just as the live run does.
+
+The global `--remote <name>` selects the remote each selected repository
+contacts, and `--json` carries the rows under `fetch_repos`.
+
+**Not offered yet.** This release is the verb and nothing more. `--prune`,
+`--tags`, per-remote selection and multi-remote fetch for a member that has
+more than one remote are all planned and none is implemented; this note does
+not say when. See [`gwz fetch`](commands/fetch.md).
+
+### Lane disposal: an integrated lane needs no waiver
+
+`gwz local dispose <name>` now succeeds, with no `--force` and no operator
+comparison, on a lane whose work the surviving family already holds, even one
+that was built in. Disposal compares the lane against the family, and against
+the record the clone wrote of what it copied, so the caches, ignored user data
+and stash and reflog entries a verbatim copy inherits are reported without
+refusing. What refuses is what only the lane holds.
+
+A refusal sorts what it found into four categories, printing each with its
+count and with a description of what it holds, the empty ones included. Most
+entries are paths; a protected root is described by its object id and the head
+or ref that reaches it:
+
+- **regenerable**: a tool made it and the same tool remakes it. Never refuses.
+- **unchanged copy**: the clone copied it, the lane has not touched it, and a
+  surviving member still holds it. Never refuses.
+- **changed copy**: the clone copied it and it is not the family's any more.
+  Refuses.
+- **unique to the lane**: the lane alone holds it, including any protected
+  root no single surviving family repository preserves whole. Refuses.
+
+The refusal then prints the exact `--force <hazard,...>` command that waives
+exactly what it found, and names nothing more: a lane whose only refusing entry
+is dirt is offered `--force dirty` even when the same report lists regenerable
+entries and unchanged copies beside it.
+
+**Regenerable is recognised by marker and by shape, never by a directory's
+name.** A directory holding a `CACHEDIR.TAG` that begins with the Cache
+Directory Tagging Specification's signature line; a `__pycache__/` holding
+nothing but `.pyc` and `.pyo` files; an `*.egg-info/` holding a `PKG-INFO`; a
+`bazel-*` or `razel-*` symlink whose target lies outside the workspace; a file
+ending `.so`, `.pyd` or `.dylib` inside a worktree; and an untagged build
+directory proved by its tool's own markers (cargo's `.rustc_info.json`, a
+`debug/.fingerprint` beside a `debug/deps`, a `pyvenv.cfg`). A `target` with no
+cargo marker in it is not regenerable, and neither is anything a probe cannot
+read. Recognition does not consult the copy record, so a cache the lane rebuilt
+or created from nothing is still a cache.
+
+**A forced deletion now reports what it was actually forced past**, not the
+names you typed. A waiver that covered a refusing entry is listed after
+`forced past:`; a waiver you named that covered nothing is listed after
+`unused waiver:`, so an over-broad `--force` says so in its own report.
+
+The four categories and the exact waiver command shipped in 1.0.16 with
+`regenerable` always empty. 1.0.17 fills it. See
+[Local Clones](LocalClones.md) and [`gwz local`](commands/local.md).
+
+### Catching up: 1.0.14 and 1.0.16
+
+No release notes were written for 1.0.14 (2026-09-18) or 1.0.16
+(2026-09-18). What they carried:
+
+- **Claude Code worktree hooks.** `gwz hook claude-code worktree-create` gives
+  a Claude Code session started with `--worktree` a lane, a local clone of the
+  whole workspace, instead of the `git worktree` Claude Code would have made,
+  which in a GWZ workspace has no members. `gwz hook claude-code
+  worktree-remove` disposes that lane through `gwz local dispose`, with GWZ's
+  own refusals intact and never `--force` or `--keep`. `gwz hook claude-code
+  setup` prints or writes the settings block (`--project`, `--project --local`
+  or `--user`, with `--write`) and `--remove` takes it back out, changing no
+  byte outside the block. Outside a GWZ workspace the same hooks make and
+  remove the plain worktree Claude Code would have made, so the block can live
+  in user-level settings without changing other projects. See
+  [Claude Code](ClaudeCode.md) and [`gwz hook`](commands/hook.md).
+- **`--owner <token>` and `--wait <secs>` on the family verbs.** `gwz local
+  clone --owner <token>` records an opaque caller token, up to 128 bytes of
+  `[A-Za-z0-9._:-]`, on the new member row, in the same index write that
+  reserves the row. It never changes afterwards, `gwz local list` reports it,
+  and GWZ never interprets it: it is the caller's identity for the caller's own
+  reuse decisions. `--wait <secs>` makes a busy family lock retry until the
+  deadline instead of refusing `Busy` at once, on every family verb and on
+  `gwz merge --remote <name>`; a wait that wins rereads the index before
+  acting.
+- **Family index schema v2.** Recording an owner needs a place to put it, so
+  the index carries `gwz.local-family/v2`: v1 plus the optional per-row
+  `owner`. A 1.0.14 or later gwz reads a v1 index unchanged and writes v2 on
+  its first write of any kind, a create, a dispose, a `--keep` or a family
+  merge. Going the other way is a refusal rather than a downgrade: an older gwz
+  refuses a v2 index as a whole, and its refusal names no gwz version at all.
+  On 1.0.13 it reads ``gwz: ManifestInvalid: ... .gwz/local-family.yml is
+  malformed: `schema: gwz.local-family/v2` is not `gwz.local-family/v1` (format
+  version 1); this file is not in a format this store reads``. That line is
+  derived from the 1.0.13 source
+  (`v1.0.13:crates/family-store/src/format.rs:37-42`), not from a run on this
+  machine. It calls the file malformed, which it is not, and offers no remedy;
+  the remedy is to upgrade. **Once a 1.0.14 or later gwz has written a
+  workspace's family index, every gwz used on that workspace must be 1.0.14 or
+  later.**
+- **Lane disposal clean-up, Phase 1.** `gwz local clone` records what it
+  copied per repository, and `gwz local dispose` uses that record so an
+  unchanged copy the family still holds is reported instead of refusing. Where
+  no record exists, because the lane came from an older gwz or was copied
+  outside gwz, dispose makes the comparison against the family itself. The
+  identical-copy witness settled `unpreserved-history` for a merged lane: a
+  copy the surviving family holds object for object is not a loss. 1.0.16
+  completed the phase with the four-category refusal and the exact waiver
+  command described above.
+- **`gwz ls` says why a listed member is not on disk.** A member the lock
+  records but that is absent is still listed, rather than quietly hidden, with
+  `materialized: false` and a human note: `(private, skipped)` for the
+  quiet-clone case, `recorded in the lock but absent on disk` for any other.
+  Members the lock never materialized are unchanged, omitted unless
+  `--unmaterialized` and carrying no note. Read `materialized`, not the note,
+  to decide anything. See [`gwz ls`](commands/ls.md).
+
 ## 1.0.4: the 1.0 line ships
 
 1.0.4 (2026-09-08) is the first published release of the 1.0 series — the
@@ -95,20 +286,13 @@ custom-message and `--no-ff` starts now all write the same coordinated merge
 record, so status, continue, abort and recovery behave identically whichever
 way a merge was started.
 
-## Unreleased Compatibility Notes
+## Compatibility Notes
 
-- A local clone family. `gwz local clone <name> [dest]` copies the workspace
-  as it sits into a named second working copy on the same machine,
-  `gwz local list` reports the family, `gwz merge --remote <name> [<ref>]`
-  integrates a clone's work through a retained
-  `refs/gwz/local-imports/<transfer-id>` ref, and `gwz local dispose <name>`
-  deletes a clone only when its history is verifiably preserved in another
-  surviving member (`--keep` forgets it without deleting anything;
-  `--force <hazard,...>` names accepted losses). `--clean`, `--bare` and
-  `--from` on `gwz local clone`, and family names on `pull` and `push`, are
-  parsed but refused by this build. Family names are never written into
-  `gwz.conf/` and never become Git remotes. See
-  [Local Clones](LocalClones.md).
+Behaviour a consumer of GWZ's output or metadata has to account for. Every
+note here describes **released** behaviour: the log, merge, anchor-directory
+and `gwz.conf/` notes below all shipped across the 0.10 to 1.0 releases.
+Unreleased work is described in the version section it will ship in, not here.
+
 - `gwz log` adds one newest-first history across the workspace root and selected
   member repositories, with coordinated-marker and conservative heuristic
   coalescing, revision/snapshot/lock ranges, six filters, compact and full human

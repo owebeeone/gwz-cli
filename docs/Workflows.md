@@ -100,7 +100,15 @@ gwz status
 
 ## Pull A Workspace Forward
 
-Preview first:
+Learn what moved upstream first. `gwz fetch` contacts every selected
+repository's remote and reports one line each, integrating nothing:
+
+```sh
+gwz fetch
+```
+
+See [`gwz fetch`](commands/fetch.md) for the row kinds and the exit codes.
+Then preview the integration:
 
 ```sh
 gwz --dry-run pull --head

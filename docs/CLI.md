@@ -25,7 +25,7 @@ GWZ — manage a workspace of Git repositories
 
 Usage: gwz [OPTIONS] <COMMAND>
 
-Inspect:    status  ls  diff  log
+Inspect:    status  ls  diff  log  fetch
 Change:     add  commit  branch  tag  stash  merge  pull  push
 Workspace:  init  clone  snapshot  capture  materialize
 Members:    repo add|create|clone|detach|attach|sync
@@ -125,9 +125,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -235,9 +236,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -356,9 +358,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -490,9 +493,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -601,9 +605,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -738,9 +743,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -862,9 +868,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1083,9 +1090,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1124,6 +1132,155 @@ Examples:
   gwz diff --stat
   gwz diff --name-status
   gwz diff --quiet --exit-code
+```
+
+### `gwz fetch`
+
+```text
+Contact every selected repository's remote and report what moved.
+
+`gwz fetch` fetches the configured remote of each selected workspace target,
+updates that repository's remote-tracking refs, and reports one line per
+repository: the tracking ref before and after, how far the current branch is
+ahead of and behind it, or `no change`. By default that includes the workspace
+root (`@root`) plus configured member repositories, and the selectors are
+`push`'s: `--target`, `--member`, `--member-path`, `--all`, `--no-target @root`.
+
+What it does NOT do:
+  - It never integrates. No merge, no rebase, no fast-forward, no reset: no
+    branch, no HEAD, no index and no working-tree file changes. Use `gwz pull`
+    to integrate what a fetch showed you.
+  - It never writes workspace artifacts: no lock, no manifest, no boundary
+    sync. Because of that it is one of the few network verbs that still runs
+    while a merge is open.
+  - It never prunes.
+
+It always contacts the remotes. There is no `--check-remotes` and no
+`unchanged since the last fetch` short-circuit as there is on `gwz push`: a
+fetch that does not connect has answered nothing.
+
+`--dry-run` is the one exception, and it is not git's. `git fetch --dry-run`
+contacts the remote and then declines to write the refs; `gwz --dry-run fetch`
+contacts no remote at all. It resolves the selection and prints the planned
+rows, one per repository it would have contacted, and stops there. So it
+answers `which repositories would be contacted` and never `what moved`: the
+rows carry no result from any remote.
+
+A planned row says so in its own words. It reads `would contact <remote>`, and
+its machine result is `Planned`, which a live fetch never produces. `no change`
+and `Unchanged` keep their one meaning: the repository WAS contacted and its
+tracking ref did not move. A repository with no fetch remote is still `no
+upstream` under `--dry-run`, because that answer needs no network.
+
+Exit codes follow `gwz push`: 0 when every selected repository answered,
+1 when some answered and some failed (the report is incomplete), and 2 when
+every selected repository was refused before the network, for example a
+`--remote <name>` that no selected repository has. A dry run exits with the
+same codes as the live run it rehearses, and refuses a `--remote` name a
+repository lacks just as the live run does.
+
+Usage: gwz fetch [OPTIONS]
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+      --identity <PATH>
+          Use only this SSH private-key file; no agent fallback
+
+      --remote-identity <NAME=PATH>
+          Override SSH identity for this remote name across selected repositories; repeatable
+
+      --root <path>
+          Workspace root. Defaults to the current directory when not supplied. This selects the
+          workspace for the operation; it does not change the base directory for relative operands.
+          Relative paths remain relative to the directory where gwz was invoked.
+
+      --target <selector>
+          Select repositories such as `@root`, `@all`, a member id, or a member path. This limits
+          which repositories participate; it does not change the base directory for relative
+          operands. May be supplied more than once.
+
+      --no-target <selector>
+          Exclude a workspace target after includes are expanded. May be supplied more than once.
+
+      --member <selector>
+          Compatibility alias for `--target`. Selects a workspace target by selector and may be
+          supplied more than once.
+
+      --no-member <selector>
+          Compatibility alias for `--no-target`. Excludes a workspace target and may be supplied
+          more than once.
+
+      --member-path <member-path>
+          Compatibility path selector. Selects a workspace target by member path and may be supplied
+          more than once.
+
+      --no-member-path <member-path>
+          Compatibility path exclusion. Excludes a workspace target by member path and may be
+          supplied more than once.
+
+      --all
+          Select all workspace targets (`@all`). May be combined with target exclusions.
+
+      --dry-run
+          Plan the operation without mutating workspace metadata or member repositories.
+
+      --partial
+          Allow operations to complete for members that can proceed even when another selected
+          member fails.
+
+      --force
+          Allow destructive behavior when required. GWZ refuses destructive changes unless this is
+          explicit.
+
+      --sync <mode>
+          Select workspace sync behavior. The default policy is fast-forward only.
+
+          [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
+
+      --remote <name>
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
+
+      --jobs <n>
+          Global ceiling on the total number of member repositories processed concurrently across
+          all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host.
+
+      --max-per-host <n>
+          Maximum concurrent network operations against a single remote host, so a host is not
+          overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by
+          --jobs. Defaults to 8.
+
+      --progress-interval <ms>
+          Minimum milliseconds between member progress events per repository. Coalesces
+          high-frequency Git transfer updates; 0 emits every update. Defaults to 100.
+
+      --json
+          Render one structured JSON response for the operation.
+
+      --jsonl
+          Render newline-delimited JSON records for streaming operation consumers.
+
+      --verbose
+          Show one transport diagnostic for every remote authentication attempt. These diagnostics
+          are omitted from normal human output and remain available in --json and --jsonl output.
+
+      --ssh-timeout <secs>
+          Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no
+          timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise
+          hang forever. 0 disables the timeout. Defaults to 3.
+
+Examples:
+  gwz fetch
+  gwz --no-target @root fetch
+  gwz --member mem_app fetch
+  gwz --remote upstream fetch
+  gwz --json fetch
+  gwz --dry-run fetch
 ```
 
 ### `gwz forall`
@@ -1208,9 +1365,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1322,9 +1480,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1448,9 +1607,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1593,9 +1753,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1716,9 +1877,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -1767,7 +1929,10 @@ One placement flag is required: --project for the workspace root's
 The block carries one WorktreeCreate handler and one WorktreeRemove handler,
 each with its own timeout. Inside a workspace the timeouts and the handlers'
 --wait-secs are computed from the same run-time estimate the create hook uses;
-outside one they are the compiled-in defaults. The remove handler carries only
+outside one they are the compiled-in defaults. --wait-secs is written onto a
+handler only when the estimate raises the wait above the compiled-in 300 s, so
+a small workspace's block carries no --wait-secs at all: its absence means the
+300 s default stands, not that no estimate ran. The remove handler carries only
 the options that leaf obeys.
 
 The default handler is the bare command `gwz hook ...`, resolved through PATH,
@@ -1888,9 +2053,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2053,9 +2219,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2179,9 +2346,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2365,9 +2533,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2501,9 +2670,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2660,9 +2830,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2792,9 +2963,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -2905,9 +3077,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3077,9 +3250,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3225,9 +3399,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3383,9 +3558,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3497,9 +3673,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3628,9 +3805,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3755,9 +3933,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -3883,9 +4062,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4009,9 +4189,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4131,9 +4312,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4247,9 +4429,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4363,9 +4546,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4493,9 +4677,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4621,9 +4806,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4746,9 +4932,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4867,9 +5054,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -4972,9 +5160,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -5078,9 +5267,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -5184,9 +5374,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -5290,9 +5481,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -5412,9 +5604,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across
@@ -5553,9 +5746,10 @@ Global Options:
           [possible values: fetch-only, ff-only, merge, rebase, reset, driver-selected]
 
       --remote <name>
-          Select the git remote name used by operations that contact remotes. On `pull` and `push` a
-          ready local clone family name binds to that workspace instead; on `merge` the name is
-          family-only (`gwz merge --remote <name> [<ref>]`).
+          Select the git remote name used by operations that contact remotes. On `fetch` it selects
+          the remote each selected repository contacts. On `pull` and `push` a ready local clone
+          family name binds to that workspace instead; on `merge` the name is family-only (`gwz
+          merge --remote <name> [<ref>]`).
 
       --jobs <n>
           Global ceiling on the total number of member repositories processed concurrently across

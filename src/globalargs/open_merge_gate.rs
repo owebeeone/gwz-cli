@@ -27,6 +27,9 @@ pub(super) fn open_merge_gate_request(
         CliRequest::AttachRepoMember(request) => (&request.meta, Command::RepoMutate),
         CliRequest::Materialize(request) => (&request.meta, Command::Materialize),
         CliRequest::Status(request) => (&request.meta, Command::Status),
+        // `gwz fetch` writes nothing the workspace owns, so core answers
+        // Allow for it and the pre-gate says the same (GwzFetchPlan.md D8).
+        CliRequest::Fetch(request) => (&request.meta, Command::Fetch),
         CliRequest::Ls { request, .. } => (&request.meta, Command::Ls),
         CliRequest::Forall { meta, .. } => (meta, Command::Forall),
         CliRequest::Snapshot(request) => (&request.meta, Command::Snapshot),

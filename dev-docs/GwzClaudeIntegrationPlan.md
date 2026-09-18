@@ -187,10 +187,20 @@ GWZ, from `gwz local --help`, `gwz local clone --help` and
 These are the questions the probes in Phases 1 and 2 must answer before the
 integration is documented for other users.
 
-- U1. Whether the desktop app's task chips ("fix in worktree") create their
-  session through `WorktreeCreate`. The docs never name the chips; they say
-  hooks fire in the desktop app and that a chip starts "a new session with its
-  own worktree".
+- U1. Answered 2026-09-18: yes. A "fix in worktree" chip started from a
+  gwz-dev session ran `gwz hook claude-code worktree-create` (launched by the
+  desktop app's helper), the family gained a `ready` row owned by the chip
+  session's id, the lane held every member, and no `.claude/worktrees/`
+  entry appeared. Without the hooks installed the same chip had made a
+  member-less git worktree under `.claude/worktrees/` earlier that day.
+  Claude shows nothing while the hook runs: the session looked stalled for
+  the ~2 min the hook took (lane directory born 7 s after the click, tree
+  copy 106 s, copy record and index write 10 s; no other lane or build was
+  running), so the guide should say so. A second timing on the same workspace
+  the same day: a `gwz local clone` run by hand, with one other lane present,
+  took 146 s. These are two observations, not a measured range; the guide
+  states them as observations. Originally: whether the chips create their
+  session through `WorktreeCreate`; the docs never name the chips.
 - U2. How the isolation check that inspects command text for git treats a
   wrapper such as `gwz`, which runs git internally, when invoked inside a
   lane.

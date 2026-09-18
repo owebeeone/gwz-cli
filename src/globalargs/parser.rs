@@ -166,7 +166,7 @@ pub(crate) struct GlobalArgs {
         global = true,
         value_name = "name",
         help = "Select the git remote name",
-        long_help = "Select the git remote name used by operations that contact remotes. On `pull` and `push` a ready local clone family name binds to that workspace instead; on `merge` the name is family-only (`gwz merge --remote <name> [<ref>]`)."
+        long_help = "Select the git remote name used by operations that contact remotes. On `fetch` it selects the remote each selected repository contacts. On `pull` and `push` a ready local clone family name binds to that workspace instead; on `merge` the name is family-only (`gwz merge --remote <name> [<ref>]`)."
     )]
     pub(crate) remote: Option<String>,
 
@@ -283,6 +283,12 @@ pub(crate) enum CommandArgs {
         after_long_help = DIFF_AFTER
     )]
     Diff(DiffArgs),
+    #[command(
+        about = "Fetch every selected repository's remote and report what moved (no integration)",
+        long_about = FETCH_LONG,
+        after_long_help = FETCH_AFTER
+    )]
+    Fetch,
     #[command(
         about = "Run a command in selected workspace targets: gwz forall [projects…] -- <cmd>  |  -c <string>"
     )]

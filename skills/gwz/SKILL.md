@@ -36,6 +36,12 @@ whole scope is intended. `--all` selects targets; it does **not** mean stage-all
 Preserve unrelated work and staging. A metadata-only root commit does not mean
 member edits were committed.
 
+`gwz fetch` contacts each selected repository's remote and reports what moved,
+integrating nothing; use it before `gwz pull` to learn what changed upstream,
+and `gwz push` to publish. `gwz --dry-run fetch` contacts no remote at all: its
+rows read `would contact <remote>` and carry `"result": "Planned"`, which no
+live fetch prints. A dry run never says what moved; run `gwz fetch` for that.
+
 Verify the requested outcome before reporting success: inspect status and the
 relevant files/history (`gwz log --full`, `gwz diff`). Check every requested
 repository, including the root. A successful command or plausible summary is
@@ -70,13 +76,14 @@ Work and commit in the lane, then integrate **from the receiving workspace**:
 ```sh
 gwz --root LANE add -A
 gwz --root LANE commit -m "completed work"
-gwz --root ROOT --target @all merge --remote NAME
+gwz --root ROOT merge --remote NAME
 gwz --root ROOT local dispose NAME
 ```
 
-Here `-A` assumes all lane changes are intended. Include `@all` when integrating
-the complete lane so root history travels with member history. Integrate multiple
-lanes serially. Verify committed contents and completed merge before disposal.
+Here `-A` assumes all lane changes are intended. The default selection is root
+plus every active member, so root history travels with member history without
+naming `@all`; add `--target @all` only to restore that default after a narrower
+selection. Integrate multiple lanes serially. Verify committed contents and completed merge before disposal.
 `gwz push` publishes configured Git remotes; it is not lane-to-root integration.
 
 `gwz local list` inspects the family. `local dispose NAME` deletes a preserved
@@ -98,16 +105,18 @@ none is needed: a lane sits on the workspace's own branches, so branch-based
 views do not describe it. Work and commit in the lane as in any workspace, with
 `gwz add` and `gwz commit` run from the lane root.
 
-Integrate with `gwz --target @all merge --remote NAME` run from the receiving
-workspace, never from inside the lane. The hooks never merge; integration and
+Integrate with `gwz merge --remote NAME` run from the receiving workspace,
+never from inside the lane. That default selection already carries the lane's
+root commits. The hooks never merge; integration and
 disposal remain the user's steps.
 
 Never dispose the lane you are standing in. Dispose a lane from the source
 workspace, after its merge is verified.
 
-Do not ask for subagent worktree isolation in a GWZ workspace until an
-integrated lane disposes in one command: each subagent would leave a lane
-behind that only the retirement procedure removes.
+Do not ask for subagent worktree isolation in a GWZ workspace. A subagent that
+writes outside git leaves a lane the remove hook cannot retire, and the hook
+cannot tell a subagent's lane from a session's, so each such subagent leaves a
+lane behind that only the retirement procedure removes.
 
 The settings block that installs the hooks is written with
 `gwz hook claude-code setup --write` and taken back out with `--remove`, both

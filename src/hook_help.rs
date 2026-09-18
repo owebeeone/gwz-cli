@@ -93,7 +93,10 @@ One placement flag is required: --project for the workspace root's
 The block carries one WorktreeCreate handler and one WorktreeRemove handler,
 each with its own timeout. Inside a workspace the timeouts and the handlers'
 --wait-secs are computed from the same run-time estimate the create hook uses;
-outside one they are the compiled-in defaults. The remove handler carries only
+outside one they are the compiled-in defaults. --wait-secs is written onto a
+handler only when the estimate raises the wait above the compiled-in 300 s, so
+a small workspace's block carries no --wait-secs at all: its absence means the
+300 s default stands, not that no estimate ran. The remove handler carries only
 the options that leaf obeys.
 
 The default handler is the bare command `gwz hook ...`, resolved through PATH,

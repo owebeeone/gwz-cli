@@ -279,13 +279,74 @@ deletion is refused while any hazard is detected:
 | Hazard | Meaning |
 | --- | --- |
 | `open-merge` | The member has an open coordinated merge. |
-| `dirty` | The member has staged, unstaged, untracked or ignored work. |
+| `dirty` | The member has staged, unstaged, untracked or ignored work that is the lane's own. Regenerable data and an unchanged copy are reported and do not raise it. |
 | `unpreserved-history` | Some of its history is not verifiably preserved in another surviving family member. |
 
 A clean working tree is not preservation proof, and history that exists only on
 a network remote is not certified: fetch it into a survivor first, or keep the
-lane. Each reported hazard must be named explicitly before the deletion
-proceeds:
+lane.
+
+**A lane whose work is merged needs no waiver.** `gwz local dispose <name>`
+succeeds on a lane the surviving family already holds, even one that was built
+in. Only what the lane alone holds refuses.
+
+### What the report says
+
+A refusal sorts what it found into four categories, prints each with its count
+and with a description of what it holds, and prints the empty ones too. Most
+entries are paths; a protected root is described by its object id and the head
+or ref that reaches it:
+
+| Category | Meaning | Refuses |
+| --- | --- | --- |
+| `regenerable` | A tool made it and the same tool remakes it: build directories, caches, compiled bytecode, compiled extension modules. | no |
+| `unchanged copy` | The clone copied it, the lane has not touched it, and a surviving member still holds it. | no |
+| `changed copy` | The clone copied it and it is not the family's any more: edited in the lane, or its recorded fingerprint (size, mtime, inode) no longer matches. | yes |
+| `unique to the lane` | The lane alone holds it: work it created, and any protected root no single surviving family repository preserves whole. | yes |
+
+The refusal then prints the exact `--force <hazard,...>` command that waives
+exactly what it found and nothing more, so a lane whose only refusing entry is
+dirt is offered `--force dirty` even when the same report lists regenerable
+entries and unchanged copies beside it.
+
+A forced deletion reports what it was **actually** forced past. A waiver that
+covered a refusing entry is listed after `forced past:` in the waiver
+vocabulary's own order (`open-merge`, `dirty`, `unpreserved-history`); a waiver
+you named that covered nothing is listed after `unused waiver:` in the order
+you gave it:
+
+```text
+deleted local clone `C`: /Users/you/limbo/gwz-dev-C removed, its row removed; forced past: dirty; unused waiver: unpreserved-history
+```
+
+### What counts as regenerable
+
+Recognition is by marker and by shape, **never by a directory's name**: a
+`target` with no cargo marker in it is the lane's own data, and so is a `cache`
+with no valid `CACHEDIR.TAG`. The whole list this build implements:
+
+- A directory holding a `CACHEDIR.TAG` whose first bytes are the Cache
+  Directory Tagging Specification's signature line.
+- A `__pycache__/` holding nothing but `.pyc` and `.pyo` files.
+- An `*.egg-info/` holding a `PKG-INFO` file.
+- A `bazel-*` or `razel-*` symlink whose target lies outside the workspace.
+  The link is read, never followed; one pointing inside the workspace is not
+  recognised, and neither is one whose target cannot be read.
+- A file ending `.so`, `.pyd` or `.dylib` inside a repository's worktree.
+- An untagged build directory proved by the markers its tool writes: cargo's
+  `.rustc_info.json`, or `debug/.fingerprint` beside `debug/deps` (likewise
+  for `release/`), or a `pyvenv.cfg` at the top of a virtual environment.
+
+Recognition never consults the clone's copy record, so a cache the lane rebuilt
+or created from nothing is still a cache. Anything a probe cannot read stays
+unrecognised and still refuses. An ignored build tree is reported as one entry
+and an untracked one file by file, because that is how Git reports each; a file
+is recognised through the directories it lies inside, up to the repository
+boundary.
+
+### Waivers
+
+Each *refusing* hazard must be named explicitly before the deletion proceeds:
 
 ```sh
 gwz local dispose C --force unpreserved-history
@@ -343,7 +404,8 @@ until the deadline instead of refusing at once.
   are parsed and dispatched but answer `UnsupportedOperation` in this build;
   a refused create allocates nothing. Family names on `pull` and `push` are
   not served either: they fall through to Git remote resolution and answer
-  `MissingRemote` (see [pull](pull.md) and [push](push.md)).
+  `GitCommandFailed: remote '<name>' does not exist` unless a Git remote of
+  that name exists (see [pull](pull.md) and [push](push.md)).
 - [`gwz clone`](clone.md) takes a URL and nothing else. An earlier draft of
   this feature hung creation off `gwz clone` behind a `--local` flag; that
   form was removed before any release, without an alias, and `gwz clone` now
