@@ -362,8 +362,8 @@ cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
             CliRequest::PullHead(r) => Some(&r.meta),
             CliRequest::PullSnapshot(r) => Some(&r.meta),
             CliRequest::Push(r) => Some(&r.meta),
-            CliRequest::Tag(r) => Some(&r.meta),
-            CliRequest::Snapshot(r) => Some(&r.meta),
+            CliRequest::Tag(r) if matches!(r.op, gwz_core::TagOp::Fetch | gwz_core::TagOp::Push)
+                || (matches!(r.op, gwz_core::TagOp::List | gwz_core::TagOp::Delete) && r.remote.is_some()) => Some(&r.meta),
             _ => None,
         }
     }
