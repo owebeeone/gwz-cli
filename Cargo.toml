@@ -38,6 +38,7 @@ name = "gwz"
 path = "src/main.rs"
 
 [dependencies]
+cfg-if = "1"
 clap = { version = "4", features = ["derive", "wrap_help"] }
 console = "0.16"
 gwz-core = { path = "../gwz-core" }

@@ -2,9 +2,28 @@ use super::open_merge_gate::open_merge_gate_request;
 use crate::*;
 
 pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliError> {
-    let backend = gwz_core::git::Git2Backend::new();
-    let services = backend.operation_services();
     let operation_id = new_operation_id();
+    cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+        if let Some(meta) = transport_meta(&invocation.request) {
+            let (result, cleanup) = gwz_core::transport_host::with_local_transport(
+                meta.clone(), operation_id.clone(),
+                |backend| execute_with_backend(invocation, backend, operation_id),
+            ).map_err(CliError::from_model)?;
+            if cleanup.pending_local_work != 0 {
+                eprintln!("gwz-alpha: transport cleanup has {} pending local jobs", cleanup.pending_local_work);
+            }
+            return result;
+        }
+    } }
+    execute_with_backend(invocation, &gwz_core::git::Git2Backend::new(), operation_id)
+}
+
+fn execute_with_backend(
+    invocation: &CliInvocation,
+    backend: &gwz_core::git::Git2Backend,
+    operation_id: String,
+) -> Result<CliResponse, CliError> {
+    let services = backend.operation_services();
     let start = invocation.start_dir.as_path();
     // --jsonl streams machine records to stdout; Human renders a live progress
     // line to stderr (TTY-gated); Json/Porcelain stay quiet.
@@ -46,7 +65,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
     };
     let response = match &invocation.request {
         CliRequest::RemoteIdentity(request) => gwz_core::workspace_ops::handle_remote_identity(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -59,7 +78,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         }),
         CliRequest::CloneWorkspace { meta, url, target } => {
             gwz_core::workspace_ops::handle_clone_workspace_at(
-                &backend,
+                backend,
                 start,
                 meta.clone(),
                 url,
@@ -71,7 +90,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         }
         CliRequest::CloneLocalWorkspace(request) => {
             gwz_core::workspace_ops::handle_clone_local_workspace(
-                &backend,
+                backend,
                 start,
                 request.clone(),
                 operation_id,
@@ -80,7 +99,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::LocalFamily(request) => gwz_core::workspace_ops::handle_local_family(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -93,7 +112,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         }
         CliRequest::UpdateBootstrap { meta, commit } => {
             gwz_core::workspace_ops::handle_update_workspace_bootstrap_with_commit(
-                &backend,
+                backend,
                 start,
                 meta.clone(),
                 *commit,
@@ -102,7 +121,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             .map(CliResponse::envelope)
         }
         CliRequest::InitFromSources(request) => gwz_core::workspace_ops::handle_init_from_sources(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -110,28 +129,25 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::AddExistingRepo(request) => gwz_core::workspace_ops::handle_add_existing_repo(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::CreateRepo(request) => gwz_core::workspace_ops::handle_create_repo(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
         )
         .map(|response| CliResponse::envelope(response.response)),
-        CliRequest::RepoSync(request) => gwz_core::workspace_ops::handle_repo_sync(
-            &backend,
-            start,
-            request.clone(),
-            operation_id,
-        )
-        .map(|response| CliResponse::envelope(response.response)),
+        CliRequest::RepoSync(request) => {
+            gwz_core::workspace_ops::handle_repo_sync(backend, start, request.clone(), operation_id)
+                .map(|response| CliResponse::envelope(response.response))
+        }
         CliRequest::CloneRepoMember(request) => gwz_core::workspace_ops::handle_clone_repo_member(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -140,7 +156,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::DetachRepoMember(request) => {
             gwz_core::workspace_ops::handle_detach_repo_member(
-                &backend,
+                backend,
                 start,
                 request.clone(),
                 operation_id,
@@ -149,7 +165,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         }
         CliRequest::AttachRepoMember(request) => {
             gwz_core::workspace_ops::handle_attach_repo_member(
-                &backend,
+                backend,
                 start,
                 request.clone(),
                 operation_id,
@@ -158,7 +174,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::Materialize(request) => gwz_core::workspace_ops::handle_materialize(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -166,7 +182,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Status(request) => {
-            gwz_core::status::handle_status(&backend, start, request.clone(), operation_id).map(
+            gwz_core::status::handle_status(backend, start, request.clone(), operation_id).map(
                 |response| CliResponse {
                     envelope: response.response,
                     workspace_git_status: response.workspace_git_status,
@@ -218,12 +234,12 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             operation_id,
         ),
         CliRequest::Snapshot(request) => {
-            gwz_core::workspace_ops::handle_snapshot(&backend, start, request.clone(), operation_id)
+            gwz_core::workspace_ops::handle_snapshot(backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::Tag(request) => gwz_core::workspace_ops::handle_tag_with_services(
             &services,
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -233,14 +249,14 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
             None => CliResponse::envelope(response.response),
         }),
         CliRequest::Branch(request) => {
-            gwz_core::workspace_ops::handle_branch(&backend, start, request.clone(), operation_id)
+            gwz_core::workspace_ops::handle_branch(backend, start, request.clone(), operation_id)
                 .map(CliResponse::branch)
         }
         // The one merge entry point: a request carrying `local_source_name`
         // takes core's family wrapper, and any other request reaches the
         // unchanged engine entry through it (design §6; LCM1.0c §2.4).
         CliRequest::Merge(request) => gwz_core::workspace_ops::handle_merge_with_local_family(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -248,11 +264,11 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         )
         .map(CliResponse::merge),
         CliRequest::Stash(request) => {
-            gwz_core::workspace_ops::handle_stash(&backend, start, request.clone(), operation_id)
+            gwz_core::workspace_ops::handle_stash(backend, start, request.clone(), operation_id)
                 .map(CliResponse::stash)
         }
         CliRequest::PullHead(request) => gwz_core::workspace_ops::handle_pull_head_with_events(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -260,7 +276,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::PullSnapshot(request) => gwz_core::workspace_ops::handle_pull_snapshot(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -268,7 +284,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Push(request) => gwz_core::workspace_ops::handle_push_with_events(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -276,7 +292,7 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         )
         .map(|response| CliResponse::envelope(response.response)),
         CliRequest::Fetch(request) => gwz_core::workspace_ops::handle_fetch_with_events(
-            &backend,
+            backend,
             start,
             request.clone(),
             operation_id,
@@ -284,15 +300,15 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
         )
         .map(CliResponse::fetch),
         CliRequest::Capture(request) => {
-            gwz_core::workspace_ops::handle_capture(&backend, start, request.clone(), operation_id)
+            gwz_core::workspace_ops::handle_capture(backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::Commit(request) => {
-            gwz_core::workspace_ops::handle_commit(&backend, start, request.clone(), operation_id)
+            gwz_core::workspace_ops::handle_commit(backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::Stage(request) => {
-            gwz_core::workspace_ops::handle_stage(&backend, start, request.clone(), operation_id)
+            gwz_core::workspace_ops::handle_stage(backend, start, request.clone(), operation_id)
                 .map(|response| CliResponse::envelope(response.response))
         }
         CliRequest::Diff(_) => {
@@ -333,3 +349,22 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
     };
     response.map_err(CliError::from_model)
 }
+
+cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+    fn transport_meta(request: &CliRequest) -> Option<&gwz_core::RequestMeta> {
+        match request {
+            CliRequest::CloneWorkspace { meta, .. } => Some(meta),
+            CliRequest::InitFromSources(r) => Some(&r.meta),
+            CliRequest::CloneRepoMember(r) => Some(&r.meta),
+            CliRequest::RepoSync(r) => Some(&r.meta),
+            CliRequest::Materialize(r) => Some(&r.meta),
+            CliRequest::Fetch(r) => Some(&r.meta),
+            CliRequest::PullHead(r) => Some(&r.meta),
+            CliRequest::PullSnapshot(r) => Some(&r.meta),
+            CliRequest::Push(r) => Some(&r.meta),
+            CliRequest::Tag(r) => Some(&r.meta),
+            CliRequest::Snapshot(r) => Some(&r.meta),
+            _ => None,
+        }
+    }
+} }
