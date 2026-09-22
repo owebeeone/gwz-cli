@@ -65,6 +65,7 @@ impl Cli {
                 default_identity: self.global.identity.clone(),
                 remote_identities: self.global.remote_identities.clone(),
                 url_scheme: None,
+                ..Default::default()
             }),
             invocation: Some(gwz_core::InvocationContext {
                 caller_cwd: caller_cwd.to_string_lossy().into_owned(),
