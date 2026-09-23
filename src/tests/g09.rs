@@ -4,7 +4,7 @@
 use std::io;
 use std::path::Path;
 
-use clap::CommandFactory;
+use clap::{CommandFactory, Parser};
 
 use super::*;
 use crate::tests::g01::{TempDir, request_meta, strings};
@@ -226,6 +226,39 @@ fn serialized_context_keeps_an_outside_caller_distinct_from_workspace_root() {
             .and_then(|workspace| workspace.root.as_deref()),
         Some(workspace.to_str().unwrap())
     );
+}
+
+#[test]
+fn jobs_and_host_limits_render_the_documented_help() {
+    let short = Cli::try_parse_from(["gwz", "fetch", "-h"])
+        .expect_err("short help")
+        .to_string();
+    let short = short.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(short.contains("Global ceiling on concurrent member operations (default 100)"));
+    assert!(short.contains("Max concurrent member operations to any one hostname (default 32)"));
+    let long = Cli::try_parse_from(["gwz", "fetch", "--help"])
+        .expect_err("long help")
+        .to_string();
+    let normalized = long.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(normalized.contains("Global ceiling on the total number of member repositories processed concurrently across all hosts. These are concurrent operations in this process, not extra processes. Defaults to 100. The smallest value is 1. 0 is rejected. Per-host concurrency is bounded separately by --max-per-host. Values above 100 are accepted."));
+    assert!(normalized.contains("Maximum concurrent member operations against one remote hostname. The hostname is the host in the remote URL, lowercased, before SSH config is applied. Two URLs share this limit when they contain the same host. A URL whose host cannot be parsed is bounded only by --jobs. Defaults to 32. The smallest value is 1. 0 is rejected. Values above 32 are accepted. Each of these operations uses one connection."));
+}
+
+#[test]
+fn ssh_timeout_help_describes_independent_setup_clocks() {
+    let short = Cli::try_parse_from(["gwz", "fetch", "-h"])
+        .expect_err("short help")
+        .to_string();
+    let short = short.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(short.contains("Per-attempt stall limit for setup and for a body read; stalled setup is retried (0 = no timeout, default 9)"));
+    let long = Cli::try_parse_from(["gwz", "fetch", "--help"])
+        .expect_err("long help")
+        .to_string();
+    let long = long.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(long.contains(
+        "0 disables this stall clock and the 30 second setup budget on both SSH and HTTPS."
+    ));
+    assert!(long.contains("At these defaults, a setup that makes no progress is reported after at most 4 times 9 seconds"));
 }
 
 #[test]

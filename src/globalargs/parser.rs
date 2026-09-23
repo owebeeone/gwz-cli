@@ -175,8 +175,8 @@ pub(crate) struct GlobalArgs {
         global = true,
         value_name = "n",
         value_parser = parse_positive_i64,
-        help = "Global ceiling on concurrent member operations (default 50)",
-        long_help = "Global ceiling on the total number of member repositories processed concurrently across all hosts. Defaults to 50. Per-host concurrency is bounded separately by --max-per-host."
+        help = "Global ceiling on concurrent member operations (default 100)",
+        long_help = "Global ceiling on the total number of member repositories processed concurrently across all hosts. These are concurrent operations in this process, not extra processes. Defaults to 100. The smallest value is 1. 0 is rejected. Per-host concurrency is bounded separately by --max-per-host. Values above 100 are accepted."
     )]
     pub(crate) jobs: Option<i64>,
 
@@ -185,8 +185,8 @@ pub(crate) struct GlobalArgs {
         global = true,
         value_name = "n",
         value_parser = parse_positive_i64,
-        help = "Max concurrent connections to any one host (default 8)",
-        long_help = "Maximum concurrent network operations against a single remote host, so a host is not overloaded. Members whose host cannot be parsed (e.g. local paths) are bounded only by --jobs. Defaults to 8."
+        help = "Max concurrent member operations to any one hostname (default 32)",
+        long_help = "Maximum concurrent member operations against one remote hostname. The hostname is the host in the remote URL, lowercased, before SSH config is applied. Two URLs share this limit when they contain the same host. A URL whose host cannot be parsed is bounded only by --jobs. Defaults to 32. The smallest value is 1. 0 is rejected. Values above 32 are accepted. Each of these operations uses one connection."
     )]
     pub(crate) max_per_host: Option<i64>,
 
@@ -229,8 +229,8 @@ pub(crate) struct GlobalArgs {
         global = true,
         value_name = "secs",
         value_parser = parse_non_negative_i64,
-        help = "Abort a stalled SSH/network read after N seconds (0 = no timeout, default 3)",
-        long_help = "Maximum seconds to wait on a stalled SSH/network read before failing. libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise hang forever. 0 disables the timeout. Defaults to 3."
+        help = "Per-attempt stall limit for setup and for a body read; stalled setup is retried (0 = no timeout, default 9)",
+        long_help = "Seconds without progress before that read fails. The clock applies to setup, and it applies to a stalled read during a fetch, push, or pull body. A body stall aborts that repository and is not retried. A setup stall fails one attempt, and that attempt is retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget. libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, a setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1 second of jitter, about 44 seconds. A setup that keeps making progress but never finishes can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt."
     )]
     pub(crate) ssh_timeout: Option<i64>,
 }
