@@ -348,7 +348,8 @@ impl StageArgs {
     ) -> Result<CliRequest, CliError> {
         Ok(CliRequest::Stage(gwz_core::StageRequest {
             meta,
-            cwd: cwd.to_string_lossy().into_owned(),
+            cwd: gwz_core::workspace_ops::path_text(cwd, "stage working directory")
+                .map_err(CliError::from_model)?,
             pathspecs: self.pathspecs.clone(),
             all: self.stage_all.then_some(true),
         }))

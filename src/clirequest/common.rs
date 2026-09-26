@@ -200,7 +200,9 @@ pub(crate) fn workspace_relative_cwd(
     let root_abs = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
     let cwd_abs = std::fs::canonicalize(current_dir).unwrap_or_else(|_| current_dir.to_path_buf());
     match cwd_abs.strip_prefix(&root_abs) {
-        Ok(rel) => Some(rel.to_string_lossy().replace('\\', "/")),
+        // A relative form that is not valid Unicode cannot be sent exactly; the
+        // caller then keeps its absolute base, which is sent exactly or refused.
+        Ok(rel) => rel.to_str().map(|text| text.replace('\\', "/")),
         Err(_) => None,
     }
 }

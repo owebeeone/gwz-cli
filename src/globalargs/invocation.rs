@@ -29,9 +29,9 @@ pub(crate) fn invocation_from_cli(
         .map(|root| gwz_core::workspace_ops::resolve_invocation_path(&caller_start, root))
         .transpose()
         .map_err(CliError::from_model)?
-        .unwrap_or_else(|| caller_start.clone())
-        .to_string_lossy()
-        .into_owned();
+        .unwrap_or_else(|| caller_start.clone());
+    let workspace_root = gwz_core::workspace_ops::path_text(&workspace_root, "workspace root")
+        .map_err(CliError::from_model)?;
     let request = cli.command_request(meta, workspace_root, &caller_start)?;
     Ok(CliInvocation {
         request,
