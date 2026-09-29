@@ -238,6 +238,13 @@ jobs:
           echo "OBSERVED_CLI_SHA=$observed_cli" >> "$GITHUB_ENV"
           echo "OBSERVED_CORE_SHA=$observed_core" >> "$GITHUB_ENV"
 
+      - name: Check out git2-rs beside gwz-core
+        # gwz-core builds against the git2-rs fork by path (`../git2-rs`, package
+        # `gwz-git2`), at the commit gwz-core's .github/git2-rs.commit pins.
+        shell: bash
+        working-directory: gwz-core
+        run: bash .github/checkout-git2-rs.sh
+
       - name: Install exact Rust toolchain
         shell: bash
         run: |
