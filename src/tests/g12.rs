@@ -2232,11 +2232,12 @@ fn generated_reference_and_command_page_cover_local() {
         assert!(page.contains("`--remote origin` keeps its usual meaning"));
         // The binding behind the name is core's and is not landed, so the page
         // must not read as though it already works. The fall-through answers
-        // GitCommandFailed, which is what the pages must name: MissingRemote
-        // is not what the binary prints.
-        assert!(page.contains("`GitCommandFailed` in this build"));
-        assert!(!page.contains("MissingRemote"));
+        // MissingRemote, which machine output spells the same way: never the
+        // wire name `missing_remote`, and never the GitCommandFailed that
+        // 1.0.17 printed for it in error.
+        assert!(page.contains("`MissingRemote` in this build"));
         assert!(!page.contains("missing_remote"));
+        assert!(!page.contains("GitCommandFailed"));
     }
 }
 

@@ -531,8 +531,7 @@ disbanded local family fam_3fa95fa799ee9ec5b04999adba13e651: 1 pointer(s) and 1 
 Afterwards every directory is an ordinary, unrelated GWZ workspace. Family
 names stop resolving: `gwz merge --remote A` becomes a family miss, and
 `--remote A` on `pull` or `push` falls through to ordinary Git remote
-resolution (`GitCommandFailed: remote 'A' does not exist` unless a Git remote of
-that name exists). Disband
+resolution (`MissingRemote` unless a Git remote of that name exists). Disband
 can be repeated after an error, and it never deletes a directory.
 
 ## The Deletion Position, In Plain Terms
@@ -624,7 +623,7 @@ before anything is written. The messages are what the current build prints.
   Git remote answers:
 
   ```text
-  gwz: GitCommandFailed: remote 'A' does not exist
+  gwz: MissingRemote: missing remote 'A'
   ```
 
   Integrate from the receiving side with `gwz merge --remote <name>` instead.

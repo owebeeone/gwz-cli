@@ -33,6 +33,7 @@ rust_library(
     ),
     deps = [
         "//gwz-core:gwz_core",
+        "@crates//:cfg-if",
         "@crates//:clap",
         "@crates//:console",
         "@crates//:serde_json",

@@ -27,6 +27,9 @@ const REJECTED: i32 = 2;
 const UNSUPPORTED: &str = "UnsupportedOperation";
 /// Design §7 / §11 item 13: `merge --remote <name>` named no ready member.
 const UNKNOWN_LOCAL: &str = "UnknownLocal";
+/// Design §6: a `pull`/`push` name that is neither a ready member nor a Git
+/// remote.
+const MISSING_REMOTE: &str = "MissingRemote";
 /// `dispose` (served since LCM2.2) and `dispose --keep` (since LCM1.1) in a
 /// workspace that is in no family.
 const MEMBER_NOT_FOUND: &str = "MemberNotFound";
@@ -74,6 +77,9 @@ fn family_verbs_reach_core_and_report_its_typed_refusal() {
             UNKNOWN_LOCAL,
         ),
         (vec!["merge", "--remote", "origin"], UNKNOWN_LOCAL),
+        // Pull keeps the Git-remote fall-through, so the same miss there is
+        // the existing missing remote, as docs/commands/pull.md prints it.
+        (vec!["pull", "--head", "--remote", "C"], MISSING_REMOTE),
     ] {
         let human = run(&temp, &args);
         assert_eq!(exit(&human), DISPATCHED, "{args:?}: {}", stderr(&human));

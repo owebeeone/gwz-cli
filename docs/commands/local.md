@@ -404,8 +404,8 @@ until the deadline instead of refusing at once.
   are parsed and dispatched but answer `UnsupportedOperation` in this build;
   a refused create allocates nothing. Family names on `pull` and `push` are
   not served either: they fall through to Git remote resolution and answer
-  `GitCommandFailed: remote '<name>' does not exist` unless a Git remote of
-  that name exists (see [pull](pull.md) and [push](push.md)).
+  `MissingRemote` unless a Git remote of that name exists (see [pull](pull.md)
+  and [push](push.md)).
 - [`gwz clone`](clone.md) takes a URL and nothing else. An earlier draft of
   this feature hung creation off `gwz clone` behind a `--local` flag; that
   form was removed before any release, without an alias, and `gwz clone` now

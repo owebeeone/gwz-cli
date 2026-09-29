@@ -205,3 +205,18 @@ fn push_and_pull_request_ci_runs_the_release_script_unit_tests() {
         "run: python -m unittest scripts/test_release.py -v"
     ));
 }
+
+#[test]
+fn push_and_pull_request_ci_runs_the_process_global_check_beside_gwz_core() {
+    // GwzCoreSessionDesign O9: gwz-core's checker scans this crate against
+    // scripts/process_globals_allowlist.json, so the job checks gwz-core out
+    // beside gwz-cli, as the platform gate lays the two out.
+    assert!(has_line(CI_WORKFLOW, "repository: owebeeone/gwz-core"));
+    assert!(has_line(CI_WORKFLOW, "path: gwz-core"));
+    assert!(has_line(CI_WORKFLOW, "path: gwz-cli"));
+    assert!(has_line(CI_WORKFLOW, "working-directory: gwz-cli"));
+    assert!(has_line(
+        CI_WORKFLOW,
+        "run: python -m unittest scripts/test_process_globals.py -v"
+    ));
+}

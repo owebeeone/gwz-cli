@@ -6,11 +6,16 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
     cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
         if let Some(meta) = transport_meta(&invocation.request) {
             let (result, cleanup) = gwz_core::transport_host::with_local_transport(
-                meta.clone(), operation_id.clone(),
+                meta.clone(),
+                operation_id.clone(),
                 |backend| execute_with_backend(invocation, backend, operation_id),
-            ).map_err(CliError::from_model)?;
+            )
+            .map_err(CliError::from_model)?;
             if cleanup.pending_local_work != 0 {
-                eprintln!("gwz-alpha: transport cleanup has {} pending local jobs", cleanup.pending_local_work);
+                eprintln!(
+                    "gwz-alpha: transport cleanup has {} pending local jobs",
+                    cleanup.pending_local_work
+                );
             }
             return result;
         }
@@ -362,8 +367,13 @@ cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
             CliRequest::PullHead(r) => Some(&r.meta),
             CliRequest::PullSnapshot(r) => Some(&r.meta),
             CliRequest::Push(r) => Some(&r.meta),
-            CliRequest::Tag(r) if matches!(r.op, gwz_core::TagOp::Fetch | gwz_core::TagOp::Push)
-                || (matches!(r.op, gwz_core::TagOp::List | gwz_core::TagOp::Delete) && r.remote.is_some()) => Some(&r.meta),
+            CliRequest::Tag(r)
+                if matches!(r.op, gwz_core::TagOp::Fetch | gwz_core::TagOp::Push)
+                    || (matches!(r.op, gwz_core::TagOp::List | gwz_core::TagOp::Delete)
+                        && r.remote.is_some()) =>
+            {
+                Some(&r.meta)
+            }
             _ => None,
         }
     }

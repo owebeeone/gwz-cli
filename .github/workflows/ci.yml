@@ -23,3 +23,28 @@ jobs:
           python-version: '3.11'
       - name: Release script unit tests
         run: python -m unittest scripts/test_release.py -v
+  process-globals:
+    # GwzCoreSessionDesign O9: gwz-core's check_process_globals.py scans this
+    # crate against scripts/process_globals_allowlist.json, and fails on
+    # production code under tests/ too. gwz-cli's main builds against the
+    # gwz-core checkout beside it, so gwz-core's main is checked out there,
+    # the way the platform gate lays the two out.
+    name: Process-global state
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: gwz-cli
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: owebeeone/gwz-core
+          path: gwz-core
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Process-global state check
+        working-directory: gwz-cli
+        run: python -m unittest scripts/test_process_globals.py -v
