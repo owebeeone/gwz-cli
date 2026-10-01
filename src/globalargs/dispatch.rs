@@ -361,7 +361,6 @@ cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
             CliRequest::CloneWorkspace { meta, .. } => Some(meta),
             CliRequest::InitFromSources(r) => Some(&r.meta),
             CliRequest::CloneRepoMember(r) => Some(&r.meta),
-            CliRequest::RepoSync(r) => Some(&r.meta),
             CliRequest::Materialize(r) => Some(&r.meta),
             CliRequest::Fetch(r) => Some(&r.meta),
             CliRequest::PullHead(r) => Some(&r.meta),
