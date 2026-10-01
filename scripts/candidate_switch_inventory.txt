@@ -1,0 +1,23 @@
+# Candidate switch inventory: gwz-cli
+#
+# Every site in this repository where a candidate switch, gwz_transport_candidate
+# or gwz_session_candidate, appears in a cfg: one line per site, sorted, giving
+# the switch, the file and the symbol, two spaces apart. gwz-core's
+# scripts/checks/check_candidate_switches.py defines a site and its symbol, and
+# its --list prints these lines. Rule (a) of gwz-core
+# dev-docs/GwzTransportReleasePlanAmendment-2.md §3.13 (TR2.12); the program
+# checkpoint records this file's SHA-256.
+#
+# Read by scripts/test_candidate_switches.py (CI job "Candidate switch
+# inventory"), which runs gwz-core's checker over this repository and fails
+# unless the sites equal these lines and build.rs declares both switches in
+# check-cfg.
+#
+# S7.1 (1.1.0) updates this file when it moves each site that gates 1.2.0 work
+# to gwz_session_candidate and removes gwz_transport_candidate, and S7.1 (1.2.0)
+# when it removes gwz_session_candidate. Any change that adds, moves or removes
+# a site updates it in the same change.
+#
+# switch  file  symbol
+gwz_transport_candidate  src/globalargs/dispatch.rs  fn execute_invocation
+gwz_transport_candidate  src/globalargs/dispatch.rs  fn transport_meta

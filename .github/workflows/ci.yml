@@ -48,3 +48,28 @@ jobs:
       - name: Process-global state check
         working-directory: gwz-cli
         run: python -m unittest scripts/test_process_globals.py -v
+  candidate-switches:
+    # TR2.12, rule (a) of gwz-core dev-docs/GwzTransportReleasePlanAmendment-2.md
+    # §3.13: gwz-core's check_candidate_switches.py finds every site in this
+    # crate where a candidate switch appears in a cfg, and fails unless the
+    # sites equal scripts/candidate_switch_inventory.txt. gwz-core's main is
+    # checked out beside gwz-cli, as for the process-global check.
+    name: Candidate switch inventory
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: gwz-cli
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: owebeeone/gwz-core
+          path: gwz-core
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Candidate switch inventory check
+        working-directory: gwz-cli
+        run: python -m unittest scripts/test_candidate_switches.py -v
