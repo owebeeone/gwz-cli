@@ -9,7 +9,13 @@
 
 use std::path::Path;
 use std::process::{Command, Output};
-use std::time::{SystemTime, UNIX_EPOCH};
+
+// The crate's temp-dir helper, shared with the unit tests: a directory it
+// returns is one that call created, never one a parallel test holds.
+#[path = "../src/tests/temp_dir.rs"]
+mod temp_dir;
+
+use temp_dir::TempDir;
 
 // ── acceptance tests ─────────────────────────────────────────────────────────
 
@@ -426,23 +432,14 @@ fn nonexistent_bare_operand_fails_with_dashdash_hint() {
 /// A materialized GWZ workspace: root repo + one Git member `lib`, each with a
 /// committed baseline file so `gwz diff` has a HEAD to compare against.
 struct Workspace {
-    root: std::path::PathBuf,
+    root: TempDir,
 }
 
 impl Workspace {
     fn new(prefix: &str) -> Self {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "gwz-cli-diff-{prefix}-{}-{unique}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).unwrap();
-
-        let ws = Workspace { root };
+        let ws = Workspace {
+            root: TempDir::new(&format!("diff-{prefix}")),
+        };
         assert_success(&ws.gwz(&["--root", ws.root_str(), "init"]));
         assert_success(&ws.gwz(&["--root", ws.root_str(), "repo", "create", "lib"]));
 
@@ -452,19 +449,19 @@ impl Workspace {
         git_commit(&ws.member_path(), "member init");
 
         // Seed + commit the root baseline (repo::create already `git init`ed root).
-        std::fs::write(ws.root.join("top.txt"), "roottop\n").unwrap();
-        git(&ws.root, &["add", "-A"]);
-        git_commit(&ws.root, "root init");
+        std::fs::write(ws.root.path().join("top.txt"), "roottop\n").unwrap();
+        git(ws.root.path(), &["add", "-A"]);
+        git_commit(ws.root.path(), "root init");
 
         ws
     }
 
     fn root_str(&self) -> &str {
-        self.root.to_str().unwrap()
+        self.root.path().to_str().unwrap()
     }
 
     fn member_path(&self) -> std::path::PathBuf {
-        self.root.join("lib")
+        self.root.path().join("lib")
     }
 
     /// Overwrite the member file (worktree only).
@@ -479,7 +476,7 @@ impl Workspace {
 
     /// Dirty the root worktree (unstaged change).
     fn dirty_root(&self, content: &str) {
-        std::fs::write(self.root.join("top.txt"), content).unwrap();
+        std::fs::write(self.root.path().join("top.txt"), content).unwrap();
     }
 
     /// Run `gwz --root <root> diff <args>` with cwd at the workspace root.
@@ -500,16 +497,10 @@ impl Workspace {
 
     fn gwz(&self, args: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_gwz"))
-            .current_dir(&self.root)
+            .current_dir(self.root.path())
             .args(args)
             .output()
             .unwrap()
-    }
-}
-
-impl Drop for Workspace {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.root);
     }
 }
 

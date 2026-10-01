@@ -12,7 +12,8 @@ use std::path::Path;
 
 use clap::CommandFactory;
 
-use super::g01::{TempDir, strings};
+use super::g01::strings;
+use super::temp_dir::TempDir;
 use super::*;
 
 // ---------------------------------------------------------------------------

@@ -13,9 +13,15 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
+
+// The crate's temp-dir helper, shared with the unit tests: a directory it
+// returns is one that call created, never one a parallel test holds.
+#[path = "../src/tests/temp_dir.rs"]
+mod temp_dir;
+
+use temp_dir::TempDir;
 
 /// A dispatched refusal: core answered, so the process exits 1 and machine
 /// modes carry the typed code on stdout.
@@ -693,35 +699,6 @@ fn exit(output: &Output) -> i32 {
 
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).replace("\r\n", "\n")
-}
-
-struct TempDir {
-    path: PathBuf,
-}
-
-impl TempDir {
-    fn new(prefix: &str) -> Self {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "gwz-cli-it-{prefix}-{}-{unique}",
-            std::process::id()
-        ));
-        std::fs::create_dir_all(&path).unwrap();
-        Self { path }
-    }
-
-    fn path(&self) -> &Path {
-        &self.path
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
 }
 
 #[test]

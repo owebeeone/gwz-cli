@@ -1,9 +1,26 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
+
+// The crate's temp-dir helper, shared with the unit tests: a directory it
+// returns is one that call created, never one a parallel test holds.
+#[path = "../src/tests/temp_dir.rs"]
+mod temp_dir;
+
+use temp_dir::TempDir;
+
+/// The temp dir's path as the `&str` an argument list takes.
+trait PathStr {
+    fn path_str(&self) -> &str;
+}
+
+impl PathStr for TempDir {
+    fn path_str(&self) -> &str {
+        self.path().to_str().unwrap()
+    }
+}
 
 #[test]
 fn help_flags_print_usage() {
@@ -1367,39 +1384,6 @@ impl RemoteFixture {
 fn init_bare_main(path: &Path) {
     let repo = git2::Repository::init_bare(path).unwrap();
     repo.set_head("refs/heads/main").unwrap();
-}
-
-struct TempDir {
-    path: PathBuf,
-}
-
-impl TempDir {
-    fn new(prefix: &str) -> Self {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "gwz-cli-it-{prefix}-{}-{unique}",
-            std::process::id()
-        ));
-        fs::create_dir_all(&path).unwrap();
-        Self { path }
-    }
-
-    fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn path_str(&self) -> &str {
-        self.path.to_str().unwrap()
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
-    }
 }
 
 // --- dry-run absence-of-mutation coverage (DR-1..DR-5), through the binary, with the

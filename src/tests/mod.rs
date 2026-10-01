@@ -18,4 +18,6 @@ mod g13;
 mod g14;
 mod g15;
 mod m2c;
+pub(crate) mod temp_dir;
+mod temp_dir_tests;
 mod transport_scope;

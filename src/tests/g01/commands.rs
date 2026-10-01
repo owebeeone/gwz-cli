@@ -1,4 +1,5 @@
 use super::*;
+use crate::tests::temp_dir::TempDir;
 
 #[test]
 pub(crate) fn parses_command_matrix() {
@@ -495,33 +496,6 @@ pub(crate) fn request_meta(request_id: &str) -> gwz_core::RequestMeta {
         request_id: request_id.to_owned(),
         schema_version: "gwz.protocol/v0".to_owned(),
         ..Default::default()
-    }
-}
-
-pub(crate) struct TempDir {
-    pub(crate) path: PathBuf,
-}
-
-impl TempDir {
-    pub(crate) fn new(prefix: &str) -> Self {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("gwz-cli-{prefix}-{}-{unique}", std::process::id()));
-        fs::create_dir_all(&path).unwrap();
-        Self { path }
-    }
-
-    pub(crate) fn path(&self) -> &Path {
-        &self.path
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
     }
 }
 

@@ -141,6 +141,7 @@ pub(crate) fn table_per_file_micros(probe: &ShareProbe) -> u64 {
 #[cfg(unix)]
 mod platform {
     use super::{PROBE_BYTES, PROBE_SHARE_CEILING, ShareProbe};
+    use std::fs::{File, OpenOptions};
     use std::io::Write;
     use std::path::{Path, PathBuf};
     use std::process::Command;
@@ -241,14 +242,14 @@ mod platform {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|value| value.as_nanos())
             .unwrap_or_default();
-        let seed =
-            destination_parent.join(format!(".gwz-clone-probe-{}-{stamp}", std::process::id()));
-        let clone = destination_parent.join(format!(
-            ".gwz-clone-probe-{}-{stamp}.clone",
-            std::process::id()
-        ));
-        let written = (|| -> std::io::Result<()> {
-            let mut file = std::fs::File::create(&seed)?;
+        let base = format!(".gwz-clone-probe-{}-{stamp}", std::process::id());
+        let Ok((mut file, seed)) = create_seed(destination_parent, &base) else {
+            return probe;
+        };
+        let mut clone = seed.clone().into_os_string();
+        clone.push(".clone");
+        let clone = PathBuf::from(clone);
+        let written = (move || -> std::io::Result<()> {
             let block = vec![0_u8; 1 << 20];
             for _ in 0..(PROBE_BYTES >> 20) {
                 file.write_all(&block)?;
@@ -265,6 +266,63 @@ mod platform {
         let _ = std::fs::remove_file(&clone);
         let _ = std::fs::remove_file(&seed);
         probe
+    }
+
+    /// Names the probe may try before giving up. A taken name needs another
+    /// probe from this process id in the same clock tick, so a few are plenty.
+    const SEED_ATTEMPTS: u32 = 1000;
+
+    /// The probe's seed file under `parent`, which this call created: the
+    /// first of `{base}`, `{base}-1`, ... that `create_new` makes. A name from
+    /// the process id and a clock that macOS reads to the microsecond can
+    /// already be taken; the probe skips it rather than write into, and then
+    /// remove, a file it did not create. The clone is named after the seed.
+    fn create_seed(parent: &Path, base: &str) -> std::io::Result<(File, PathBuf)> {
+        for attempt in 0..SEED_ATTEMPTS {
+            let path = if attempt == 0 {
+                parent.join(base)
+            } else {
+                parent.join(format!("{base}-{attempt}"))
+            };
+            match OpenOptions::new().write(true).create_new(true).open(&path) {
+                Ok(file) => {
+                    return Ok((file, path));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(error) => {
+                    return Err(error);
+                }
+            }
+        }
+        Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!(
+                "{base} and {base}-1 to {base}-{} are all taken",
+                SEED_ATTEMPTS - 1
+            ),
+        ))
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::create_seed;
+        use crate::tests::temp_dir::TempDir;
+
+        /// A seed name already taken, by a probe drawn in the same clock tick
+        /// or by anything else, is skipped and left as it was: the probe never
+        /// writes into, or removes, a seed it did not create.
+        #[test]
+        fn a_seed_name_already_taken_is_skipped_and_left_alone() {
+            let parent = TempDir::new("probe-seed");
+            let taken = parent.path().join(".gwz-clone-probe-same-tick");
+            std::fs::write(&taken, b"another probe's bytes").unwrap();
+
+            let (_file, seed) = create_seed(parent.path(), ".gwz-clone-probe-same-tick").unwrap();
+
+            assert_ne!(seed, taken);
+            assert_eq!(std::fs::read(&taken).unwrap(), b"another probe's bytes");
+            assert_eq!(std::fs::metadata(&seed).unwrap().len(), 0);
+        }
     }
 }
 

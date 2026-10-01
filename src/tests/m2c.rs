@@ -2,7 +2,8 @@ use std::fs;
 
 use sha2::{Digest, Sha256};
 
-use super::g01::{TempDir, request_meta};
+use super::g01::request_meta;
+use super::temp_dir::TempDir;
 use super::*;
 
 #[test]

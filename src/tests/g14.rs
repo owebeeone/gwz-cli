@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use super::g01::TempDir;
+use super::temp_dir::TempDir;
 
 use crate::hook::env::{HookEnv, ShareProbe};
 use crate::hook::estimate::estimate;

@@ -6,7 +6,8 @@ use std::path::Path;
 use clap::CommandFactory;
 
 use super::*;
-use crate::tests::g01::{TempDir, request_meta, strings};
+use crate::tests::g01::{request_meta, strings};
+use crate::tests::temp_dir::TempDir;
 
 fn log_invocation(args: Vec<String>, cwd: &Path) -> Box<LogInvocation> {
     let invocation =

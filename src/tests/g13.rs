@@ -14,7 +14,8 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use super::g01::{TempDir, request_meta};
+use super::g01::request_meta;
+use super::temp_dir::TempDir;
 use super::*;
 
 use crate::hook::create::{Decision, decide, run_worktree_create};

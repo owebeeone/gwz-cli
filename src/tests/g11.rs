@@ -7,7 +7,8 @@ use std::path::Path;
 use serde_json::{Value, json};
 
 use super::*;
-use crate::tests::g01::{TempDir, request_meta};
+use crate::tests::g01::request_meta;
+use crate::tests::temp_dir::TempDir;
 
 const MARKER: &str = "01987b0c-2f75-7c4a-9a32-8fd22f7d7c91";
 const HASH_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
