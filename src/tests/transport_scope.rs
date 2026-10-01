@@ -6,6 +6,11 @@
 //! from those arms would leave the transport silently; an extra arm builds a
 //! runtime for an operation that opens no connection.
 //!
+//! Since 1.1.0 S6.2 the arms only name each request's operation, and gwz-core's
+//! `transport_scope`, which gwz-py's extension shares, decides; gwz-core pins
+//! that predicate to the same call sites (gwz-py
+//! dev-docs/GwzPyPerOperationTransportDesign.md §2.1).
+//!
 //! The test reads source text, gwz-core's from the checkout beside this one, so
 //! it runs in the ordinary build and still covers the arms that only the
 //! candidate switch compiles.

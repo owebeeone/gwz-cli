@@ -356,24 +356,23 @@ fn execute_with_backend(
 }
 
 cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+    /// The request's metadata when it runs inside a transport runtime: gwz-core's
+    /// transport scope decides, the predicate gwz-py's extension shares
+    /// (gwz-py dev-docs/GwzPyPerOperationTransportDesign.md §2.1).
     fn transport_meta(request: &CliRequest) -> Option<&gwz_core::RequestMeta> {
-        match request {
-            CliRequest::CloneWorkspace { meta, .. } => Some(meta),
-            CliRequest::InitFromSources(r) => Some(&r.meta),
-            CliRequest::CloneRepoMember(r) => Some(&r.meta),
-            CliRequest::Materialize(r) => Some(&r.meta),
-            CliRequest::Fetch(r) => Some(&r.meta),
-            CliRequest::PullHead(r) => Some(&r.meta),
-            CliRequest::PullSnapshot(r) => Some(&r.meta),
-            CliRequest::Push(r) => Some(&r.meta),
-            CliRequest::Tag(r)
-                if matches!(r.op, gwz_core::TagOp::Fetch | gwz_core::TagOp::Push)
-                    || (matches!(r.op, gwz_core::TagOp::List | gwz_core::TagOp::Delete)
-                        && r.remote.is_some()) =>
-            {
-                Some(&r.meta)
-            }
-            _ => None,
-        }
+        use gwz_core::transport_scope::{Operation, in_scope};
+        let (operation, meta, tag) = match request {
+            CliRequest::CloneWorkspace { meta, .. } => (Operation::CloneWorkspace, meta, None),
+            CliRequest::InitFromSources(r) => (Operation::InitFromSources, &r.meta, None),
+            CliRequest::CloneRepoMember(r) => (Operation::CloneRepoMember, &r.meta, None),
+            CliRequest::Materialize(r) => (Operation::Materialize, &r.meta, None),
+            CliRequest::Fetch(r) => (Operation::Fetch, &r.meta, None),
+            CliRequest::PullHead(r) => (Operation::PullHead, &r.meta, None),
+            CliRequest::PullSnapshot(r) => (Operation::PullSnapshot, &r.meta, None),
+            CliRequest::Push(r) => (Operation::Push, &r.meta, None),
+            CliRequest::Tag(r) => (Operation::Tag, &r.meta, Some(r)),
+            _ => return None,
+        };
+        in_scope(operation, tag).then_some(meta)
     }
 } }
