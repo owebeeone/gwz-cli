@@ -69,7 +69,8 @@ impl Cli {
             .then(|| gwz_core::TransportOptions {
                 default_identity: self.global.identity.clone(),
                 remote_identities: self.global.remote_identities.clone(),
-                url_scheme: None,
+                // The rest stay unset: `url_scheme`, and the placement fields
+                // the transport candidate build adds to this struct.
                 ..Default::default()
             }),
             invocation: Some(gwz_core::InvocationContext {
