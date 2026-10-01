@@ -90,7 +90,7 @@ pub(crate) fn render_fetch_response(
         // with nothing after it must not carry that padding off the end.
         lines.push(line.trim_end().to_owned());
     }
-    for error in &response.envelope.errors {
+    for error in errors_not_on_members(&response.envelope) {
         lines.push(format!("{:?}: {}", error.code, error.message));
     }
     lines.join("\n")

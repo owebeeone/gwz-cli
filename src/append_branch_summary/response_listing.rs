@@ -347,7 +347,7 @@ pub(crate) fn render_human_response(response: &CliResponse, verbose: bool) -> St
         }
         lines.push(line);
     }
-    for error in &response.envelope.errors {
+    for error in errors_not_on_members(&response.envelope) {
         lines.push(format!("{:?}: {}", error.code, error.message));
     }
     if push && let Some(summary) = unchecked_push_summary(&response.envelope.members) {

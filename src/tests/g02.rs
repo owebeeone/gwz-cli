@@ -1,5 +1,6 @@
 use super::*;
 
+mod partial_errors;
 mod push_check_remotes;
 mod shared_rendering;
 mod url_scheme_rendering;
