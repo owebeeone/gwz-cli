@@ -162,7 +162,7 @@ pub(crate) fn render_stash_response(
             member.member_id, member.member_path, member.status
         ));
     }
-    for error in &response.envelope.errors {
+    for error in errors_not_on_members(&response.envelope) {
         lines.push(format!("{:?}: {}", error.code, error.message));
     }
     lines.join("\n")

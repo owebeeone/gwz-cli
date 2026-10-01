@@ -214,10 +214,9 @@ fn the_human_report_is_one_line_per_repository() {
     );
 }
 
-/// A failed row says which repository and why, on its own line, and the
-/// aggregate says the report is incomplete.
-#[test]
-fn a_failed_row_carries_its_reason() {
+/// One repository read cleanly and one whose remote refused, as core reports
+/// it: `Partial`, the refusal on its row and repeated in `errors`.
+fn partial_fetch() -> CliResponse {
     let mut failed = member("mem_broken", "broken", gwz_core::MemberStatus::Failed);
     failed.error = Some(gwz_core::GwzError {
         code: gwz_core::model::ErrorCode::RemoteRejected.into(),
@@ -226,12 +225,13 @@ fn a_failed_row_carries_its_reason() {
         member_path: Some("broken".to_owned()),
         ..Default::default()
     });
+    let copy = failed.error.clone();
     let mut broken_row = row("mem_broken", "broken", gwz_core::FetchResult::Failed);
     broken_row.upstream = None;
     broken_row.ahead = None;
     broken_row.behind = None;
 
-    let response = fetch_response(
+    let mut response = fetch_response(
         gwz_core::AggregateStatus::Partial,
         vec![
             member("mem_good", "good", gwz_core::MemberStatus::Noop),
@@ -242,11 +242,45 @@ fn a_failed_row_carries_its_reason() {
             broken_row,
         ],
     );
+    response.envelope.errors = copy.into_iter().collect();
+    response
+}
+
+/// A failed row says which repository and why, on its own line, and the
+/// aggregate says the report is incomplete.
+#[test]
+fn a_failed_row_carries_its_reason() {
+    let response = partial_fetch();
     let rendered = render_response(&response, OutputMode::Human);
     assert!(rendered.starts_with("status: Partial"), "{rendered}");
     assert!(rendered.contains("failed"), "{rendered}");
     assert!(rendered.contains("connection refused"), "{rendered}");
     assert_eq!(exit_code_for_response(&response.envelope), 1);
+}
+
+/// `errors` repeats the failed row's reason for machine readers
+/// (docs/MachineOutput.md, "Partial results"); the human report still prints
+/// it once, on the row.
+#[test]
+fn a_partial_fetch_prints_the_reason_once_and_json_repeats_it_in_errors() {
+    let response = partial_fetch();
+    let mut without_copy = response.clone();
+    without_copy.envelope.errors.clear();
+
+    let rendered = render_response(&response, OutputMode::Human);
+    assert_eq!(rendered, render_response(&without_copy, OutputMode::Human));
+    assert_eq!(
+        rendered.matches("connection refused").count(),
+        1,
+        "{rendered}"
+    );
+
+    let json = render_response(&response, OutputMode::Json);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+    assert_eq!(
+        value["errors"],
+        serde_json::json!([value["members"][1]["error"]])
+    );
 }
 
 /// `--json` carries the structured rows under `fetch_repos`, and they appear
