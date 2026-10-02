@@ -150,5 +150,6 @@ on every verb. A dry run shares these codes with the live run it rehearses.
 - [`gwz push`](push.md) — the mirror verb, and the source of `fetch`'s
   selection and exit-code conventions.
 - [Machine output](../MachineOutput.md#fetch-json) — the `fetch_repos` rows.
-- [Partial results](../MachineOutput.md#partial-results) — how a run that exits
-  `1` lists each failed repository's error in `errors`.
+- [Failed, rejected and partial results](../MachineOutput.md#failed-rejected-and-partial-results)
+  — how a run that exits `1` or `2` lists each failed or refused repository's
+  error in `errors`.
