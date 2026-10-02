@@ -32,6 +32,10 @@ cfg_if::cfg_if! {
             if parsed < 0 {
                 return Err("--max-retries must be zero or greater".to_owned());
             }
+            // The transport counts attempts in a u32 and refuses a larger budget.
+            if parsed > i64::from(u32::MAX) {
+                return Err(format!("--max-retries must be at most {}", u32::MAX));
+            }
             Ok(parsed)
         }
         /// The sentence each of fetch, push and pull ends its long help with.
@@ -102,9 +106,14 @@ cfg_if::cfg_if! {
             fn max_retries_reaches_the_operation_policy() {
                 assert_eq!(policy(&["--max-retries", "0", "fetch"]).max_retries, Some(0));
                 assert_eq!(policy(&["--max-retries", "7", "fetch"]).max_retries, Some(7));
+                // The largest count the transport holds is kept as given.
+                assert_eq!(
+                    policy(&["--max-retries", "4294967295", "fetch"]).max_retries,
+                    Some(4_294_967_295)
+                );
                 // Absent, the transport's default of three retries applies.
                 assert_eq!(policy(&["fetch"]).max_retries, None);
-                for refused in ["-1", "x"] {
+                for refused in ["-1", "x", "4294967296"] {
                     assert!(
                         Cli::try_parse_from(["gwz", "--max-retries", refused, "fetch"]).is_err(),
                         "{refused}"
