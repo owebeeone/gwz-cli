@@ -127,6 +127,50 @@ An unreadable snapshot or marker is also rejected. Repair it rather than
 bypassing the identity check. See
 [Repository Member Lifecycle](RepoLifecycle.md) for the full contract.
 
+## HTTPS Credential Failure
+
+In the planned 1.1.0 transport candidate, GWZ runs the user's configured Git
+credential helpers, including `gh`. Its helper timeout messages link here; the
+same guidance applies to SSH's ambient password-only helper route. Ordinary
+SSH agent/key selection is described below. Windows transport parity remains
+under qualification.
+
+GWZ reads captured system/global/XDG configuration and session `GIT_CONFIG_*`
+overrides with unconditional includes. It excludes repository-local files and
+all `includeIf` entries. It preserves matching helper order and empty resets.
+Native Git can therefore succeed through a different helper. To repair GWZ,
+sign in to or repair the helper in its actual unconditional chain; keep legitimate
+unconditional includes. Privately record original entries, their source and
+order before changing them; remove only newly introduced entries and restore
+the original chain to undo. Never print a helper's credential answer.
+
+For an existing member, find its URL with
+`git -C <member-path> remote get-url origin`. Before cloning use its manifest
+URL, or the effective URL after `->` in `gwz --verbose materialize --lock` when
+converting to HTTPS. `git ls-remote <member-url>` can unlock a store, but a
+success through a local or conditional helper does not prove GWZ's helper was
+repaired. `git config --get-urlmatch credential.helper <member-url>` inside a
+repository has the same scope caveat.
+
+`credential_helper_timeout` (code 75) reports the exact available allowance:
+either a helper could not start while waiting for resources, or it did not
+answer after admission. The maximum interaction allowance is 120 seconds;
+caller/configured limits can shorten it. Slot waiting has a separate allocation
+allowance, so increasing the network timeout does not repair a waiting helper.
+Finish a pending sign-in/unlock, or repair the selected helper, then retry the
+operation. There are eight helper slots per endpoint and eight shared host
+slots, including cleanup; member jobs and connection limits are separate.
+
+If `git` is missing or cannot execute, repair the captured `PATH`/installation
+and start a new operation. If the credential is rejected, renew it where it is
+stored and retry. GWZ does not run credential `store` or `erase` and does not
+automatically switch to the native transport. The candidate's
+`gwz --transport native fetch` permits an explicit comparison; use
+`--transport gwz` or remove your override to return. See
+[authentication](commands/auth.md) for precedence and persistent setting removal,
+and the [core helper guide](https://github.com/owebeeone/gwz-core/blob/main/docs/CredentialHelpers.md)
+for timeout and configuration details.
+
 ## SSH Or Credential Failure
 
 Symptoms:
