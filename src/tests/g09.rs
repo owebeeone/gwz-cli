@@ -251,15 +251,22 @@ fn ssh_timeout_help_describes_independent_setup_clocks() {
         .expect_err("short help")
         .to_string();
     let short = short.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(short.contains("Per-attempt stall limit for setup and for a body read; stalled setup is retried (0 = no timeout, default 9)"));
+    assert!(short.contains("Per-attempt stall limit for SSH setup and for a body read; stalled setup is retried (0 = no timeout, default 9)"));
     let long = Cli::try_parse_from(["gwz", "fetch", "--help"])
         .expect_err("long help")
         .to_string();
     let long = long.split_whitespace().collect::<Vec<_>>().join(" ");
+    // The stall clock is SSH setup's and every body read's; HTTPS setup has
+    // only the 30 second budget.
+    assert!(long.contains("The clock applies to SSH setup, and it applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS."));
+    assert!(long.contains(
+        "HTTPS setup has no stall clock, only the 30 second setup budget that SSH setup also has."
+    ));
     assert!(long.contains(
         "0 disables this stall clock and the 30 second setup budget on both SSH and HTTPS."
     ));
-    assert!(long.contains("At these defaults, a setup that makes no progress is reported after at most 4 times 9 seconds"));
+    assert!(long.contains("At these defaults, an SSH setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds."));
+    assert!(!long.contains("SSH and HTTPS use this same stall clock"));
 }
 
 #[test]

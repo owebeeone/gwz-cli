@@ -158,20 +158,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz auth identity`
@@ -284,20 +285,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz add`
@@ -421,20 +423,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz add src/main.rs
@@ -571,20 +574,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz branch                         list branches
@@ -698,20 +702,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz clone`
@@ -851,20 +856,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz clone git@github.com:org/workspace.git
@@ -991,20 +997,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz diff`
@@ -1228,20 +1235,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz diff
@@ -1394,20 +1402,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz fetch
@@ -1533,20 +1542,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz hook`
@@ -1663,20 +1673,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz hook claude-code`
@@ -1805,20 +1816,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Each hook logs one line per decision: to `<root>/.gwz/claude-hooks.log` in a
 workspace, and to `~/.claude/gwz-lane-hooks.log` otherwise, or wherever --log
@@ -1966,20 +1978,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   echo '{"name":"fix-123","session_id":"abc"}' | gwz hook claude-code worktree-create
@@ -2105,20 +2118,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   echo '{"worktree_path":"/path/to/lane"}' | gwz hook claude-code worktree-remove
@@ -2296,20 +2310,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz hook claude-code setup --project
@@ -2477,20 +2492,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz init
@@ -2619,20 +2635,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz local clone A ../gwz-dev-A
@@ -2821,20 +2838,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz local clone A ../gwz-dev-A
@@ -2973,20 +2991,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Example:
   gwz local list
@@ -3148,20 +3167,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz local dispose C
@@ -3296,20 +3316,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Example:
   gwz local disband
@@ -3425,20 +3446,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz log`
@@ -3613,20 +3635,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz log
@@ -3777,20 +3800,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz materialize
@@ -3951,20 +3975,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz pull`
@@ -4081,20 +4106,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz pull --head
@@ -4228,20 +4254,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz push
@@ -4371,20 +4398,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz repo clone git@github.com:org/shared-lib.git libs/shared
@@ -4515,20 +4543,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz repo add repos/app
@@ -4657,20 +4686,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz repo clone git@github.com:org/shared-lib.git
@@ -4795,20 +4825,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz repo create repos/new-service
@@ -4927,20 +4958,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz repo detach mem_shared
@@ -5059,20 +5091,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz repo detach mem_shared
@@ -5205,20 +5238,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz repo sync
@@ -5349,20 +5383,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz snapshot before-refactor
@@ -5490,20 +5525,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz stash push
@@ -5627,20 +5663,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz stash list`
@@ -5748,20 +5785,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz stash apply`
@@ -5870,20 +5908,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz stash pop`
@@ -5992,20 +6031,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz stash drop`
@@ -6114,20 +6154,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 ```
 
 ### `gwz status`
@@ -6252,20 +6293,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz status
@@ -6409,20 +6451,21 @@ Global Options:
           are omitted from normal human output and remain available in --json and --jsonl output.
 
       --ssh-timeout <secs>
-          Seconds without progress before that read fails. The clock applies to setup, and it
-          applies to a stalled read during a fetch, push, or pull body. A body stall aborts that
-          repository and is not retried. A setup stall fails one attempt, and that attempt is
-          retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget.
-          libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host
-          would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget
-          on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled
-          by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts
-          at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of
-          jitter. That wait is not this flag. At these defaults, a setup that makes no progress is
-          reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1
-          second of jitter, about 44 seconds. A setup that keeps making progress but never finishes
-          can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add
-          up to 120 seconds on each attempt.
+          Seconds without progress before that read fails. The clock applies to SSH setup, and it
+          applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS. A body
+          stall aborts that repository and is not retried. A setup stall fails one attempt, and that
+          attempt is retried. HTTPS setup has no stall clock, only the 30 second setup budget that
+          SSH setup also has. libssh2 has no timeout by default, so a missing ssh-agent identity or
+          an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30
+          second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9.
+          Retries are controlled by --max-retries (default 3 extra attempts). The wait after a
+          failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds,
+          plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, an SSH
+          setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4
+          seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that
+          makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds. A setup
+          that keeps making progress but never finishes can use the 30 second budget on each
+          attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt.
 
 Examples:
   gwz tag v1                      create v1 across members (and the committed root)
