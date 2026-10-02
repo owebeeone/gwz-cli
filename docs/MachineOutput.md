@@ -69,23 +69,38 @@ with `meta: null`, no members, and one error entry. Per-member failures retain
 `member_id`, `member_path`, and `target_kind: "Member"` even when preflight
 rejects the whole operation before a normal response exists.
 
-### Partial results
+### Failed, rejected and partial results
 
-When `meta.aggregate_status` is `Partial`, some repositories succeeded and
-others did not. `errors` then lists the `error` of every member entry whose
-`status` is `Failed` or `Rejected`, in `members` order. Each is a copy of that
-entry's `error`, field for field, so it names its repository in `member_id`,
-`member_path` and `target_kind` (`Member`, or `Root` for the workspace root).
-The member entries keep their own `error`. A script can read `errors` alone to
-learn which repositories failed and why. Abbreviated, a `Partial` fetch in
-which one remote refused:
+When `meta.aggregate_status` is `Partial`, `Failed` or `Rejected`, some or all
+repositories did not succeed. `errors` then lists the `error` of every member
+entry whose `status` is `Failed` or `Rejected`, in `members` order. Each is a
+copy of that entry's `error`, field for field, so it names its repository in
+`member_id`, `member_path` and `target_kind` (`Member`, or `Root` for the
+workspace root). The member entries keep their own `error`. A script can read
+`errors` alone to learn which repositories failed and why. Abbreviated, a
+`Failed` fetch in which every remote refused; the root has no remote, so its
+row is `Noop`:
 
 ```json
 {
   "kind": "response",
-  "meta": { "action": "Fetch", "aggregate_status": "Partial" },
+  "meta": { "action": "Fetch", "aggregate_status": "Failed" },
   "members": [
-    { "member_id": "mem_app", "member_path": "app", "status": "Noop", "error": null },
+    { "member_id": "@root", "member_path": ".", "status": "Noop", "error": null },
+    {
+      "member_id": "mem_app",
+      "member_path": "app",
+      "status": "Failed",
+      "error": {
+        "code": "RemoteRejected",
+        "message": "member 'mem_app' at 'app': connection refused",
+        "member_id": "mem_app",
+        "member_path": "app",
+        "target_kind": "Member",
+        "detail": null,
+        "record_context": null
+      }
+    },
     {
       "member_id": "mem_lib",
       "member_path": "lib",
@@ -104,6 +119,15 @@ which one remote refused:
   "errors": [
     {
       "code": "RemoteRejected",
+      "message": "member 'mem_app' at 'app': connection refused",
+      "member_id": "mem_app",
+      "member_path": "app",
+      "target_kind": "Member",
+      "detail": null,
+      "record_context": null
+    },
+    {
+      "code": "RemoteRejected",
       "message": "member 'mem_lib' at 'lib': connection refused",
       "member_id": "mem_lib",
       "member_path": "lib",
@@ -119,22 +143,23 @@ which one remote refused:
   reports in its own right.
 - An entry with any other status, such as `Skipped`, keeps its error on the
   entry only.
-- Every other aggregate status leaves `errors` as it was. A `Failed` or
-  `Rejected` result keeps its member failures on the member entries only.
+- Every other aggregate status, such as `Ok`, `Noop` or `Conflicted`, leaves
+  `errors` as it was: a member entry's error stays on the entry only.
 - The final `kind: "response"` object of a `--jsonl` stream follows the same
   rule.
 - `gwz log` is outside this rule: its machine output is a record stream, and a
   repository it could not read is a degradation record (see Commit Log Output).
 - Human output and exit codes are unchanged; a human report prints no copy.
-- gwz-py raises `GwzOperationError` for a `Partial` result. Its
-  `member_errors` is this list, and `gwz-py --json` prints it as `errors`.
+- gwz-py raises `GwzOperationError` for a `Partial`, `Failed` or `Rejected`
+  result. Its `member_errors` is this list, and `gwz-py --json` prints it as
+  `errors`.
 
-This changed after gwz 1.0.17, whose `Partial` results left `errors` empty and
-reported member failures on the member entries only. A script that gathers
-failures from both `members` and `errors` now finds each one twice, and should
-read one or the other. A script that took a non-empty `errors` to mean the whole
-command failed must read `aggregate_status`: on `Partial`, some repositories
-succeeded.
+This changed after gwz 1.0.17, which kept each member failure on its member
+entry only, so a `Partial`, `Failed` or `Rejected` result's `errors` held none
+of them. A script that gathers failures from both `members` and `errors` now
+finds each one twice, and should read one or the other. A script that took a
+non-empty `errors` to mean the whole command failed must read
+`aggregate_status`: on `Partial`, some repositories succeeded.
 
 ### `url_resolution`
 
@@ -733,8 +758,9 @@ a fetch response and on no other response.
   tracking ref could move. `remote`, `before` and `after` may all be absent.
   It is a reported row, not a failure.
 - `Failed`: the remote refused, or the fetch errored. The reason is on the
-  matching `members` entry's `error`, where every other verb puts it. When the
-  aggregate is `Partial`, `errors` repeats it (see Partial results).
+  matching `members` entry's `error`, where every other verb puts it, and
+  `errors` repeats it (see
+  [Failed, rejected and partial results](#failed-rejected-and-partial-results)).
 - `Planned`: `--dry-run` only. The repository would have been contacted and was
   not, so the row carries no result from any remote. A live fetch never
   produces it.

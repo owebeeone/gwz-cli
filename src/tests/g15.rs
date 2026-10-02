@@ -264,8 +264,8 @@ fn a_failed_row_carries_its_reason() {
 }
 
 /// `errors` repeats the failed row's reason for machine readers
-/// (docs/MachineOutput.md, "Partial results"); the human report still prints
-/// it once, on the row.
+/// (docs/MachineOutput.md, "Failed, rejected and partial results"); the human
+/// report still prints it once, on the row.
 #[test]
 fn a_partial_fetch_prints_the_reason_once_and_json_repeats_it_in_errors() {
     let response = partial_fetch();

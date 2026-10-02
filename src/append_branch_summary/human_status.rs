@@ -168,10 +168,7 @@ pub(crate) fn append_status_issues(lines: &mut Vec<String>, response: &CliRespon
         }
     }
     issues.extend(
-        response
-            .envelope
-            .errors
-            .iter()
+        errors_not_on_members(&response.envelope)
             .map(|error| format!("{:?}: {}", error.code, error.message)),
     );
     if issues.is_empty() {
