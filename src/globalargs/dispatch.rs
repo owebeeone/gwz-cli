@@ -1,10 +1,20 @@
 use super::open_merge_gate::open_merge_gate_request;
 use crate::*;
 
+cfg_if::cfg_if! { if #[cfg(any(test, not(all(unix, gwz_transport_candidate))))] {
 pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliError> {
+    execute_invocation_selected(invocation, false)
+}
+
+} }
+
+pub(crate) fn execute_invocation_selected(
+    invocation: &CliInvocation,
+    _native: bool,
+) -> Result<CliResponse, CliError> {
     let operation_id = new_operation_id();
     cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
-        if let Some(meta) = transport_meta(&invocation.request) {
+        if let Some(meta) = transport_meta(&invocation.request).filter(|_| !_native) {
             let (result, cleanup) = gwz_core::transport_host::with_local_transport(
                 meta.clone(),
                 operation_id.clone(),

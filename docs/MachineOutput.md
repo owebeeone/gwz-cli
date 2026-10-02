@@ -198,6 +198,29 @@ The parenthesis reports `from --url-scheme`, `from GWZ_URL_SCHEME`, or
 `from .gwz/url-scheme.yml`. With `--verbose`, each converted member also gets
 one `manifest-url -> effective-url` line.
 
+### `meta.transport_setting`
+
+In the transport candidate build, the final network response optionally carries
+`meta.transport_setting`:
+
+```json
+{"transport":"native","source":"flag","file":null,"included":false,"ignored":[],"skipped":[]}
+```
+
+`transport` is `gwz` or `native`; `source` is `flag`, `environment`,
+`global_configuration` or `default`. `file` names the deciding global file,
+or is null. `included` means that file reached the value through `include.path`.
+Each `ignored` row has `scope` (`root` or `member`), `member_id` (null for root),
+`file`, `included`, and `value` (null for a valueless key). Each `skipped` row
+has `file`, naming an unreadable global file. Both arrays are present even when
+empty. Paths and IDs are JSON strings.
+
+The object is absent exactly when gwz applies by default with nothing ignored
+or skipped. Non-network commands and error records with null `meta` never carry
+it. JSONL adds no Diagnostic event; read the final response object. Machine
+modes print no setting notices to stderr. Authentication rows in `meta.transport`
+are reported on either transport.
+
 ### `meta.transport`
 
 `meta.transport` is an optional list of rows, one per remote authentication

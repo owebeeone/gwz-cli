@@ -48,6 +48,26 @@ bytes and passphrases are never included; public fingerprints appear only when
 known from the actual credential.
 
 `--ssh-timeout SECONDS` sets the native connection/read timeout at process startup
-(default: 3 seconds; 0 disables it). Python applications must configure it before
+(default: 9 seconds in gwz, or 3 with `--transport native`; 9 seconds on either transport in gwz-py; 0 disables it). Python applications must configure it before
 creating a native backend. Once fixed, later calls may repeat the same value but
 cannot change the process setting while other requests could be running.
+
+
+The transport candidate build accepts the global `--transport gwz|native` flag.
+`gwz` is the default; `native` selects libgit2's transport as gwz 1.0 used,
+with 50 jobs, 8 connections per host and a 3 second connect/read timeout.
+Explicit `--jobs`, `--max-per-host` and `--ssh-timeout` values override those
+defaults. Native has no connection pooling or setup retry; `--max-retries`
+has no effect. There is no automatic fallback between transports.
+
+The flag overrides `GWZ_TRANSPORT`, which overrides `gwz.transport` in your
+global Git configuration. Set it with `git config --global gwz.transport native`;
+remove it with `git config --global --unset-all gwz.transport`. Unset
+`GWZ_TRANSPORT` to remove the environment override, or pass `--transport gwz`
+for one command. gwz reads `~/.gitconfig` and `$XDG_CONFIG_HOME/git/config`
+(default `~/.config/git/config`), follows `include.path`, and applies no
+`includeIf`. It does not read `GIT_CONFIG_GLOBAL` or system configuration.
+Repository values in `.git/config` or `config.worktree` are ignored and reported.
+Each human network command prints one native notice before dispatch; `--verbose`
+names the selected transport and source. Machine output carries the setting in
+`meta.transport_setting`. Non-network commands do not resolve the setting.

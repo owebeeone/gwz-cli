@@ -170,12 +170,10 @@ pub fn run() {
         }
         Err(error) => error.exit(),
     };
-    // Bound stalled SSH/network reads (libssh2 has no timeout by default, so a missing
-    // ssh-agent identity or unreachable host would hang forever). Set once, before any
-    // operation spawns threads. `--ssh-timeout` is in seconds (0 disables); default 9s.
-    let ssh_timeout_ms =
-        (cli.global.ssh_timeout.unwrap_or(9).saturating_mul(1000)).clamp(0, i32::MAX as i64) as i32;
-    gwz_core::git::set_server_timeout_ms(ssh_timeout_ms);
+    let explicit_ssh_timeout = cli.global.ssh_timeout;
+    cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+        let transport_flag = cli.global.transport.selected();
+    } }
     let cwd = match std::env::current_dir() {
         Ok(cwd) => cwd,
         Err(error) => {
@@ -186,6 +184,39 @@ pub fn run() {
 
     match invocation_from_cli(cli, &new_request_id(), &cwd) {
         Ok(invocation) => {
+            cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+                let mut invocation = invocation;
+            } }
+            cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+                let environment = gwz_core::session_host::EnvironmentSnapshot::from_os_pairs(
+                    std::env::vars_os(),
+                ).expect("process environment is valid");
+                let transport_report = match prepare_transport(&mut invocation, transport_flag, &environment) {
+                    Ok(report) => report,
+                    Err(error) => {
+                        match invocation.output {
+                            OutputMode::Json | OutputMode::Jsonl => println!("{}", render_error_json(&error)),
+                            OutputMode::Human | OutputMode::Porcelain => eprintln!("gwz: {}", error.human_message()),
+                        }
+                        std::process::exit(2);
+                    }
+                };
+                let ssh_timeout = transport_report.as_ref()
+                    .map_or(explicit_ssh_timeout.unwrap_or(9), |report| report.timeout_seconds(explicit_ssh_timeout));
+                if invocation.output == OutputMode::Human
+                    && let Some(report) = &transport_report
+                {
+                    for note in report.notes() {
+                        eprintln!("{note}");
+                    }
+                }
+            } else {
+                let ssh_timeout = explicit_ssh_timeout.unwrap_or(9);
+            } }
+            // libgit2's timeout is process-wide: choose it once before any backend exists.
+            let ssh_timeout_ms =
+                (ssh_timeout.saturating_mul(1000)).clamp(0, i32::MAX as i64) as i32;
+            gwz_core::git::set_server_timeout_ms(ssh_timeout_ms);
             // Diff owns its whole lifecycle: it streams patch bytes and computes
             // its own exit code, so it never flows through the response renderer.
             if let CliRequest::Diff(diff) = &invocation.request {
@@ -263,13 +294,26 @@ pub fn run() {
                     }
                 }
             }
-            match execute_invocation(&invocation) {
+            cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+                let execution = execute_invocation_selected(
+                    &invocation,
+                    transport_report.as_ref().is_some_and(|report| report.is_native()),
+                );
+            } else {
+                let execution = execute_invocation(&invocation);
+            } }
+            match execution {
                 Ok(response) => {
                     let rendered = render_response_with_transport(
                         &response,
                         invocation.output,
                         invocation.verbose,
                     );
+                    cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+                        let rendered = transport_report.as_ref().map_or(rendered.clone(), |report| {
+                            report.render(rendered, invocation.output, invocation.verbose)
+                        });
+                    } }
                     if !rendered.is_empty() {
                         println!("{rendered}");
                     }

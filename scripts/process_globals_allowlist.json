@@ -37,6 +37,8 @@
     {"path": "src/pager.rs", "kind": "process", "name": "Command::new(\"sh\")", "disposition": "permanent", "imposed_by": "the user's pager command line ($GIT_PAGER or $PAGER), which only the platform shell runs as written",
      "reason": "Unix: the pager runs through sh -c and inherits the terminal and the user's environment."},
     {"path": "src/url_scheme_arg.rs", "kind": "env", "name": "env::var", "count": 2, "disposition": "debt", "owner": "CS6.1 (proposed: the session plan names no step for these reads)",
-     "reason": "gwz's own GWZ_URL_SCHEME, read at the point of use: when the request is built, and again when the summary names the scheme's source. No dependency imposes it. It belongs with the environment the session driver captures at startup (GwzCoreSessionDesign §11)."}
+     "reason": "gwz's own GWZ_URL_SCHEME, read at the point of use: when the request is built, and again when the summary names the scheme's source. No dependency imposes it. It belongs with the environment the session driver captures at startup (GwzCoreSessionDesign §11)."},
+    {"path": "src/lib.rs", "kind": "env", "name": "env::vars_os", "disposition": "permanent", "imposed_by": "CLI process entry: capture the command environment once (GwzTransportOffSwitchDesign §2; GwzCoreSessionDesign §11)",
+     "reason": "One immutable EnvironmentSnapshot is passed to the resolver before backend creation; no core policy reads the process environment and no mutable process-global state is introduced."}
   ]
 }

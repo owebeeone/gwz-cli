@@ -4,7 +4,7 @@
 use std::io;
 use std::path::Path;
 
-use clap::{CommandFactory, Parser};
+use clap::CommandFactory;
 
 use super::*;
 use crate::tests::g01::{request_meta, strings};
@@ -229,6 +229,8 @@ fn serialized_context_keeps_an_outside_caller_distinct_from_workspace_root() {
     );
 }
 
+cfg_if::cfg_if! { if #[cfg(not(all(unix, gwz_transport_candidate)))] {
+use clap::Parser;
 #[test]
 fn jobs_and_host_limits_render_the_documented_help() {
     let short = Cli::try_parse_from(["gwz", "fetch", "-h"])
@@ -268,6 +270,8 @@ fn ssh_timeout_help_describes_independent_setup_clocks() {
     assert!(long.contains("At these defaults, an SSH setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1 second of jitter, about 44 seconds, and an HTTPS setup that makes no progress after 4 times 30 seconds plus the same waits, about 128 seconds."));
     assert!(!long.contains("SSH and HTTPS use this same stall clock"));
 }
+
+} }
 
 #[test]
 fn clap_help_preserves_the_exact_s31_surface_and_strict_contract() {

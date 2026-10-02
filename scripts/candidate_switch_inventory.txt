@@ -19,8 +19,20 @@
 # a site updates it in the same change.
 #
 # switch  file  symbol
+gwz_transport_candidate  src/globalargs.rs  use dispatch::execute_invocation
+gwz_transport_candidate  src/globalargs.rs  use dispatch::execute_invocation_selected
 gwz_transport_candidate  src/globalargs/dispatch.rs  fn execute_invocation
+gwz_transport_candidate  src/globalargs/dispatch.rs  fn execute_invocation_selected
 gwz_transport_candidate  src/globalargs/dispatch.rs  fn transport_meta
 gwz_transport_candidate  src/globalargs/retry.rs  mod pins
 gwz_transport_candidate  src/globalargs/retry.rs  struct RetryArgs
+gwz_transport_candidate  src/globalargs/transport.rs  struct TransportArgs
+gwz_transport_candidate  src/globalargs/transport_help.rs  const JOBS_HELP
+gwz_transport_candidate  src/lib.rs  fn run
+gwz_transport_candidate  src/lib.rs  fn run
+gwz_transport_candidate  src/lib.rs  fn run
+gwz_transport_candidate  src/lib.rs  fn run
+gwz_transport_candidate  src/lib.rs  fn run
 gwz_transport_candidate  src/tests/g00.rs  fn cli_reference_doc_matches_generated_clap_help
+gwz_transport_candidate  src/tests/g09.rs  fn jobs_and_host_limits_render_the_documented_help
+gwz_transport_candidate  tests/transport_workflows.rs  fn workspace
