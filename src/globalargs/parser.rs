@@ -233,6 +233,10 @@ pub(crate) struct GlobalArgs {
         long_help = "Seconds without progress before that read fails. The clock applies to setup, and it applies to a stalled read during a fetch, push, or pull body. A body stall aborts that repository and is not retried. A setup stall fails one attempt, and that attempt is retried. SSH and HTTPS use this same stall clock and the same 30 second setup budget. libssh2 has no timeout by default, so a missing ssh-agent identity or an unreachable host would otherwise hang forever. 0 disables this stall clock and the 30 second setup budget on both SSH and HTTPS. It does not disable retries. Defaults to 9. Retries are controlled by --max-retries (default 3 extra attempts). The wait after a failed setup attempt starts at 1 second and doubles, and does not grow past 30 seconds, plus up to 0.25 seconds of jitter. That wait is not this flag. At these defaults, a setup that makes no progress is reported after at most 4 times 9 seconds plus 1, 2, and 4 seconds of waits and under 1 second of jitter, about 44 seconds. A setup that keeps making progress but never finishes can use the 30 second budget on each attempt, about 128 seconds. A host-key prompt can add up to 120 seconds on each attempt."
     )]
     pub(crate) ssh_timeout: Option<i64>,
+
+    /// `--max-retries`, which only the transport build has.
+    #[command(flatten)]
+    pub(crate) retry: RetryArgs,
 }
 
 fn parse_remote_identity(value: &str) -> Result<gwz_core::RemoteSshIdentity, String> {

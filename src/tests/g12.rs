@@ -1115,6 +1115,10 @@ fn rooted_list_response(
     family_response(gwz_core::LocalFamilyOp::List, Some(root_path), members)
 }
 
+#[allow(
+    clippy::needless_update,
+    reason = "gwz_transport_candidate adds fields"
+)]
 fn family_response(
     op: gwz_core::LocalFamilyOp,
     root_path: Option<&str>,
@@ -1133,6 +1137,7 @@ fn family_response(
                     operation_id: Some("op_test".to_owned()),
                     message: None,
                     attribution: None,
+                    ..Default::default()
                 },
                 members: Vec::new(),
                 errors: Vec::new(),

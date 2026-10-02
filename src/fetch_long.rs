@@ -1,4 +1,5 @@
-pub(crate) const FETCH_LONG: &str = "\
+pub(crate) const FETCH_LONG: &str = concat!(
+    "\
 Contact every selected repository's remote and report what moved.
 
 `gwz fetch` fetches the configured remote of each selected workspace target,
@@ -39,4 +40,6 @@ Exit codes follow `gwz push`: 0 when every selected repository answered,
 every selected repository was refused before the network, for example a
 `--remote <name>` that no selected repository has. A dry run exits with the
 same codes as the live run it rehearses, and refuses a `--remote` name a
-repository lacks just as the live run does.";
+repository lacks just as the live run does.",
+    crate::retry_sentence!()
+);

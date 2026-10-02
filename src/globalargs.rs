@@ -3,6 +3,7 @@ mod invocation;
 mod open_merge_gate;
 mod parser;
 mod render_exit;
+mod retry;
 
 pub(crate) use dispatch::execute_invocation;
 #[cfg(test)]
@@ -12,3 +13,4 @@ pub(crate) use parser::*;
 pub(crate) use render_exit::{
     exit_code_for_response, render_response, render_response_with_transport,
 };
+pub(crate) use retry::{RetryArgs, retry_sentence};

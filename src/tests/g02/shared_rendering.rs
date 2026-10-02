@@ -167,6 +167,10 @@ pub(crate) fn a_noted_member_reports_unmaterialized_with_its_reason_in_both_mode
     assert_eq!(entries[1]["note"], "private, skipped");
 }
 
+#[allow(
+    clippy::needless_update,
+    reason = "gwz_transport_candidate adds fields"
+)]
 fn branch_response_envelope() -> gwz_core::ResponseEnvelope {
     gwz_core::ResponseEnvelope {
         meta: gwz_core::ResponseMeta {
@@ -178,6 +182,7 @@ fn branch_response_envelope() -> gwz_core::ResponseEnvelope {
             operation_id: Some("op_branch".to_owned()),
             message: None,
             attribution: None,
+            ..Default::default()
         },
         members: Vec::new(),
         errors: Vec::new(),
@@ -305,6 +310,10 @@ pub(crate) fn empty_workspace_git_status() -> gwz_core::WorkspaceGitStatus {
     }
 }
 
+#[allow(
+    clippy::needless_update,
+    reason = "gwz_transport_candidate adds fields"
+)]
 pub(crate) fn sample_response(
     aggregate_status: gwz_core::AggregateStatus,
     member_status: gwz_core::MemberStatus,
@@ -330,6 +339,7 @@ pub(crate) fn sample_response(
             operation_id: Some("op_render".to_owned()),
             message: None,
             attribution: None,
+            ..Default::default()
         },
         members: vec![gwz_core::MemberResponse {
             member_id: "mem_app".to_owned(),

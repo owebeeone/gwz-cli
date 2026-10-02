@@ -1,4 +1,5 @@
-pub(crate) const PUSH_LONG: &str = "\
+pub(crate) const PUSH_LONG: &str = concat!(
+    "\
 Push workspace target refs to configured remotes.
 
 `gwz push` applies one push request across selected workspace targets. By
@@ -16,4 +17,6 @@ Publication:
     still reads each dependency.
   - `--check-remotes` reads every selected remote and every root dependency,
     pushes repositories whose remote lacks their branch's commit, and proves
-    a selected root even when it has nothing to push.";
+    a selected root even when it has nothing to push.",
+    crate::retry_sentence!()
+);

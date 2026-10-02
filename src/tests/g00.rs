@@ -32,15 +32,22 @@ pub(crate) fn root_help_is_a_navigation_map_with_all_top_level_commands() {
     );
 }
 
-#[test]
-pub(crate) fn cli_reference_doc_matches_generated_clap_help() {
-    let checked_in = include_str!("../../docs/CLI.md");
+cfg_if::cfg_if! {
+    // docs/CLI.md documents the released, ordinary CLI. The transport build
+    // adds --max-retries and the sentence fetch, push and pull gain for it,
+    // which the reference gains when S7.1 (1.1.0) activates the transport.
+    if #[cfg(not(gwz_transport_candidate))] {
+        #[test]
+        pub(crate) fn cli_reference_doc_matches_generated_clap_help() {
+            let checked_in = include_str!("../../docs/CLI.md");
 
-    assert_eq!(
-        checked_in,
-        cli_reference_markdown(),
-        "gwz-cli/docs/CLI.md is stale; run `python scripts/generate_cli_reference.py --write`"
-    );
+            assert_eq!(
+                checked_in,
+                cli_reference_markdown(),
+                "gwz-cli/docs/CLI.md is stale; run `python scripts/generate_cli_reference.py --write`"
+            );
+        }
+    }
 }
 
 #[test]

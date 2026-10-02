@@ -52,6 +52,10 @@ fn noop_row(member_id: &str, member_path: &str, reason: &str) -> gwz_core::Membe
     }
 }
 
+#[allow(
+    clippy::needless_update,
+    reason = "gwz_transport_candidate adds fields"
+)]
 fn rows_response(
     action: gwz_core::ActionKind,
     aggregate_status: gwz_core::AggregateStatus,
@@ -67,6 +71,7 @@ fn rows_response(
             operation_id: Some("op_push".to_owned()),
             message: None,
             attribution: None,
+            ..Default::default()
         },
         members,
         errors: Vec::new(),

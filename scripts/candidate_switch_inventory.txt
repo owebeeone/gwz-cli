@@ -21,3 +21,6 @@
 # switch  file  symbol
 gwz_transport_candidate  src/globalargs/dispatch.rs  fn execute_invocation
 gwz_transport_candidate  src/globalargs/dispatch.rs  fn transport_meta
+gwz_transport_candidate  src/globalargs/retry.rs  mod pins
+gwz_transport_candidate  src/globalargs/retry.rs  struct RetryArgs
+gwz_transport_candidate  src/tests/g00.rs  fn cli_reference_doc_matches_generated_clap_help

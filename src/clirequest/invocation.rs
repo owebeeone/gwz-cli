@@ -106,7 +106,7 @@ impl Cli {
     }
 
     pub(crate) fn policy(&self) -> Option<gwz_core::OperationPolicy> {
-        Some(gwz_core::OperationPolicy {
+        let mut policy = gwz_core::OperationPolicy {
             partial: self
                 .global
                 .partial
@@ -125,7 +125,9 @@ impl Cli {
                     .unwrap_or(DEFAULT_PROGRESS_MIN_INTERVAL_MS),
             ),
             ..Default::default()
-        })
+        };
+        self.global.retry.apply(&mut policy);
+        Some(policy)
     }
 
     pub(crate) fn command_request(

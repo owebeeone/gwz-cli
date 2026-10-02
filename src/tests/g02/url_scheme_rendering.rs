@@ -1,5 +1,9 @@
 use super::*;
 
+#[allow(
+    clippy::needless_update,
+    reason = "gwz_transport_candidate adds fields"
+)]
 fn envelope_with(member: gwz_core::MemberResponse) -> gwz_core::ResponseEnvelope {
     gwz_core::ResponseEnvelope {
         meta: gwz_core::ResponseMeta {
@@ -11,6 +15,7 @@ fn envelope_with(member: gwz_core::MemberResponse) -> gwz_core::ResponseEnvelope
             operation_id: Some("op_url_scheme".to_owned()),
             message: None,
             attribution: None,
+            ..Default::default()
         },
         members: vec![member],
         errors: Vec::new(),
