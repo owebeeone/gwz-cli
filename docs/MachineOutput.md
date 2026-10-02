@@ -215,6 +215,12 @@ Each `ignored` row has `scope` (`root` or `member`), `member_id` (null for root)
 has `file`, naming an unreadable global file. Both arrays are present even when
 empty. Paths and IDs are JSON strings.
 
+Remote tag listings retain their `kind: "tags"` and `entries` payload; when
+a setting is required, they also carry `meta.transport_setting`. Execution
+errors with object-valued `meta` carry the same optional setting and retain
+authentication rows. Decoded JSON paths contain the actual path characters;
+JSON escaping supplies their representation on the wire.
+
 The object is absent exactly when gwz applies by default with nothing ignored
 or skipped. Non-network commands and error records with null `meta` never carry
 it. JSONL adds no Diagnostic event; read the final response object. Machine

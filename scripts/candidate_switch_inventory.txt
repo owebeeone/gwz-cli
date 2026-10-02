@@ -33,6 +33,7 @@ gwz_transport_candidate  src/lib.rs  fn run
 gwz_transport_candidate  src/lib.rs  fn run
 gwz_transport_candidate  src/lib.rs  fn run
 gwz_transport_candidate  src/lib.rs  fn run
+gwz_transport_candidate  src/lib.rs  fn run
 gwz_transport_candidate  src/tests/g00.rs  fn cli_reference_doc_matches_generated_clap_help
 gwz_transport_candidate  src/tests/g09.rs  fn jobs_and_host_limits_render_the_documented_help
 gwz_transport_candidate  tests/transport_workflows.rs  fn workspace

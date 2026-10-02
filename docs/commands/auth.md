@@ -61,12 +61,14 @@ defaults. Native has no connection pooling or setup retry; `--max-retries`
 has no effect. There is no automatic fallback between transports.
 
 The flag overrides `GWZ_TRANSPORT`, which overrides `gwz.transport` in your
-global Git configuration. Set it with `git config --global gwz.transport native`;
-remove it with `git config --global --unset-all gwz.transport`. Unset
+global Git configuration. Set it with `git config --file "$HOME/.gitconfig" gwz.transport native`;
+remove it with `git config --file "$HOME/.gitconfig" --unset-all gwz.transport`. Unset
 `GWZ_TRANSPORT` to remove the environment override, or pass `--transport gwz`
 for one command. gwz reads `~/.gitconfig` and `$XDG_CONFIG_HOME/git/config`
 (default `~/.config/git/config`), follows `include.path`, and applies no
-`includeIf`. It does not read `GIT_CONFIG_GLOBAL` or system configuration.
+`includeIf`. It does not read `GIT_CONFIG_GLOBAL` or system configuration. Git's `--global`
+setter and remover honor `GIT_CONFIG_GLOBAL`; the paired `--file` commands
+above bypass it and write a file gwz reads, even when the variable is set.
 Repository values in `.git/config` or `config.worktree` are ignored and reported.
 Each human network command prints one native notice before dispatch; `--verbose`
 names the selected transport and source. Machine output carries the setting in

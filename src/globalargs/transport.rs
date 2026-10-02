@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
         pub(crate) struct TransportArgs {
             #[arg(long, global = true, value_enum, value_name = "gwz|native",
                 help = "Transport for network operations: gwz (the default) or native, libgit2's own, as gwz 1.0 used",
-                long_help = "Which transport carries network operations: gwz's own SSH and HTTPS transport (gwz, the default), or libgit2's native transport, as gwz 1.0 used (native). native is an escape hatch you choose before a command runs, not a fallback: gwz never moves an operation from one transport to the other. With native, --jobs defaults to 50, --max-per-host to 8 and --ssh-timeout to 3, as in gwz 1.0, unless you give them; --ssh-timeout is libgit2's connect and read timeout; and there is no connection pooling, no setup retry and no 30 second setup budget, so --max-retries has no effect. git://, http:// and file:// remotes always use the native transport. This flag overrides the environment variable GWZ_TRANSPORT (gwz or native; unsetting it removes it), which overrides gwz.transport in your global git configuration (git config --global gwz.transport native sets it; git config --global --unset-all gwz.transport removes it). gwz reads ~/.gitconfig and $XDG_CONFIG_HOME/git/config (by default ~/.config/git/config), not a file named by GIT_CONFIG_GLOBAL, and not system git configuration, and it applies no conditional include (includeIf). gwz.transport in the workspace root's or a member's own git configuration (.git/config or config.worktree) is ignored, with a note. While native is selected, each command that uses the network says so once.")]
+                long_help = "Which transport carries network operations: gwz's own SSH and HTTPS transport (gwz, the default), or libgit2's native transport, as gwz 1.0 used (native). native is an escape hatch you choose before a command runs, not a fallback: gwz never moves an operation from one transport to the other. With native, --jobs defaults to 50, --max-per-host to 8 and --ssh-timeout to 3, as in gwz 1.0, unless you give them; --ssh-timeout is libgit2's connect and read timeout; and there is no connection pooling, no setup retry and no 30 second setup budget, so --max-retries has no effect. git://, http:// and file:// remotes always use the native transport. This flag overrides the environment variable GWZ_TRANSPORT (gwz or native; unsetting it removes it), which overrides gwz.transport in your global git configuration (git config --file \"$HOME/.gitconfig\" gwz.transport native sets it; git config --file \"$HOME/.gitconfig\" --unset-all gwz.transport removes it). gwz reads ~/.gitconfig and $XDG_CONFIG_HOME/git/config (by default ~/.config/git/config), not a file named by GIT_CONFIG_GLOBAL (the paired --file commands above bypass that variable), and not system git configuration, and it applies no conditional include (includeIf). gwz.transport in the workspace root's or a member's own git configuration (.git/config or config.worktree) is ignored, with a note. While native is selected, each command that uses the network says so once.")]
             pub(crate) transport: Option<TransportArg>,
         }
 
@@ -106,7 +106,7 @@ cfg_if::cfg_if! {
                     return None;
                 }
                 let (file, included) = match &self.setting.source {
-                    Source::GlobalConfiguration(location) => (Some(transport_setting::path_text(&location.file)), location.included),
+                    Source::GlobalConfiguration(location) => (Some(location.file.to_string_lossy().into_owned()), location.included),
                     _ => (None, false),
                 };
                 Some(serde_json::json!({
@@ -117,12 +117,12 @@ cfg_if::cfg_if! {
                     "ignored": self.ignored.iter().map(|value| serde_json::json!({
                         "scope": value.scope.name(),
                         "member_id": value.scope.member_id(),
-                        "file": transport_setting::path_text(&value.location.file),
+                        "file": value.location.file.to_string_lossy(),
                         "included": value.location.included,
                         "value": value.value,
                     })).collect::<Vec<_>>(),
                     "skipped": self.setting.skipped.iter().map(|file| serde_json::json!({
-                        "file": transport_setting::path_text(file),
+                        "file": file.to_string_lossy(),
                     })).collect::<Vec<_>>(),
                 }))
             }
@@ -136,6 +136,11 @@ cfg_if::cfg_if! {
                         let Some(setting) = self.json() else { return rendered };
                         let (first, rest) = rendered.split_once('\n').unwrap_or((&rendered, ""));
                         let Ok(mut value) = serde_json::from_str::<serde_json::Value>(first) else { return rendered };
+                        // Remote tag listings historically carry kind/entries without meta.
+                        // Only a required setting enriches that shape; null-meta errors stay null.
+                        if value.get("meta").is_none() && value["kind"] == "tags" {
+                            value["meta"] = serde_json::json!({});
+                        }
                         if !value.get("meta").is_some_and(serde_json::Value::is_object) {
                             return rendered;
                         }
@@ -144,6 +149,20 @@ cfg_if::cfg_if! {
                     }
                     _ => rendered,
                 }
+            }
+        }
+
+        pub(crate) fn render_execution_error(
+            error: &CliError, output: crate::OutputMode, verbose: bool,
+            report: Option<&TransportReport>,
+        ) -> String {
+            let rendered = match output {
+                crate::OutputMode::Json | crate::OutputMode::Jsonl => crate::render_error_json(error),
+                _ => format!("gwz: {}", error.human_message_with_transport(verbose)),
+            };
+            match report {
+                Some(report) => report.render(rendered, output, verbose),
+                None => rendered,
             }
         }
 

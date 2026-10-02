@@ -186,3 +186,119 @@ fn error_records_with_null_meta_are_untouched() {
         rendered
     );
 }
+
+#[test]
+fn execution_errors_keep_setting_and_authentication_in_both_machine_modes() {
+    let mut error = crate::CliError::from_model(gwz_core::model::ModelError::new(
+        gwz_core::model::ErrorCode::GitCommandFailed,
+        "execution failed",
+    ));
+    error.response_meta = Some(Box::new(gwz_core::ResponseMeta {
+        transport: Some(vec![gwz_core::TransportObservation {
+            credential_method: gwz_core::TransportCredentialMethod::File,
+            ..Default::default()
+        }]),
+        ..Default::default()
+    }));
+    for output in [crate::OutputMode::Json, crate::OutputMode::Jsonl] {
+        for transport in [Transport::Native, Transport::Gwz] {
+            let selected = report(transport, Source::Flag);
+            let rendered = render_execution_error(&error, output, true, Some(&selected));
+            let value: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+            assert_eq!(
+                value["meta"]["transport_setting"]["transport"],
+                transport.name()
+            );
+            assert_eq!(value["meta"]["transport"][0]["credential_method"], "file");
+            assert_eq!(value["errors"][0]["message"], "execution failed");
+        }
+        assert_eq!(
+            render_execution_error(&error, output, true, None),
+            crate::render_error_json(&error)
+        );
+        assert_eq!(
+            render_execution_error(
+                &error,
+                output,
+                true,
+                Some(&report(Transport::Gwz, Source::Default))
+            ),
+            crate::render_error_json(&error)
+        );
+        let plain = crate::CliError::new("no metadata");
+        assert_eq!(
+            render_execution_error(
+                &plain,
+                output,
+                true,
+                Some(&report(Transport::Native, Source::Flag))
+            ),
+            crate::render_error_json(&plain)
+        );
+    }
+    let selected = report(Transport::Native, Source::Flag);
+    let human = render_execution_error(&error, crate::OutputMode::Human, true, Some(&selected));
+    assert!(human.starts_with("transport: native (from --transport)\ngwz: "));
+    assert_eq!(human.matches("transport: native").count(), 1);
+    assert!(human.find("transport: native").unwrap() < human.find("credential=file").unwrap());
+}
+
+#[test]
+fn json_path_fields_round_trip_actual_controls_without_human_escaping() {
+    use gwz_core::transport_setting::{Location, Scope};
+    for path in [
+        "/tmp/é\nconfig",
+        "/tmp/é\tconfig",
+        "/tmp/é\u{1b}config",
+        r"/tmp/é\nconfig",
+    ] {
+        let mut selected = report(
+            Transport::Native,
+            Source::GlobalConfiguration(Location {
+                file: path.into(),
+                included: false,
+            }),
+        );
+        selected.ignored.push(IgnoredValue {
+            scope: Scope::Member("mem\n1".into()),
+            location: Location {
+                file: path.into(),
+                included: true,
+            },
+            value: Some("native".into()),
+        });
+        selected.setting.skipped.push(path.into());
+        for output in [crate::OutputMode::Json, crate::OutputMode::Jsonl] {
+            let rendered = selected.render(r#"{"meta":{}}"#.into(), output, true);
+            let value: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+            let setting = &value["meta"]["transport_setting"];
+            assert_eq!(setting["file"], path);
+            assert_eq!(setting["ignored"][0]["file"], path);
+            assert_eq!(setting["skipped"][0]["file"], path);
+            assert_eq!(setting["ignored"][0]["member_id"], "mem\n1");
+        }
+        assert_eq!(selected.verbose_line().lines().count(), 1);
+        for note in selected.notes() {
+            assert_eq!(note.lines().count(), 1);
+        }
+    }
+    let newline = report(
+        Transport::Native,
+        Source::GlobalConfiguration(Location {
+            file: "/tmp/a\nb".into(),
+            included: false,
+        }),
+    )
+    .json()
+    .unwrap();
+    let literal = report(
+        Transport::Native,
+        Source::GlobalConfiguration(Location {
+            file: r"/tmp/a\nb".into(),
+            included: false,
+        }),
+    )
+    .json()
+    .unwrap();
+    assert_ne!(newline["file"], literal["file"]);
+}

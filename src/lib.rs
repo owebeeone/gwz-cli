@@ -320,18 +320,20 @@ pub fn run() {
                     std::process::exit(exit_code_for_response(&response.envelope));
                 }
                 Err(error) => {
-                    // F9: structured machine output keeps errors on the same channel
-                    // and shape as success; human/porcelain stay on stderr.
+                    // Keep execution errors on the same channels as success.
+                    cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+                        let rendered = render_execution_error(
+                            &error, invocation.output, invocation.verbose, transport_report.as_ref(),
+                        );
+                    } else {
+                        let rendered = match invocation.output {
+                            OutputMode::Json | OutputMode::Jsonl => render_error_json(&error),
+                            _ => format!("gwz: {}", error.human_message_with_transport(invocation.verbose)),
+                        };
+                    } }
                     match invocation.output {
-                        OutputMode::Json | OutputMode::Jsonl => {
-                            println!("{}", render_error_json(&error));
-                        }
-                        OutputMode::Human | OutputMode::Porcelain => {
-                            eprintln!(
-                                "gwz: {}",
-                                error.human_message_with_transport(invocation.verbose)
-                            );
-                        }
+                        OutputMode::Json | OutputMode::Jsonl => println!("{rendered}"),
+                        OutputMode::Human | OutputMode::Porcelain => eprintln!("{rendered}"),
                     }
                     std::process::exit(1);
                 }

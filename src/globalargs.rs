@@ -21,5 +21,5 @@ pub(crate) use retry::{RetryArgs, retry_sentence};
 pub(crate) use transport::TransportArgs;
 cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
     pub(crate) use dispatch::execute_invocation_selected;
-    pub(crate) use transport::prepare_transport;
+    pub(crate) use transport::{prepare_transport, render_execution_error};
 } }
