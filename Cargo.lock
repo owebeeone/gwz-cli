@@ -392,28 +392,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "git2"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddddbf932745a6be37109b6112d3ee09696106f848449069d3a57bba937ab82e"
-dependencies = [
- "bitflags",
- "libc",
- "libgit2-sys",
- "log",
- "openssl-probe",
- "openssl-sys",
- "url",
-]
-
-[[package]]
 name = "gwz"
 version = "0.2.0-dev"
 dependencies = [
+ "cfg-if",
  "clap",
  "console",
- "git2",
  "gwz-core",
+ "gwz-git2",
+ "gwz-sspi",
  "serde_json",
  "sha2",
 ]
@@ -431,18 +418,22 @@ dependencies = [
  "cfg-if",
  "chrono",
  "getrandom",
- "git2",
  "gwz-copy-contract",
  "gwz-family-model",
  "gwz-family-store",
  "gwz-family-store-contract",
+ "gwz-git2",
  "gwz-history-check",
+ "gwz-ids",
  "gwz-local-disposal",
  "gwz-local-import",
  "gwz-refcopy",
  "gwz-repo-contract",
  "gwz-repo-factory",
  "gwz-repo-inspect",
+ "gwz-session-channel",
+ "gwz-session-contract",
+ "gwz-session-host",
  "gwz-work-detector",
  "gwz-workspace-install",
  "libc",
@@ -470,6 +461,7 @@ version = "0.0.8"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
+ "gwz-ids",
  "serde",
  "serde_yaml",
 ]
@@ -482,10 +474,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "gwz-git2"
+version = "0.21.0"
+dependencies = [
+ "bitflags",
+ "gwz-libgit2-sys",
+ "libc",
+ "log",
+ "openssl-probe",
+ "openssl-sys",
+ "url",
+]
+
+[[package]]
 name = "gwz-history-check"
 version = "0.0.8"
 dependencies = [
  "gwz-repo-contract",
+]
+
+[[package]]
+name = "gwz-ids"
+version = "0.0.8"
+
+[[package]]
+name = "gwz-libgit2-sys"
+version = "0.18.8+1.9.7"
+dependencies = [
+ "cc",
+ "libc",
+ "libssh2-sys",
+ "libz-sys",
+ "openssl-sys",
+ "pkg-config",
 ]
 
 [[package]]
@@ -531,8 +552,34 @@ dependencies = [
 name = "gwz-repo-inspect"
 version = "0.0.8"
 dependencies = [
- "git2",
+ "gwz-git2",
  "gwz-repo-contract",
+]
+
+[[package]]
+name = "gwz-session-channel"
+version = "0.0.8"
+dependencies = [
+ "gwz-session-contract",
+]
+
+[[package]]
+name = "gwz-session-contract"
+version = "0.0.8"
+
+[[package]]
+name = "gwz-session-host"
+version = "0.0.8"
+dependencies = [
+ "gwz-session-contract",
+]
+
+[[package]]
+name = "gwz-sspi"
+version = "0.1.0"
+dependencies = [
+ "windows-sys 0.61.2",
+ "zeroize",
 ]
 
 [[package]]
@@ -785,20 +832,6 @@ name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
-
-[[package]]
-name = "libgit2-sys"
-version = "0.18.5+1.9.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "005d6ae6eac1912906073e069f7db60b1fa98e052a68227824afe3e3a1c59ca2"
-dependencies = [
- "cc",
- "libc",
- "libssh2-sys",
- "libz-sys",
- "openssl-sys",
- "pkg-config",
-]
 
 [[package]]
 name = "libssh2-sys"
@@ -1142,9 +1175,9 @@ dependencies = [
 
 [[package]]
 name = "taut-shape"
-version = "0.9.2"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "949405182f907bfd541b34550040e2e80dd87881bfdb88d5ed96ae09c8927d79"
+checksum = "08da33565c5ae19b335089d8e4e9bf6cbc9836611b1cee1271f07f44a6124187"
 
 [[package]]
 name = "tempfile"
@@ -1607,6 +1640,12 @@ dependencies = [
  "syn",
  "synstructure",
 ]
+
+[[package]]
+name = "zeroize"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"
 
 [[package]]
 name = "zerotrie"

@@ -167,7 +167,9 @@ class ReconcileTests(ReleaseTestCase):
                     if old != new
                 ]
                 self.assertEqual(
-                    [('version = "1.0.11"', 'version = "1.0.12"'), (pin, 'gwz-core = "=1.0.12"')],
+                    [('version = "1.0.11"', 'version = "1.0.12"'),
+                     ('gwz-sspi = { path = "../gwz-sspi", version = "=0.1.0" }', 'gwz-sspi = "=0.1.0"'),
+                     (pin, 'gwz-core = "=1.0.12"')],
                     moved,
                 )
 
@@ -181,6 +183,8 @@ class ReconcileTests(ReleaseTestCase):
 
     def test_a_reconciled_release_branch_is_left_byte_for_byte_alone(self) -> None:
         worktree = make_worktree(self.parent, 'gwz-core = "=1.0.12"', version="1.0.12")
+        manifest = worktree / "Cargo.toml"
+        manifest.write_text(manifest.read_text().replace('gwz-sspi = { path = "../gwz-sspi", version = "=0.1.0" }', 'gwz-sspi = "=0.1.0"'))
         before = snapshot(worktree)
         self.assertFalse(self.reconcile(worktree, "1.0.12", "1.0.12"))
         self.assertEqual(before, snapshot(worktree))

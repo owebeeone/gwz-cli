@@ -318,6 +318,15 @@ def reconcile_cargo_toml(worktree, core_version: str, version: str) -> bool:
              'registry pin `gwz-core = "=X.Y.Z"` or, before the first registry release, '
              '`gwz-core = { git = "...", tag = "vX.Y.Z" }` (did main edit the dependency line?)')
     lines[index] = f'gwz-core = "={core_version}"'
+    sspi = [i for i, line in enumerate(lines) if line.strip().startswith("gwz-sspi =")]
+    if sspi:
+        if len(sspi) != 1 or lines[sspi[0]].strip() not in (
+            'gwz-sspi = { path = "../gwz-sspi", version = "=0.1.0" }',
+            'gwz-sspi = "=0.1.0"',
+        ):
+            fail("unexpected SSPI dependency; reviewed exact registry pin required")
+        lines[sspi[0]] = 'gwz-sspi = "=0.1.0"'
+
 
     versions = [found for found, table in keyed_lines(lines, "version") if table == "[package]"]
     if len(versions) != 1:

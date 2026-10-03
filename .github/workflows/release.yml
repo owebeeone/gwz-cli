@@ -140,6 +140,9 @@ jobs:
       - name: Install dependencies
         run: |
           ${{ matrix.packages_install }}
+      - name: Provision per-target SSPI artifact metadata
+        shell: bash
+        run: python3 scripts/build_sspi.py --targets '${{ toJson(matrix.targets) }}' --dist-args='${{ matrix.dist_args }}'
       - name: Build artifacts
         run: |
           # Actually do builds and make zips and whatnot
@@ -165,6 +168,7 @@ jobs:
           path: |
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
+            target/distrib/sspi-artifact-sets.json
 
   # Build and package all the platform-agnostic(ish) things
   build-global-artifacts:

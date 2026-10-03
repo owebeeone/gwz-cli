@@ -154,7 +154,13 @@ pub(crate) use url_scheme_arg::*;
 
 pub use cli_reference::cli_reference_markdown;
 
+mod worker_host;
+pub use worker_host::executable as sspi_worker_executable;
+
 pub fn run() {
+    if let Some(code) = worker_host::early() {
+        std::process::exit(code);
+    }
     let mut args = std::env::args_os().skip(1);
     if args.next().as_deref() == Some(std::ffi::OsStr::new("--build-info")) && args.next().is_none()
     {
