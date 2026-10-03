@@ -1,6 +1,7 @@
 """Provision the actual cargo-dist target matrix; normal Cargo stays unprovisioned."""
 import argparse
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -21,16 +22,17 @@ def main():
     parser.add_argument('--targets',help='cargo-dist matrix JSON')
     parser.add_argument('--dist-args',help='exact cargo-dist matrix options')
     parser.add_argument('--target',help='local build target triple')
-    parser.add_argument('--profile',default='release')
+    parser.add_argument('--profile',help='local Cargo profile (default release); matrix mode uses dist')
     parser.add_argument('--target-dir',type=Path,help='absolute external local build output')
     args=parser.parse_args();manifest=Path(__file__).resolve().parents[1]/'Cargo.toml';module=producer(manifest)
     if args.targets:
         targets=json.loads(args.targets);profile='dist';options={'dist_args':args.dist_args}
-        if args.dist_args is None or args.target or args.target_dir:parser.error('dist mode requires matrix options only')
+        if args.dist_args is None or args.target or args.target_dir or args.profile:parser.error('dist mode requires matrix options only')
     else:
+        if args.dist_args is not None:parser.error('local mode does not accept dist options')
         if not args.target or not args.target_dir or not args.target_dir.is_absolute():parser.error('local mode requires --target and absolute --target-dir')
-        targets=[args.target];profile=args.profile;options={'command':'cargo build'}
-    if not targets or not all(isinstance(t,str) and t and '\n' not in t and '=' not in t for t in targets):raise SystemExit('invalid targets')
+        targets=[args.target];profile=args.profile or 'release';options={'command':'cargo build'}
+    if not isinstance(targets,list) or not targets or not all(isinstance(t,str) and t and t.isascii() and all(c.isalnum() or c in '-_' for c in t) for t in targets) or len(set(targets))!=len(targets):raise SystemExit('invalid targets')
     table=[];receipts=[]
     for target in targets:
         fingerprint,_,inputs=module.identify(manifest,target=target,profile=profile,options=options)
@@ -44,5 +46,6 @@ def main():
         subprocess.run(['cargo','build','--locked','--manifest-path',str(manifest),'--target',args.target,'--profile',profile],env=environment,check=True)
         destination=args.target_dir/'distrib'
     destination.mkdir(parents=True,exist_ok=True)
-    (destination/'sspi-artifact-sets.json').write_text(json.dumps(receipts,sort_keys=True,indent=2)+'\n')
+    receipt_name='sspi-artifact-sets-'+hashlib.sha256('\0'.join(sorted(targets)).encode()).hexdigest()+'.json' if args.targets else 'sspi-artifact-sets.json'
+    (destination/receipt_name).write_text(json.dumps(receipts,sort_keys=True,indent=2)+'\n')
 if __name__=='__main__':main()

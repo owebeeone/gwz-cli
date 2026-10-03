@@ -168,7 +168,7 @@ jobs:
           path: |
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
-            target/distrib/sspi-artifact-sets.json
+            target/distrib/sspi-artifact-sets-*.json
 
   # Build and package all the platform-agnostic(ish) things
   build-global-artifacts:

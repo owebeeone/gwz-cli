@@ -41,3 +41,33 @@ the whole trusted CLI artifact; self-execution needs no companion worker file.
 Removing the CLI executable removes its worker entry as well. Unprovisioned
 portable builds remain usable for ordinary CLI commands, but their descriptor
 refuses; a portable descriptor is not usable Windows HTTP authentication.
+
+## Explicit wrapper options
+
+| Option | Local invocation | Matrix invocation |
+|---|---|---|
+| `--target TRIPLE` | Required, no default; Rust target triple | Not accepted |
+| `--target-dir PATH` | Required absolute output directory, no default | Not accepted; uses build-time CARGO_TARGET_DIR or `target` |
+| `--profile NAME` | Optional, defaults to `release`; `dev`, `release`, `dist` or another configured Cargo profile. Cargo refuses undefined profiles | Not accepted; matrix uses `dist` |
+| `--targets JSON` | Not accepted | Required nonempty distinct target-triple array from the actual cargo-dist matrix |
+| `--dist-args TEXT` | Not accepted | Required exact matrix options, supplied as `--dist-args='...'` |
+| `--help` | Prints usage and exits | Same |
+
+Targets are triples, not custom JSON target paths. Cross builds need the selected
+Rust target and platform build prerequisites. Local output is
+TARGET_DIR/TRIPLE/debug for `dev`, or TARGET_DIR/TRIPLE/PROFILE otherwise, plus
+TARGET_DIR/distrib/sspi-artifact-sets.json. Matrix receipts have target-set-qualified
+`sspi-artifact-sets-<digest>.json` names; flattened aggregation retains each matrix
+set. These receipts remain diagnostic, not worker authority.
+
+For a host-native local release-profile build, derive the compiler's actual host
+triple rather than copying the Darwin example (run from the CLI checkout):
+
+```sh
+python3 -c 'import subprocess,sys;host=next(line[6:] for line in subprocess.check_output(["rustc","-vV"],text=True).splitlines() if line.startswith("host: "));subprocess.run([sys.executable,"scripts/build_sspi.py","--target",host,"--target-dir","/absolute/external/cache"],check=True)'
+```
+
+This omits `--profile`, selecting release. Local provisioning builds one explicit
+Cargo target; release provisioning consumes the actual cargo-dist matrix and
+passes its per-target metadata to subsequent dist builds. An ordinary Cargo
+build supplies neither handoff and remains unprovisioned.
