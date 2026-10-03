@@ -15,9 +15,12 @@ pub(crate) fn execute_invocation_selected(
     let operation_id = new_operation_id();
     cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
         if let Some(meta) = transport_meta(&invocation.request).filter(|_| !_native) {
-            let (result, cleanup) = gwz_core::transport_host::with_local_transport(
+            let supervisor = crate::sspi_worker_executable().and_then(|descriptor|
+                gwz_sspi::Supervisor::new(descriptor, gwz_sspi::Options::default()).map(std::sync::Arc::new).map_err(|error| error.kind()));
+            let caller = gwz_core::transport_host::NativeCaller::capture(&supervisor);
+            let (result, cleanup) = gwz_core::transport_host::with_local_transport_native(
                 meta.clone(),
-                operation_id.clone(),
+                operation_id.clone(), caller,
                 |backend| execute_with_backend(invocation, backend, operation_id),
             )
             .map_err(CliError::from_model)?;

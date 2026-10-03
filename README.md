@@ -73,3 +73,12 @@ cargo run -q -p gwz -- --version
 ## License
 
 `gwz` is licensed under GPL-2.0-only, the same license family used by Git.
+
+The candidate native HTTPS composition captures its original host caller before
+fanout or executor handoff and uses the same retained Supervisor capacity for its
+Opens. Its one positive logical Open deadline includes discovery, helper work and
+native authentication. A zero connect timeout refuses native authentication
+before Begin. Anonymous, configured Basic and SSH do not require an available
+native worker. Nonempty initial Negotiate/NTLM tokens and Digest are refused
+before native Begin. Windows endpoint activation and installed native/provider
+qualification remain separate gates; this draft does not enable that endpoint.
