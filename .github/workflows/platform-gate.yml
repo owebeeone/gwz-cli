@@ -228,15 +228,40 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - id: sspi-pin
+        name: Read the gwz-sspi commit gwz-core pins
+        shell: bash
+        run: |
+          pin="$(grep -m1 -E '^[0-9a-f]{40}$' gwz-core/.github/gwz-sspi.commit)"
+          test -n "$pin"
+          echo "sha=$pin" >> "$GITHUB_OUTPUT"
+
+      - name: Check out gwz-sspi at its pin, beside gwz-core
+        # gwz-cli builds against gwz-sspi by path (`../gwz-sspi`), at the commit
+        # gwz-core's .github/gwz-sspi.commit pins, so the supplied core commit
+        # fixes it.
+        uses: actions/checkout@v6
+        with:
+          repository: owebeeone/gwz-sspi
+          ref: ${{ steps.sspi-pin.outputs.sha }}
+          path: gwz-sspi
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Verify exact sibling checkouts
         shell: bash
+        env:
+          SSPI_SHA: ${{ steps.sspi-pin.outputs.sha }}
         run: |
           observed_cli="$(git -C gwz-cli rev-parse HEAD)"
           observed_core="$(git -C gwz-core rev-parse HEAD)"
+          observed_sspi="$(git -C gwz-sspi rev-parse HEAD)"
           test "$observed_cli" = "$CLI_SHA"
           test "$observed_core" = "$CORE_SHA"
+          test "$observed_sspi" = "$SSPI_SHA"
           echo "OBSERVED_CLI_SHA=$observed_cli" >> "$GITHUB_ENV"
           echo "OBSERVED_CORE_SHA=$observed_core" >> "$GITHUB_ENV"
+          echo "OBSERVED_SSPI_SHA=$observed_sspi" >> "$GITHUB_ENV"
 
       - name: Check out git2-rs beside gwz-core
         # gwz-core builds against the git2-rs fork by path (`../git2-rs`, package
@@ -350,6 +375,7 @@ jobs:
               "observed_cli_sha": os.environ["OBSERVED_CLI_SHA"],
               "supplied_core_sha": os.environ["CORE_SHA"],
               "observed_core_sha": os.environ["OBSERVED_CORE_SHA"],
+              "observed_sspi_sha": os.environ["OBSERVED_SSPI_SHA"],
               "target": os.environ["TARGET"],
               "runner": os.environ["EXPECTED_RUNNER"],
           }
