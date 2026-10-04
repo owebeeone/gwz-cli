@@ -232,7 +232,14 @@ What happened, in order:
 
 1. GWZ paired every selected repository with its counterpart in `A` by
    recorded member identity, not by path, and refused before any transfer if
-   the two workspaces were no longer the same shape.
+   the two workspaces were no longer the same shape: `A` records a member
+   this workspace lacks, or a member sits at different paths or comes from a
+   different source on the two sides. A member only this workspace records,
+   such as one registered after `A` was cloned, has nothing to import. The
+   merge leaves it out and unchanged, and its summary message
+   (`meta.message` in `--json` output) reports it as
+   `<path> (<id>): not in source lane; unchanged`. Naming it with `--target`
+   is refused before any transfer.
 2. For each pair it fetched the source commit — `A`'s HEAD, or the ref you
    named — into the receiving repository under one fresh import name,
    `refs/gwz/local-imports/<transfer-id>`, and verified that what arrived is

@@ -9,6 +9,17 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
+## Unreleased
+
+- **`gwz merge --remote <name>` no longer refuses a member only this workspace
+  has.** A member registered here after the lane was cloned made every family
+  merge from that lane refuse with `PairingMismatch`, even when `--target` left
+  the member out. The merge now leaves such a member out and unchanged, and its
+  summary message (`meta.message` in `--json` output) reports it as
+  `not in source lane; unchanged`. Naming it with `--target` is refused before
+  any transfer, and a member only the lane has is still refused. See
+  [Local Clones](LocalClones.md).
+
 ## 1.0.17: `gwz fetch`, and lanes that dispose clean
 
 1.0.17 (2026-09-18) adds one read-only network verb and finishes the lane
