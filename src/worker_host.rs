@@ -11,11 +11,10 @@ fn dispatch(args: impl Iterator<Item = OsString>, compiled: Option<&str>) -> Opt
         build_fingerprint(compiled).and_then(|build| gwz_sspi::worker_entry(bootstrap, build));
     Some(if result.is_ok() { 0 } else { 2 })
 }
-pub(crate) fn early() -> Option<i32> {
-    dispatch(
-        std::env::args_os().skip(1),
-        option_env!("GWZ_SSPI_BUILD_FINGERPRINT"),
-    )
+/// The worker-host dispatch that runs before anything else. `argv` is the
+/// process's arguments, program name first, as `run()` reads them.
+pub(crate) fn early(argv: impl Iterator<Item = OsString>) -> Option<i32> {
+    dispatch(argv.skip(1), option_env!("GWZ_SSPI_BUILD_FINGERPRINT"))
 }
 /// Capture this installed executable and its trusted compiled artifact-set
 /// identifier. This creates no process or supervisor and is not yet used by

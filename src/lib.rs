@@ -158,7 +158,7 @@ mod worker_host;
 pub use worker_host::executable as sspi_worker_executable;
 
 pub fn run() {
-    if let Some(code) = worker_host::early() {
+    if let Some(code) = worker_host::early(std::env::args_os()) {
         std::process::exit(code);
     }
     let mut args = std::env::args_os().skip(1);
