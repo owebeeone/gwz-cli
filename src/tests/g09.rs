@@ -229,7 +229,7 @@ fn serialized_context_keeps_an_outside_caller_distinct_from_workspace_root() {
     );
 }
 
-cfg_if::cfg_if! { if #[cfg(not(all(unix, gwz_transport_candidate)))] {
+cfg_if::cfg_if! { if #[cfg(not(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification))))] {
 use clap::Parser;
 #[test]
 fn jobs_and_host_limits_render_the_documented_help() {

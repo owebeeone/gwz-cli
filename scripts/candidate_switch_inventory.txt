@@ -28,6 +28,7 @@ gwz_transport_candidate  src/globalargs/retry.rs  mod pins
 gwz_transport_candidate  src/globalargs/retry.rs  struct RetryArgs
 gwz_transport_candidate  src/globalargs/transport.rs  struct TransportArgs
 gwz_transport_candidate  src/globalargs/transport_help.rs  const JOBS_HELP
+gwz_transport_candidate  src/lib.rs  (file)
 gwz_transport_candidate  src/lib.rs  fn run
 gwz_transport_candidate  src/lib.rs  fn run
 gwz_transport_candidate  src/lib.rs  fn run

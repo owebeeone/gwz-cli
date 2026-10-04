@@ -177,7 +177,7 @@ pub fn run() {
         Err(error) => error.exit(),
     };
     let explicit_ssh_timeout = cli.global.ssh_timeout;
-    cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+    cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
         let transport_flag = cli.global.transport.selected();
     } }
     let cwd = match std::env::current_dir() {
@@ -190,10 +190,10 @@ pub fn run() {
 
     match invocation_from_cli(cli, &new_request_id(), &cwd) {
         Ok(invocation) => {
-            cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+            cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
                 let mut invocation = invocation;
             } }
-            cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+            cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
                 let environment = gwz_core::session_host::EnvironmentSnapshot::from_os_pairs(
                     std::env::vars_os(),
                 ).expect("process environment is valid");
@@ -300,7 +300,7 @@ pub fn run() {
                     }
                 }
             }
-            cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+            cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
                 let execution = execute_invocation_selected(
                     &invocation,
                     transport_report.as_ref().is_some_and(|report| report.is_native()),
@@ -315,7 +315,7 @@ pub fn run() {
                         invocation.output,
                         invocation.verbose,
                     );
-                    cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+                    cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
                         let rendered = transport_report.as_ref().map_or(rendered.clone(), |report| {
                             report.render(rendered, invocation.output, invocation.verbose)
                         });
@@ -327,7 +327,7 @@ pub fn run() {
                 }
                 Err(error) => {
                     // Keep execution errors on the same channels as success.
-                    cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+                    cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
                         let rendered = render_execution_error(
                             &error, invocation.output, invocation.verbose, transport_report.as_ref(),
                         );
@@ -351,3 +351,8 @@ pub fn run() {
         }
     }
 }
+
+// Qualification artifacts must never silently select another platform/route.
+cfg_if::cfg_if! { if #[cfg(all(gwz_windows_https_qualification, not(all(windows, gwz_transport_candidate))))] {
+    compile_error!("gwz_windows_https_qualification requires Windows and gwz_transport_candidate");
+} }

@@ -1,6 +1,6 @@
 //! Candidate transport help preserves the ordinary CLI surface.
 cfg_if::cfg_if! {
-    if #[cfg(all(unix, gwz_transport_candidate))] {
+    if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
         pub(super) const JOBS_HELP: &str = "Global ceiling on concurrent member operations (default 100; 50 with --transport native)";
         pub(super) const JOBS_LONG_HELP: &str = "Global ceiling on the total number of member repositories processed concurrently across all hosts. These are concurrent operations in this process, not extra processes. Defaults to 100; 50 with --transport native. The smallest value is 1. 0 is rejected. Per-host concurrency is bounded separately by --max-per-host. Values above 100 are accepted.";
         pub(super) const MAX_PER_HOST_HELP: &str = "Max concurrent member operations to any one hostname (default 32; 8 with --transport native)";

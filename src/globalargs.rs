@@ -7,7 +7,7 @@ mod retry;
 mod transport;
 mod transport_help;
 
-cfg_if::cfg_if! { if #[cfg(any(test, not(all(unix, gwz_transport_candidate))))] {
+cfg_if::cfg_if! { if #[cfg(any(test, not(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))))] {
     pub(crate) use dispatch::execute_invocation;
 } }
 #[cfg(test)]
@@ -19,7 +19,7 @@ pub(crate) use render_exit::{
 };
 pub(crate) use retry::{RetryArgs, retry_sentence};
 pub(crate) use transport::TransportArgs;
-cfg_if::cfg_if! { if #[cfg(all(unix, gwz_transport_candidate))] {
+cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
     pub(crate) use dispatch::execute_invocation_selected;
     pub(crate) use transport::{prepare_transport, render_execution_error};
 } }

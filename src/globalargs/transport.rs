@@ -2,7 +2,7 @@
 use clap::Args;
 
 cfg_if::cfg_if! {
-    if #[cfg(all(unix, gwz_transport_candidate))] {
+    if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
         use crate::{CliError, CliInvocation, CliRequest};
         use gwz_core::transport_scope::Operation;
         use gwz_core::transport_setting::{self, Driver, IgnoredValue, Setting, Source, Transport};
