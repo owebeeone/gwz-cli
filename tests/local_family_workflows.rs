@@ -173,7 +173,9 @@ fn the_verbatim_lifecycle_is_served_end_to_end() {
         members[1]["path"]
     );
     assert_eq!(
-        json["local_family_root_path"].as_str().map(PathBuf::from),
+        json["local_family_root_path"]
+            .as_str()
+            .map(|root| PathBuf::from(root).canonicalize().unwrap()),
         Some(temp.path().canonicalize().unwrap()),
         "the observed root travels beside the rows"
     );

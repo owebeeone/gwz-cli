@@ -8,7 +8,7 @@ use super::*;
 
 fn parse_fetch(args: &[&str]) -> Result<CliInvocation, CliError> {
     let owned = args.iter().map(|item| (*item).to_owned()).collect();
-    parse_args_with_request_id(owned, "req_fetch", Path::new("/cwd"))
+    parse_args_with_request_id(owned, "req_fetch", &test_cwd())
 }
 
 fn fetch_request(args: &[&str]) -> gwz_core::FetchRequest {

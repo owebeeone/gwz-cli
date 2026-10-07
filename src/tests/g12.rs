@@ -22,7 +22,7 @@ use super::*;
 
 fn parse(args: &[&str]) -> Result<CliInvocation, CliError> {
     let owned = args.iter().map(|item| (*item).to_owned()).collect();
-    parse_args_with_request_id(owned, "req_test", Path::new("/cwd"))
+    parse_args_with_request_id(owned, "req_test", &test_cwd())
 }
 
 fn clone_local(args: &[&str]) -> gwz_core::CloneLocalWorkspaceRequest {
@@ -1237,8 +1237,11 @@ fn local_list_joins_the_observed_root_with_each_relative_path() {
         ]
     };
     let response = rooted_list_response("/Users/gianni/limbo/gwz-dev", members());
+    // The join is lexical and a host whose separator differs renders its own;
+    // the column is compared after mapping it, as the listing fixture's cases
+    // are (`_schema.separators`).
     assert_eq!(
-        render_response(&response, OutputMode::Human),
+        render_response(&response, OutputMode::Human).replace('\\', "/"),
         "\
 root  checkout  ready  /Users/gianni/limbo/gwz-dev
 A     checkout  ready  /Users/gianni/limbo/gwz-dev-A
@@ -1275,7 +1278,7 @@ hub   bare      ready  /Users/gianni/limbo/gwz-dev-hub"
         ],
     );
     assert_eq!(
-        render_response(&response, OutputMode::Human),
+        render_response(&response, OutputMode::Human).replace('\\', "/"),
         "\
 gone       checkout  ready/missing  /ws/ws-gone
 elsewhere  checkout  ready          /mnt/ws-e"

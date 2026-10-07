@@ -10,7 +10,7 @@ use crate::tests::g01::strings;
 /// Parse a `gwz diff …` argv and return the lowered [`DiffInvocation`].
 fn diff_invocation(args: Vec<String>) -> Box<crate::DiffInvocation> {
     let invocation =
-        parse_args_with_request_id(args, "req_test", Path::new("/cwd")).expect("diff args parse");
+        parse_args_with_request_id(args, "req_test", &test_cwd()).expect("diff args parse");
     match invocation.request {
         CliRequest::Diff(diff) => diff,
         other => panic!("expected diff request, got {other:?}"),
@@ -113,7 +113,7 @@ pub(crate) fn mutually_exclusive_formats_are_rejected() {
     let err = parse_args_with_request_id(
         strings(["diff", "--stat", "--name-only"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap_err();
     assert!(
@@ -150,7 +150,7 @@ pub(crate) fn no_renames_lowers_to_explicit_false_and_conflicts_with_find_rename
         let err = parse_args_with_request_id(
             strings(["diff", "--no-renames", find_arg]),
             "req_test",
-            Path::new("/cwd"),
+            &test_cwd(),
         )
         .unwrap_err();
         assert!(
@@ -205,7 +205,7 @@ pub(crate) fn multiple_whitespace_modes_are_rejected() {
     let err = parse_args_with_request_id(
         strings(["diff", "-w", "--ignore-space-at-eol"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap_err();
     assert!(
@@ -274,7 +274,7 @@ pub(crate) fn unsupported_git_option_is_rejected_by_clap() {
     // Unsupported diff knobs (e.g. --word-diff, -C/--find-copies) are unknown to
     // the parser, so they are rejected rather than silently ignored (D0).
     for arg in ["--word-diff", "--find-copies", "-C"] {
-        let err = parse_args_with_request_id(strings(["diff", arg]), "req_test", Path::new("/cwd"))
+        let err = parse_args_with_request_id(strings(["diff", arg]), "req_test", &test_cwd())
             .unwrap_err();
         assert!(!err.message.is_empty(), "{arg} should be rejected");
     }

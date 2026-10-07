@@ -69,8 +69,12 @@ impl TestEnv {
         self.warnings.borrow().clone()
     }
 
+    /// Whether a warning names `fragment`, spelled with `/` on every host: a
+    /// path in a warning is printed with the host's separator.
     fn warned(&self, fragment: &str) -> bool {
-        self.warnings().iter().any(|line| line.contains(fragment))
+        self.warnings()
+            .iter()
+            .any(|line| line.replace('\\', "/").contains(fragment))
     }
 }
 
@@ -192,6 +196,26 @@ fn create_input(name: &str, session: &str) -> CreateInput {
 
 fn canonical(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Every entry under `root`, at any depth, whose file name is `name`; a
+/// symlink is listed and not followed. What `find root -name name` lists, on
+/// a host without `find`.
+fn files_named(root: &Path, name: &str) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(&directory).unwrap().flatten() {
+            let path = entry.path();
+            if entry.file_name() == name {
+                found.push(path.clone());
+            }
+            if entry.file_type().unwrap().is_dir() {
+                pending.push(path);
+            }
+        }
+    }
+    found
 }
 
 /// A plain Git repository with one commit, for D8's fallback.
@@ -1116,16 +1140,11 @@ fn the_fallback_never_copies_one_worktrees_includes_into_another() {
             .map(|entry| entry.file_name())
             .collect::<Vec<_>>()
     );
-    let copies = std::process::Command::new("find")
-        .arg(&second.path)
-        .args(["-name", "secrets.env"])
-        .output()
-        .expect("find runs");
+    let copies = files_named(&second.path, "secrets.env");
     assert_eq!(
-        String::from_utf8_lossy(&copies.stdout).lines().count(),
+        copies.len(),
         1,
-        "exactly one copy, at the top level: {}",
-        String::from_utf8_lossy(&copies.stdout)
+        "exactly one copy, at the top level: {copies:?}"
     );
 
     // Reuse of the first worktree, whose included file is present, warns

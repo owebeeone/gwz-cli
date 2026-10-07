@@ -22,7 +22,7 @@ fn log_invocation(args: Vec<String>, cwd: &Path) -> Box<crate::LogInvocation> {
 #[test]
 fn cap_lowering_distinguishes_omitted_n_zero_and_no_limit() {
     assert_eq!(
-        log_invocation(strings(["log"]), Path::new("/cwd"))
+        log_invocation(strings(["log"]), &test_cwd())
             .request
             .options
             .unwrap()
@@ -30,7 +30,7 @@ fn cap_lowering_distinguishes_omitted_n_zero_and_no_limit() {
         None
     );
     assert_eq!(
-        log_invocation(strings(["log", "-n", "17"]), Path::new("/cwd"))
+        log_invocation(strings(["log", "-n", "17"]), &test_cwd())
             .request
             .options
             .unwrap()
@@ -39,7 +39,7 @@ fn cap_lowering_distinguishes_omitted_n_zero_and_no_limit() {
     );
     for args in [strings(["log", "-n", "0"]), strings(["log", "--no-limit"])] {
         assert_eq!(
-            log_invocation(args, Path::new("/cwd"))
+            log_invocation(args, &test_cwd())
                 .request
                 .options
                 .unwrap()
@@ -55,7 +55,7 @@ fn cap_conflict_and_negative_value_are_clap_rejections() {
         strings(["log", "-n", "1", "--no-limit"]),
         strings(["log", "-n", "-1"]),
     ] {
-        let error = parse_args_with_request_id(args, "req_log", Path::new("/cwd"))
+        let error = parse_args_with_request_id(args, "req_log", &test_cwd())
             .expect_err("invalid cap spelling must be rejected");
         assert!(!error.message.is_empty());
     }
@@ -81,7 +81,7 @@ fn all_filter_and_behavior_flags_lower_without_client_semantics() {
             "--body",
             "--tagged",
         ]),
-        Path::new("/cwd"),
+        &test_cwd(),
     );
     let options = log.request.options.unwrap();
     assert_eq!(options.since.as_deref(), Some("2026-08-01T02:03:04+10:00"));
@@ -98,7 +98,7 @@ fn all_filter_and_behavior_flags_lower_without_client_semantics() {
 
 #[test]
 fn absent_behavior_flags_remain_wire_none() {
-    let log = log_invocation(strings(["log"]), Path::new("/cwd"));
+    let log = log_invocation(strings(["log"]), &test_cwd());
     let options = log.request.options.unwrap();
     assert_eq!(options.no_merges, None);
     assert_eq!(options.first_parent, None);
@@ -119,7 +119,7 @@ fn operands_and_post_dash_pathspecs_stay_in_distinct_wire_fields() {
             "+literal-path",
             "src/lib.rs",
         ]),
-        Path::new("/cwd"),
+        &test_cwd(),
     );
     assert_eq!(
         log.request.operands,
@@ -315,7 +315,7 @@ fn clap_help_preserves_the_exact_s31_surface_and_strict_contract() {
 #[test]
 fn color_accepts_exact_vocabulary_and_defaults_to_auto() {
     assert_eq!(
-        log_invocation(strings(["log"]), Path::new("/cwd")).color,
+        log_invocation(strings(["log"]), &test_cwd()).color,
         LogColor::Auto
     );
     for (value, expected) in [
@@ -324,7 +324,7 @@ fn color_accepts_exact_vocabulary_and_defaults_to_auto() {
         ("auto", LogColor::Auto),
     ] {
         assert_eq!(
-            log_invocation(strings(["log", "--color", value]), Path::new("/cwd")).color,
+            log_invocation(strings(["log", "--color", value]), &test_cwd()).color,
             expected
         );
     }
@@ -332,7 +332,7 @@ fn color_accepts_exact_vocabulary_and_defaults_to_auto() {
         parse_args_with_request_id(
             strings(["log", "--color", "sometimes"]),
             "req_log",
-            Path::new("/cwd")
+            &test_cwd()
         )
         .is_err()
     );
@@ -344,7 +344,7 @@ fn repeated_single_value_options_follow_clap_standard_denial() {
         strings(["log", "--color", "always", "--color", "never"]),
         strings(["log", "--since", "2026-08-01", "--since", "2026-08-02"]),
     ] {
-        let error = parse_args_with_request_id(args, "req_log", Path::new("/cwd"))
+        let error = parse_args_with_request_id(args, "req_log", &test_cwd())
             .expect_err("clap must own repeated single-value behavior");
         assert!(
             error.message.contains("cannot be used multiple times"),
@@ -410,7 +410,7 @@ fn invalid_regex_and_time_are_process_rejections_before_valid_workspace_access()
         (Some("("), None, "regex"),
         (None, Some("three days ago"), "RFC3339"),
     ] {
-        let mut log = log_invocation(strings(["log"]), Path::new("/cwd"));
+        let mut log = log_invocation(strings(["log"]), &test_cwd());
         log.request.meta.workspace = Some(gwz_core::WorkspaceRef {
             root: Some(temp.path().to_string_lossy().into_owned()),
             workspace_id: None,
@@ -438,7 +438,7 @@ fn invalid_regex_and_time_are_process_rejections_before_valid_workspace_access()
 
 #[test]
 fn non_workspace_start_is_a_process_rejection() {
-    let log = log_invocation(strings(["log"]), Path::new("/cwd"));
+    let log = log_invocation(strings(["log"]), &test_cwd());
     let registry = gwz_core::operation::CommitLogOutputRegistry::new();
     let mut stdout = Vec::new();
     let error = run_log_with_registry(

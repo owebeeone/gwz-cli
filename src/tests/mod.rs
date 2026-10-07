@@ -21,3 +21,10 @@ mod m2c;
 pub(crate) mod temp_dir;
 mod temp_dir_tests;
 mod transport_scope;
+
+/// The working directory the parsing tests pass: absolute on every platform and
+/// never touched. A literal `/cwd` has no drive on Windows, where it is not
+/// absolute and the invocation refuses it.
+pub(crate) fn test_cwd() -> std::path::PathBuf {
+    std::env::temp_dir().join("cwd")
+}

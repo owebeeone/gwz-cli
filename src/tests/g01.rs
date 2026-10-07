@@ -9,13 +9,10 @@ fn init_update_accepts_commit_and_requires_update() {
     parse_args_with_request_id(
         strings(["init", "--update", "--force", "--commit"]),
         "recover",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
-    assert!(
-        parse_args_with_request_id(strings(["init", "--commit"]), "bad", Path::new("/cwd"))
-            .is_err()
-    );
+    assert!(parse_args_with_request_id(strings(["init", "--commit"]), "bad", &test_cwd()).is_err());
 }
 
 pub(crate) use commands::*;
@@ -33,7 +30,7 @@ fn ssh_identity_flags_preserve_remote_overrides_and_equals_in_paths() {
             "upstream=other-key",
         ]),
         "identity",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
     let CliRequest::Push(request) = invocation.request else {
@@ -48,7 +45,7 @@ fn ssh_identity_flags_preserve_remote_overrides_and_equals_in_paths() {
         parse_args_with_request_id(
             strings(["push", "--remote-identity", "missing-separator"]),
             "bad",
-            Path::new("/cwd")
+            &test_cwd()
         )
         .is_err()
     );
@@ -56,10 +53,11 @@ fn ssh_identity_flags_preserve_remote_overrides_and_equals_in_paths() {
 
 #[test]
 pub(crate) fn parses_init_workspace_with_root() {
+    let root = test_cwd().join("gwz-test");
     let invocation = parse_args_with_request_id(
-        strings(["--root", "/tmp/gwz-test", "init"]),
+        strings(["--root", root.to_str().unwrap(), "init"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -67,16 +65,17 @@ pub(crate) fn parses_init_workspace_with_root() {
     let CliRequest::CreateWorkspace(request) = invocation.request else {
         panic!("expected create workspace");
     };
-    assert_eq!(request.workspace_root, "/tmp/gwz-test");
+    assert_eq!(request.workspace_root, root.to_str().unwrap());
     assert_eq!(request.meta.request_id, "req_test");
 }
 
 #[test]
 pub(crate) fn parses_init_update_bootstrap_with_root() {
+    let root = test_cwd().join("gwz-test");
     let invocation = parse_args_with_request_id(
-        strings(["--root", "/tmp/gwz-test", "init", "--update"]),
+        strings(["--root", root.to_str().unwrap(), "init", "--update"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -87,7 +86,7 @@ pub(crate) fn parses_init_update_bootstrap_with_root() {
     assert_eq!(meta.request_id, "req_test");
     assert_eq!(
         meta.workspace.unwrap().root,
-        Some("/tmp/gwz-test".to_owned())
+        Some(root.to_str().unwrap().to_owned())
     );
 }
 
@@ -96,7 +95,7 @@ pub(crate) fn init_update_rejects_sources_and_path_prefix() {
     let with_source = parse_args_with_request_id(
         strings(["init", "--update", "git@github.com:org/repo.git"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap_err();
     assert!(
@@ -108,7 +107,7 @@ pub(crate) fn init_update_rejects_sources_and_path_prefix() {
     let with_path = parse_args_with_request_id(
         strings(["init", "--update", "--path", "repos"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap_err();
     assert!(
@@ -127,14 +126,14 @@ pub(crate) fn parses_init_sources_from_plain_urls() {
             "https://github.com/org/repo-b",
         ]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
     let CliRequest::InitFromSources(request) = invocation.request else {
         panic!("expected init from sources");
     };
-    assert_eq!(request.workspace_root, "/cwd");
+    assert_eq!(request.workspace_root, test_cwd().to_str().unwrap());
     assert_eq!(request.sources[0].url, "git@github.com:org/repo-a.git");
     assert_eq!(request.sources[0].path, None);
     assert_eq!(request.sources[1].url, "https://github.com/org/repo-b");
@@ -145,7 +144,7 @@ pub(crate) fn parses_clone_with_explicit_and_derived_target() {
     let with_dir = parse_args_with_request_id(
         strings(["clone", "git@github.com:org/workspace.git", "work/demo"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
     let CliRequest::CloneWorkspace { url, target, .. } = with_dir.request else {
@@ -157,7 +156,7 @@ pub(crate) fn parses_clone_with_explicit_and_derived_target() {
     let derived = parse_args_with_request_id(
         strings(["clone", "https://github.com/org/workspace.git"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
     let CliRequest::CloneWorkspace { target, .. } = derived.request else {
@@ -269,7 +268,7 @@ pub(crate) fn clone_rejects_dry_run() {
     let error = parse_args_with_request_id(
         strings(["--dry-run", "clone", "https://github.com/org/workspace.git"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap_err();
     assert!(
@@ -290,7 +289,7 @@ pub(crate) fn parses_init_path_prefix_for_initial_sources() {
             "https://github.com/org/repo-b",
         ]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -303,10 +302,11 @@ pub(crate) fn parses_init_path_prefix_for_initial_sources() {
 
 #[test]
 pub(crate) fn parses_global_selection_policy_and_output_flags() {
+    let root = test_cwd().join("ws");
     let invocation = parse_args_with_request_id(
         strings([
             "--root",
-            "/ws",
+            root.to_str().unwrap(),
             "--member",
             "mem_app",
             "--member-path",
@@ -325,7 +325,7 @@ pub(crate) fn parses_global_selection_policy_and_output_flags() {
             "status",
         ]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -335,7 +335,7 @@ pub(crate) fn parses_global_selection_policy_and_output_flags() {
         panic!("expected status");
     };
     let workspace = request.meta.workspace.unwrap();
-    assert_eq!(workspace.root, Some("/ws".to_owned()));
+    assert_eq!(workspace.root, Some(root.to_str().unwrap().to_owned()));
     let selection = request.meta.selection.unwrap();
     assert_eq!(selection.targets, vec!["mem_app", "repos/lib"]);
     assert!(selection.exclude_targets.is_empty());
@@ -355,17 +355,27 @@ pub(crate) fn parses_global_selection_policy_and_output_flags() {
 
 #[test]
 pub(crate) fn capture_verb_parses_with_selection() {
+    let root = test_cwd().join("ws");
     let invocation = parse_args_with_request_id(
-        strings(["--root", "/ws", "--member", "mem_app", "capture"]),
+        strings([
+            "--root",
+            root.to_str().unwrap(),
+            "--member",
+            "mem_app",
+            "capture",
+        ]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
     let CliRequest::Capture(request) = invocation.request else {
         panic!("expected capture");
     };
-    assert_eq!(request.meta.workspace.unwrap().root, Some("/ws".to_owned()));
+    assert_eq!(
+        request.meta.workspace.unwrap().root,
+        Some(root.to_str().unwrap().to_owned())
+    );
     assert_eq!(request.meta.selection.unwrap().targets, vec!["mem_app"]);
 }
 
@@ -374,7 +384,7 @@ pub(crate) fn commit_marker_flags_parse_to_tristate() {
     let default = parse_args_with_request_id(
         strings(["commit", "-m", "message"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
     let CliRequest::Commit(request) = default.request else {
@@ -386,7 +396,7 @@ pub(crate) fn commit_marker_flags_parse_to_tristate() {
     let enabled = parse_args_with_request_id(
         strings(["commit", "-m", "message", "--commit-marker"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
     let CliRequest::Commit(request) = enabled.request else {
@@ -397,7 +407,7 @@ pub(crate) fn commit_marker_flags_parse_to_tristate() {
     let disabled = parse_args_with_request_id(
         strings(["commit", "-m", "message", "--no-commit-marker"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
     let CliRequest::Commit(request) = disabled.request else {
@@ -415,7 +425,7 @@ pub(crate) fn commit_marker_flags_parse_to_tristate() {
                 "--no-commit-marker",
             ]),
             "req_test",
-            Path::new("/cwd"),
+            &test_cwd(),
         )
         .is_err()
     );
@@ -430,7 +440,7 @@ pub(crate) fn stage_all_flag_does_not_widen_an_explicit_target() {
     let invocation = parse_args_with_request_id(
         strings(["add", "-A", "--target", "mem_x"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -446,7 +456,7 @@ pub(crate) fn commit_all_flag_does_not_widen_an_explicit_target() {
     let invocation = parse_args_with_request_id(
         strings(["commit", "-a", "--target", "mem_x", "-m", "msg"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -460,7 +470,7 @@ pub(crate) fn commit_all_flag_does_not_widen_an_explicit_target() {
 #[test]
 pub(crate) fn global_all_still_selects_every_target_for_other_verbs() {
     for args in [strings(["--all", "status"]), strings(["status", "--all"])] {
-        let invocation = parse_args_with_request_id(args, "req_test", Path::new("/cwd")).unwrap();
+        let invocation = parse_args_with_request_id(args, "req_test", &test_cwd()).unwrap();
         let CliRequest::Status(request) = invocation.request else {
             panic!("expected status");
         };
@@ -473,7 +483,7 @@ pub(crate) fn parses_all_with_target_exclusion_for_ls() {
     let invocation = parse_args_with_request_id(
         strings(["--all", "--no-target", "@root", "ls"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -507,7 +517,7 @@ pub(crate) fn parses_target_aliases_into_selector_fields() {
             "status",
         ]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -530,7 +540,7 @@ pub(crate) fn parses_combined_status_flags() {
     let invocation = parse_args_with_request_id(
         strings(["status", "--porcelain", "--no-branches"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -550,7 +560,7 @@ pub(crate) fn parses_combined_status_flags() {
 #[test]
 pub(crate) fn parses_status_as_combined_by_default() {
     let invocation =
-        parse_args_with_request_id(strings(["status"]), "req_test", Path::new("/cwd")).unwrap();
+        parse_args_with_request_id(strings(["status"]), "req_test", &test_cwd()).unwrap();
 
     let CliRequest::Status(request) = invocation.request else {
         panic!("expected status");
@@ -569,7 +579,7 @@ pub(crate) fn parses_no_combined_status_as_summary_mode() {
     let invocation = parse_args_with_request_id(
         strings(["status", "--no-combined"]),
         "req_test",
-        Path::new("/cwd"),
+        &test_cwd(),
     )
     .unwrap();
 
@@ -645,7 +655,7 @@ pub(crate) fn global_all_selects_targets_for_add_and_commit_without_setting_the_
         strings(["--all", "commit", "-m", "msg"]),
         strings(["commit", "--all", "-m", "msg"]),
     ] {
-        let invocation = parse_args_with_request_id(args, "req_test", Path::new("/cwd")).unwrap();
+        let invocation = parse_args_with_request_id(args, "req_test", &test_cwd()).unwrap();
         let CliRequest::Commit(request) = invocation.request else {
             panic!("expected commit");
         };
@@ -654,7 +664,7 @@ pub(crate) fn global_all_selects_targets_for_add_and_commit_without_setting_the_
     }
 
     for args in [strings(["--all", "add"]), strings(["add", "--all"])] {
-        let invocation = parse_args_with_request_id(args, "req_test", Path::new("/cwd")).unwrap();
+        let invocation = parse_args_with_request_id(args, "req_test", &test_cwd()).unwrap();
         let CliRequest::Stage(request) = invocation.request else {
             panic!("expected stage");
         };

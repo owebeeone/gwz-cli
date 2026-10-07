@@ -484,7 +484,7 @@ pub(crate) fn parse(args: Vec<String>) -> CliInvocation {
 }
 
 pub(crate) fn parse_result(args: Vec<String>) -> Result<CliInvocation, CliError> {
-    parse_args_with_request_id(args, "req_test", Path::new("/cwd"))
+    parse_args_with_request_id(args, "req_test", &test_cwd())
 }
 
 pub(crate) fn strings<const N: usize>(items: [&str; N]) -> Vec<String> {

@@ -195,8 +195,9 @@ fn crate_publish_workflow_builds_with_the_toolchain_gwz_declares() {
 fn push_and_pull_request_ci_runs_the_release_script_unit_tests() {
     // S3.2 wires in S3.1's unit tests. This is gwz-cli's only push and
     // pull-request workflow (the Rust driver is tested on the workspace
-    // tuple by gwz-dev's root push), and it names its unittest modules one
-    // by one, so a module nobody adds here never runs in CI.
+    // tuple by gwz-dev's root push, and on Windows by its `windows` job), and
+    // it names its unittest modules one by one, so a module nobody adds here
+    // never runs in CI.
     assert!(has_line(CI_WORKFLOW, "pull_request:"));
     assert!(has_line(CI_WORKFLOW, "branches: [main]"));
     assert!(CI_WORKFLOW.contains("uses: actions/setup-python@v5"));
@@ -219,4 +220,36 @@ fn push_and_pull_request_ci_runs_the_process_global_check_beside_gwz_core() {
         CI_WORKFLOW,
         "run: python -m unittest scripts/test_process_globals.py -v"
     ));
+}
+
+#[test]
+fn push_and_pull_request_ci_builds_and_tests_the_driver_on_windows() {
+    // TR4.6 (gwz-core dev-docs/GwzTransportReleasePlanAmendment-2.md §3.5):
+    // the driver's ordinary build and ordinary suites, and the
+    // conditional-compilation check over this crate, run on Windows on every
+    // push to main and every pull request, against gwz-core's main beside it,
+    // gwz-sspi at the commit gwz-core pins and git2-rs by gwz-core's script.
+    assert!(has_line(CI_WORKFLOW, "runs-on: windows-2022"));
+    assert!(has_line(CI_WORKFLOW, "shell: bash"));
+    assert!(has_line(CI_WORKFLOW, "rustup default 1.95.0"));
+    assert!(has_line(
+        CI_WORKFLOW,
+        "run: bash .github/checkout-git2-rs.sh"
+    ));
+    assert!(CI_WORKFLOW.contains("gwz-core/.github/gwz-sspi.commit"));
+    assert!(has_line(CI_WORKFLOW, "repository: owebeeone/gwz-sspi"));
+    assert!(has_line(
+        CI_WORKFLOW,
+        "run: python gwz-core/scripts/checks/check_cfg_boundaries.py --skip-repo gwz-py"
+    ));
+    assert!(has_line(
+        CI_WORKFLOW,
+        "run: cargo build --locked --all-targets"
+    ));
+    // The suite's own status is the step's: nothing swallows it.
+    assert!(CI_WORKFLOW.contains("cargo test --locked --no-fail-fast 2>&1 | tee"));
+    assert!(
+        !CI_WORKFLOW
+            .contains("cargo test --locked --no-fail-fast 2>&1 | tee ../windows-test.log || true")
+    );
 }

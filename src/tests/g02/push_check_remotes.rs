@@ -16,7 +16,7 @@ const TWO_UNCHECKED: &str = "2 repositories unchanged since the last fetch or pu
 
 fn parse_push(args: &[&str]) -> Result<CliInvocation, CliError> {
     let owned = args.iter().map(|item| (*item).to_owned()).collect();
-    parse_args_with_request_id(owned, "req_push", Path::new("/cwd"))
+    parse_args_with_request_id(owned, "req_push", &test_cwd())
 }
 
 fn push_request(args: &[&str]) -> gwz_core::PushRequest {

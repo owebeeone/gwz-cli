@@ -59,8 +59,8 @@ fn entry(members: Vec<gwz_core::LogEntryMember>, subject: &str) -> gwz_core::Log
 
 #[test]
 fn full_flag_and_command_help_describe_the_human_modes_and_no_pager() {
-    assert!(!log_invocation(strings(["log"]), Path::new("/cwd")).full);
-    assert!(log_invocation(strings(["log", "--full"]), Path::new("/cwd")).full);
+    assert!(!log_invocation(strings(["log"]), &test_cwd()).full);
+    assert!(log_invocation(strings(["log", "--full"]), &test_cwd()).full);
 
     let mut command = Cli::command();
     let help = command

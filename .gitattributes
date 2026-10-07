@@ -1,0 +1,6 @@
+# Files the tests compare byte for byte are checked out with LF on every host,
+# whatever core.autocrlf says (a Windows runner image sets it to true):
+# docs/CLI.md against the generated Clap help (src/tests/g00.rs), and the
+# fixtures against rendered output (src/tests/g02.rs).
+docs/CLI.md text eol=lf
+tests/fixtures/** text eol=lf

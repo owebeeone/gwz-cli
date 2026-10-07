@@ -73,3 +73,84 @@ jobs:
       - name: Candidate switch inventory check
         working-directory: gwz-cli
         run: python -m unittest scripts/test_candidate_switches.py -v
+  windows:
+    # TR4.6 (gwz-core dev-docs/GwzTransportReleasePlanAmendment-2.md §3.5):
+    # gwz-cli's ordinary build and ordinary suites on Windows, on every push to
+    # main and every pull request, and the conditional-compilation check over
+    # this crate. gwz-core's are `matrix` in its windows-matrix.yml. gwz-cli
+    # builds against its siblings by path, so they are laid out as the platform
+    # gate lays them out: gwz-core's main beside gwz-cli, as the jobs above
+    # check it out; gwz-sspi at the commit gwz-core's .github/gwz-sspi.commit
+    # pins; git2-rs by gwz-core's script, at its .github/git2-rs.commit. Every
+    # step runs under bash: the default PowerShell fails a multi-line step only
+    # on its last command's exit status.
+    name: Build and test on Windows
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      CARGO_INCREMENTAL: "0"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: gwz-cli
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: owebeeone/gwz-core
+          path: gwz-core
+          fetch-depth: 1
+          persist-credentials: false
+      - id: sspi-pin
+        name: Read the gwz-sspi commit gwz-core pins
+        run: |
+          pin="$(grep -m1 -E '^[0-9a-f]{40}' gwz-core/.github/gwz-sspi.commit | tr -d '\r')"
+          test -n "$pin"
+          echo "sha=$pin" >> "$GITHUB_OUTPUT"
+      - name: Check out gwz-sspi at its pin, beside gwz-core
+        uses: actions/checkout@v6
+        with:
+          repository: owebeeone/gwz-sspi
+          ref: ${{ steps.sspi-pin.outputs.sha }}
+          path: gwz-sspi
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check out git2-rs beside gwz-core
+        # The checkout is CRLF on this image (system core.autocrlf=true); the
+        # script reads the same, since Git for Windows' bash and grep drop the CR.
+        working-directory: gwz-core
+        run: bash .github/checkout-git2-rs.sh
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          rustup default 1.95.0
+          rustc --version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: gwz-cli
+          cache-on-failure: true
+      - name: Conditional-compilation boundary check
+        # gwz-core's checker, over gwz-core and this crate; gwz-py is not
+        # checked out and prints SKIPPED GATE.
+        run: python gwz-core/scripts/checks/check_cfg_boundaries.py --skip-repo gwz-py
+      - name: Build
+        working-directory: gwz-cli
+        run: cargo build --locked --all-targets
+      - name: Test
+        working-directory: gwz-cli
+        run: |
+          set -o pipefail
+          cargo test --locked --no-fail-fast 2>&1 | tee ../windows-test.log
+      - name: Summarize failures
+        if: ${{ !cancelled() }}
+        run: |
+          echo '== failure names =='
+          grep -E '^test .* \.\.\. FAILED' windows-test.log | sort || true
+          echo '== results =='
+          grep -E '^test result' windows-test.log || true
