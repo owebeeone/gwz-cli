@@ -23,6 +23,7 @@ gwz_transport_candidate  src/globalargs.rs  use dispatch::execute_invocation
 gwz_transport_candidate  src/globalargs.rs  use dispatch::execute_invocation_selected
 gwz_transport_candidate  src/globalargs/dispatch.rs  fn execute_invocation
 gwz_transport_candidate  src/globalargs/dispatch.rs  fn execute_invocation_selected
+gwz_transport_candidate  src/globalargs/dispatch.rs  fn note_sink
 gwz_transport_candidate  src/globalargs/dispatch.rs  fn transport_meta
 gwz_transport_candidate  src/globalargs/retry.rs  mod pins
 gwz_transport_candidate  src/globalargs/retry.rs  struct RetryArgs

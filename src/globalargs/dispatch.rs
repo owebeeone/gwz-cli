@@ -8,21 +8,55 @@ pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliRespon
 
 } }
 
+cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
+/// Who is told what the transport's limit machines say (the adaptive
+/// concurrency design's §9): a person reading human output, as `note: ` lines
+/// above the live progress block. Every machine-readable mode gets none, so
+/// `--json` and `--jsonl` carry no notes, and neither does `--porcelain`.
+fn note_sink(
+    output: OutputMode,
+    progress: &std::sync::Arc<StderrProgressSink>,
+) -> Option<gwz_core::transport_host::NoteSink> {
+    let progress = progress.clone();
+    (output == OutputMode::Human)
+        .then(|| gwz_core::transport_host::NoteSink::new(move |line| progress.println_above(line)))
+}
+
+cfg_if::cfg_if! { if #[cfg(test)] { mod notes_tests; } }
+} }
+
 pub(crate) fn execute_invocation_selected(
     invocation: &CliInvocation,
     _native: bool,
 ) -> Result<CliResponse, CliError> {
     let operation_id = new_operation_id();
+    // The live progress line and the notes share one terminal writer.
+    let progress_sink = std::sync::Arc::new(StderrProgressSink::new(operation_label(
+        &invocation.request,
+    )));
     cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
         if let Some(meta) = transport_meta(&invocation.request).filter(|_| !_native) {
             let supervisor = crate::sspi_worker_executable().and_then(|descriptor|
                 gwz_sspi::Supervisor::new(descriptor, gwz_sspi::Options::default()).map(std::sync::Arc::new).map_err(|error| error.kind()));
             let caller = gwz_core::transport_host::NativeCaller::capture(&supervisor);
-            let (result, cleanup) = gwz_core::transport_host::with_local_transport_native(
-                meta.clone(),
-                operation_id.clone(), caller,
-                |backend| execute_with_backend(invocation, backend, operation_id),
-            )
+            let run = |backend: &gwz_core::git::Git2Backend| {
+                execute_with_backend(invocation, backend, operation_id.clone(), &progress_sink)
+            };
+            let (result, cleanup) = match note_sink(invocation.output, &progress_sink) {
+                Some(notes) => gwz_core::transport_host::with_local_transport_native_noted(
+                    meta.clone(),
+                    operation_id.clone(),
+                    caller,
+                    notes,
+                    run,
+                ),
+                None => gwz_core::transport_host::with_local_transport_native(
+                    meta.clone(),
+                    operation_id.clone(),
+                    caller,
+                    run,
+                ),
+            }
             .map_err(CliError::from_model)?;
             if cleanup.pending_local_work != 0 {
                 eprintln!(
@@ -33,13 +67,19 @@ pub(crate) fn execute_invocation_selected(
             return result;
         }
     } }
-    execute_with_backend(invocation, &gwz_core::git::Git2Backend::new(), operation_id)
+    execute_with_backend(
+        invocation,
+        &gwz_core::git::Git2Backend::new(),
+        operation_id,
+        &progress_sink,
+    )
 }
 
 fn execute_with_backend(
     invocation: &CliInvocation,
     backend: &gwz_core::git::Git2Backend,
     operation_id: String,
+    progress_sink: &StderrProgressSink,
 ) -> Result<CliResponse, CliError> {
     let services = backend.operation_services();
     let start = invocation.start_dir.as_path();
@@ -47,10 +87,9 @@ fn execute_with_backend(
     // line to stderr (TTY-gated); Json/Porcelain stay quiet.
     let jsonl_sink = JsonlSink;
     let null_sink = gwz_core::operation::NullSink;
-    let progress_sink = StderrProgressSink::new(operation_label(&invocation.request));
     let events: &dyn gwz_core::operation::EventSink = match invocation.output {
         OutputMode::Jsonl => &jsonl_sink,
-        OutputMode::Human => &progress_sink,
+        OutputMode::Human => progress_sink,
         OutputMode::Json | OutputMode::Porcelain => &null_sink,
     };
     // Most mutations are guarded authoritatively by their public core handler.

@@ -194,11 +194,38 @@ pub(crate) fn member_short_name(path: &str) -> &str {
 /// `--jsonl`. The model lock also serializes the concurrent member threads'
 /// terminal writes.
 pub(crate) struct StderrProgressSink {
-    pub(crate) term: console::Term,
+    pub(crate) screen: Box<dyn Screen>,
     pub(crate) enabled: bool,
     pub(crate) state: Mutex<ProgressModel>,
     pub(crate) tick: AtomicUsize,
     pub(crate) diagnostics: DiagnosticEcho,
+}
+
+/// What the sink needs of a terminal. `console::Term` is the one used; a test
+/// keeps what it is told, which no platform's `Term` can do (`read_write_pair`
+/// is Unix only).
+pub(crate) trait Screen: Send + Sync {
+    fn clear_line(&self);
+    /// Writes `line` and a newline.
+    fn write_line(&self, line: &str);
+    fn write_str(&self, text: &str);
+    /// The terminal's width in columns, 0 when unknown.
+    fn columns(&self) -> usize;
+}
+
+impl Screen for console::Term {
+    fn clear_line(&self) {
+        let _ = console::Term::clear_line(self);
+    }
+    fn write_line(&self, line: &str) {
+        let _ = console::Term::write_line(self, line);
+    }
+    fn write_str(&self, text: &str) {
+        let _ = console::Term::write_str(self, text);
+    }
+    fn columns(&self) -> usize {
+        self.size().1 as usize
+    }
 }
 
 impl StderrProgressSink {
@@ -206,7 +233,7 @@ impl StderrProgressSink {
         let term = console::Term::stderr();
         let enabled = term.is_term();
         Self {
-            term,
+            screen: Box::new(term),
             enabled,
             state: Mutex::new(ProgressModel::new(label)),
             tick: AtomicUsize::new(0),
@@ -215,23 +242,33 @@ impl StderrProgressSink {
     }
 }
 
+impl StderrProgressSink {
+    /// Prints `line` as a line of its own, whether or not stderr is a
+    /// terminal. On a terminal the live line is cleared first and drawn again
+    /// below, so the line never lands inside the rewritten status line. The
+    /// model lock serializes it against the member threads' writes. Diagnostics
+    /// and the `note: ` lines of the transport's limit machines go this way.
+    pub(crate) fn println_above(&self, line: &str) {
+        let state = self.state.lock().expect("progress state poisoned");
+        if self.enabled {
+            self.screen.clear_line();
+        }
+        self.screen.write_line(line);
+        if self.enabled {
+            let tick = self.tick.fetch_add(1, Ordering::Relaxed);
+            let redraw =
+                truncate_to_width(&render_progress_line(&state, tick), self.screen.columns());
+            self.screen.write_str(&redraw);
+        }
+    }
+}
+
 impl gwz_core::operation::EventSink for StderrProgressSink {
     fn deliver(&self, event: gwz_core::OperationEvent) {
         // A diagnostic is a message, not progress: it is printed even when the
-        // live line is TTY-disabled. The model lock serializes it against the
-        // member threads' writes; the line is cleared first and redrawn after
-        // so the diagnostic never lands inside the rewritten status line.
+        // live line is TTY-disabled (`println_above`).
         if let Some(line) = self.diagnostics.line_for(&event) {
-            let state = self.state.lock().expect("progress state poisoned");
-            if self.enabled {
-                let _ = self.term.clear_line();
-            }
-            let _ = self.term.write_line(&line);
-            if self.enabled {
-                let tick = self.tick.fetch_add(1, Ordering::Relaxed);
-                let redraw = truncate_to_width(&render_progress_line(&state, tick), &self.term);
-                let _ = self.term.write_str(&redraw);
-            }
+            self.println_above(&line);
             return;
         }
         let mut state = self.state.lock().expect("progress state poisoned");
@@ -240,23 +277,22 @@ impl gwz_core::operation::EventSink for StderrProgressSink {
             return;
         }
         if event.kind == gwz_core::EventKind::OperationFinished {
-            let _ = self.term.clear_line();
+            self.screen.clear_line();
             return;
         }
         if !changed {
             return;
         }
         let tick = self.tick.fetch_add(1, Ordering::Relaxed);
-        let line = truncate_to_width(&render_progress_line(&state, tick), &self.term);
-        let _ = self.term.clear_line();
-        let _ = self.term.write_str(&line);
+        let line = truncate_to_width(&render_progress_line(&state, tick), self.screen.columns());
+        self.screen.clear_line();
+        self.screen.write_str(&line);
     }
 }
 
 /// Truncates to one terminal width so the `\r` redraw never wraps and leaves
 /// orphaned text. Width 0 (unknown) means no truncation.
-pub(crate) fn truncate_to_width(line: &str, term: &console::Term) -> String {
-    let width = term.size().1 as usize;
+pub(crate) fn truncate_to_width(line: &str, width: usize) -> String {
     if width == 0 || line.chars().count() <= width {
         return line.to_owned();
     }
