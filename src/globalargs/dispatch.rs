@@ -13,13 +13,18 @@ cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, 
 /// concurrency design's §9): a person reading human output, as `note: ` lines
 /// above the live progress block. Every machine-readable mode gets none, so
 /// `--json` and `--jsonl` carry no notes, and neither does `--porcelain`.
+///
+/// The detail lines, such as a followed discovery redirect, are printed only with `--verbose`.
 fn note_sink(
     output: OutputMode,
+    verbose: bool,
     progress: &std::sync::Arc<StderrProgressSink>,
 ) -> Option<gwz_core::transport_host::NoteSink> {
     let progress = progress.clone();
-    (output == OutputMode::Human)
-        .then(|| gwz_core::transport_host::NoteSink::new(move |line| progress.println_above(line)))
+    (output == OutputMode::Human).then(|| {
+        gwz_core::transport_host::NoteSink::new(move |line| progress.println_above(line))
+            .with_detail(verbose)
+    })
 }
 
 cfg_if::cfg_if! { if #[cfg(test)] { mod notes_tests; } }
@@ -42,7 +47,7 @@ pub(crate) fn execute_invocation_selected(
             let run = |backend: &gwz_core::git::Git2Backend| {
                 execute_with_backend(invocation, backend, operation_id.clone(), &progress_sink)
             };
-            let (result, cleanup) = match note_sink(invocation.output, &progress_sink) {
+            let (result, cleanup) = match note_sink(invocation.output, invocation.verbose, &progress_sink) {
                 Some(notes) => gwz_core::transport_host::with_local_transport_native_noted(
                     meta.clone(),
                     operation_id.clone(),
