@@ -13,8 +13,8 @@ cfg_if::cfg_if! {
                 global = true,
                 value_name = "n",
                 value_parser = parse_max_retries,
-                help = "Extra setup attempts after the first failure (0 = do not retry, default 3)",
-                long_help = "How many times to retry a connection that failed during setup, after the first attempt. Setup is before the session is reusable: for SSH, before it is authenticated; for HTTPS, before the first request byte. A stall or a reset during a fetch, push, or pull body is not retried. Defaults to 3, so four attempts. 0 reports the first failure and does not retry. Values above 3 are accepted. This is the only retry control. --ssh-timeout 0 does not turn retries off. A repository that succeeds on a later attempt counts as having answered. After each failed setup attempt the next one waits 1 second, then 2, then 4, doubling, and the wait does not grow past 30 seconds, plus up to 0.25 seconds of jitter. --ssh-timeout sets only the stall of an SSH setup attempt and of a body read. 0 on that flag clears the stall and the 30 second setup budget. It does not clear these waits."
+                help = "Extra attempts after a failed setup or a refusal (0 = no retries, and --max-per-host is never lowered; default 3)",
+                long_help = "How many times to retry a connection that failed during setup, after the first attempt. Setup is before the session is reusable: for SSH, before it is authenticated; for HTTPS, before the first request byte. A stall or a reset during a fetch, push, or pull body is not retried. Defaults to 3, so four attempts. 0 reports the first failure and does not retry. Values above 3 are accepted. This is the only retry control. --ssh-timeout 0 does not turn retries off. A repository that succeeds on a later attempt counts as having answered. After each failed setup attempt the next one waits 1 second, then 2, then 4, doubling, and the wait does not grow past 30 seconds, plus up to 0.25 seconds of jitter. --ssh-timeout sets only the stall of an SSH setup attempt and of a body read. 0 on that flag clears the stall and the 30 second setup budget. It does not clear these waits. A connection that the host refused because it holds too many connections (an HTTP 429, or a 503 with Retry-After) is retried within the same count, so a host that keeps refusing makes a repository give up after this many attempts in all. 0 also turns off the adaptive per-host limit: gwz never lowers the number of connections it uses because a host refused one, a refusal fails that repository at once, and a Retry-After wait still applies. See --max-per-host."
             )]
             pub(crate) max_retries: Option<i64>,
         }
@@ -85,10 +85,42 @@ cfg_if::cfg_if! {
             fn max_retries_renders_the_retry_plans_help() {
                 let short = help(&["gwz", "fetch", "-h"]);
                 assert!(short.contains(
-                    "--max-retries <n> Extra setup attempts after the first failure (0 = do not retry, default 3)"
+                    "--max-retries <n> Extra attempts after a failed setup or a refusal (0 = no retries, and --max-per-host is never lowered; default 3)"
                 ));
                 let long = help(&["gwz", "fetch", "--help"]);
                 assert!(long.contains("How many times to retry a connection that failed during setup, after the first attempt. Setup is before the session is reusable: for SSH, before it is authenticated; for HTTPS, before the first request byte. A stall or a reset during a fetch, push, or pull body is not retried. Defaults to 3, so four attempts. 0 reports the first failure and does not retry. Values above 3 are accepted. This is the only retry control. --ssh-timeout 0 does not turn retries off. A repository that succeeds on a later attempt counts as having answered. After each failed setup attempt the next one waits 1 second, then 2, then 4, doubling, and the wait does not grow past 30 seconds, plus up to 0.25 seconds of jitter. --ssh-timeout sets only the stall of an SSH setup attempt and of a body read. 0 on that flag clears the stall and the 30 second setup budget. It does not clear these waits."));
+            }
+
+            /// The adaptive limit's help (adaptive concurrency design section 9): each
+            /// flag states its default and what the other does to it.
+            #[test]
+            fn max_retries_help_states_its_default_and_what_zero_does_to_the_host_limit() {
+                let long = help(&["gwz", "fetch", "--help"]);
+                assert!(long.contains("Defaults to 3, so four attempts."));
+                assert!(long.contains("A connection that the host refused because it holds too many connections (an HTTP 429, or a 503 with Retry-After) is retried within the same count, so a host that keeps refusing makes a repository give up after this many attempts in all."));
+                assert!(long.contains("0 also turns off the adaptive per-host limit: gwz never lowers the number of connections it uses because a host refused one, a refusal fails that repository at once, and a Retry-After wait still applies. See --max-per-host."));
+            }
+
+            #[test]
+            fn max_per_host_help_states_the_ceiling_and_that_gwz_may_use_fewer() {
+                let short = help(&["gwz", "fetch", "-h"]);
+                assert!(short.contains(
+                    "Maximum (ceiling) concurrent member operations to any one hostname (default 32; 8 with --transport native)"
+                ));
+                let long = help(&["gwz", "fetch", "--help"]);
+                assert!(long.contains("Maximum (ceiling) concurrent member operations against one remote hostname."));
+                assert!(long.contains("Defaults to 32; 8 with --transport native."));
+                assert!(long.contains("gwz may use fewer connections than this when the host refuses more, and raises the number again when the host recovers; a note: line on stderr says so."));
+                assert!(long.contains("It keeps the number it uses for each scheme and port of a host (SSH and HTTPS to one host are separate), and never goes above this ceiling."));
+                assert!(long.contains("--max-retries 0 turns the lowering off, and --transport native never lowers it."));
+                assert!(long.contains("Troubleshooting: Fewer connections than --max-per-host, or a Capacity error."));
+            }
+
+            #[test]
+            fn ssh_timeout_help_says_a_refusal_waits_for_the_host_not_for_this_clock() {
+                let long = help(&["gwz", "fetch", "--help"]);
+                assert!(long.contains("Retries are controlled by --max-retries (default 3 extra attempts, so 4 in all; the same count bounds retries after a host refuses connections)."));
+                assert!(long.contains("A host that refuses a connection (an HTTP 429, or a 503 with Retry-After) is not a stalled setup: the repository waits for the host's Retry-After, at most 30 seconds at a time, or about half a second when it gave none, and the refusal counts as one of its attempts."));
             }
 
             #[test]

@@ -11,6 +11,16 @@ the released CLI rather than unreleased work on `main`.
 
 ## Unreleased
 
+- **`--max-per-host` is a ceiling, and gwz may use fewer connections** (the
+  transport build, planned for 1.1.0). When a host refuses extra connections,
+  gwz uses fewer at a time for the rest of the command, per scheme and port,
+  tests that limit again as the command goes, and raises the number when the
+  host recovers. A refused connection is retried inside `--max-retries` (default
+  3 extra attempts) instead of failing its repository at once, and a
+  `Retry-After` from the host is waited for, at most 30 seconds at a time. Human
+  output says what happened in `note:` lines on stderr; `--json`, `--jsonl` and
+  `--porcelain` print none. `--max-retries 0` turns the lowering off. See
+  [Troubleshooting](Troubleshooting.md) ("Fewer connections than --max-per-host, or a Capacity error").
 - **`gwz merge --remote <name>` no longer refuses a member only this workspace
   has.** A member registered here after the lane was cloned made every family
   merge from that lane refuse with `PairingMismatch`, even when `--target` left

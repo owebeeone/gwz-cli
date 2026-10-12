@@ -227,6 +227,15 @@ it. JSONL adds no Diagnostic event; read the final response object. Machine
 modes print no setting notices to stderr. Authentication rows in `meta.transport`
 are reported on either transport.
 
+### Notes
+
+In the transport build, `note: ` lines (for example that gwz is using fewer
+connections to a host) are written to stderr in human output only. `--json`,
+`--jsonl` and `--porcelain` print none, so a consumer reading stdout and
+stderr sees the same bytes as without a limit. The final response is the
+record. See
+[Troubleshooting](Troubleshooting.md) ("Fewer connections than --max-per-host, or a Capacity error").
+
 ### `meta.transport`
 
 `meta.transport` is an optional list of rows, one per remote authentication

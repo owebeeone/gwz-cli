@@ -189,7 +189,10 @@ Recovery:
 
 - Confirm SSH agent keys or HTTPS credentials.
 - Increase `--ssh-timeout <secs>` for slow networks.
-- Use `--jobs` and `--max-per-host` to reduce concurrency against a host.
+- Use `--jobs` and `--max-per-host` to reduce concurrency against a host. If
+  gwz already printed `note:` lines about using fewer connections, or a
+  repository failed after a host kept refusing connections, see
+  "Fewer connections than --max-per-host, or a Capacity error" below.
 - To publish over HTTPS from a workspace cloned over SSH, switch its remotes as
   [Publication](Concepts.md#publication) describes.
 - For public repositories on github.com, gitlab.com, or bitbucket.org, clone or
@@ -214,6 +217,104 @@ identity, so a clone, fetch, push or tag that would reach that remote over
 HTTPS refuses it before any network access, including a push whose root proof
 reads a dependency through that remote. The message ends with
 `; use --identity PATH, which non-SSH destinations ignore, or no override for that remote`.
+
+## Fewer connections than --max-per-host, or a Capacity error
+
+In the transport build (planned for 1.1.0), `--max-per-host` is a ceiling, not
+a promise. Servers cap how many connections one account or address may hold,
+and other programs on the same account or address count against that cap. When
+a host refuses extra connections, gwz uses fewer at a time, keeps checking
+whether it may use more, and raises the number again when the host allows it.
+The number is kept for each scheme and port of a host, so SSH and HTTPS to one
+host are separate, and it never goes above `--max-per-host` (default 32). It
+lasts for one command only; the next command starts at the ceiling again.
+
+### The notes
+
+gwz says what it is doing in lines that start with `note: `, on stderr, one
+line per event for the host, not one per repository:
+
+```text
+note: github.com:443 refused extra connections; using 8 at a time (ceiling 32 from --max-per-host); continuing, no action needed
+note: github.com:443: now using 12 connections
+note: github.com:443: back at the ceiling of 32 connections
+note: github.com:443 asked gwz to wait 20 s; waiting
+note: github.com:22 is not answering; waiting up to 30 s to retry
+```
+
+- The first line means the host refused extra connections, so gwz is using
+  fewer, and the command continues. No action is needed. The next two lines
+  follow when the host lets gwz use more, at most one change line per host
+  every 2 seconds.
+- The fourth line means the host sent a `Retry-After` of more than 1 second and
+  gwz is waiting for it. gwz waits at most 30 seconds at a time for one host.
+- The last line means the host did not answer gwz's connection attempts.
+  Repositories on that host wait up to 30 seconds and then try once more. If two retries in a
+  row fail, the remaining repositories on that host fail at once with
+  `not attempted: github.com:22 failed earlier in this run (<the reason>)`. Check
+  the host and your network, then run the command again.
+
+A `note:` line is information, never a failure. A failure line starts with
+`gwz: `. The notes are printed in human output, also when stderr is not a
+terminal, and they are left out of `--json`, `--jsonl` and `--porcelain` output.
+A single refused connection that a retry fixes prints nothing.
+
+### When a repository fails
+
+A repository gives up when it has used all of its attempts, which is
+`--max-retries` plus one (4 by default), and a refusal by the host counts as an
+attempt. Its error is the error of its last failure, and ends with
+`(attempt N of M)`, where M is the number of attempts allowed. There are three
+Capacity messages. Each starts with `member '<id>' at '<path>': `.
+
+The host kept refusing connections:
+
+```text
+github.com:443 kept refusing connections (using 8 at a time, ceiling 32 from --max-per-host); gave up after 21 s; retry later, or lower --max-per-host (attempt 4 of 4)
+```
+
+This is a 429, or a 503 with `Retry-After`, on every attempt. The part in
+brackets is left out when gwz never had to lower its number. Run the command
+again later. If the account or address is shared with other jobs, lower
+`--max-per-host` (for example `--max-per-host 8`) so that this command leaves
+room for them. `--max-retries` gives repositories more attempts.
+
+The host asked for a long wait:
+
+```text
+github.com:443 asked to wait 120 s, longer than the 30 s one command holds a host; retry in 2 min (attempt 1 of 4)
+```
+
+One command waits at most 30 seconds for a host, so a repository whose host
+asks for longer stops. Run the command again after the time it names.
+
+gwz ran out of connection setups:
+
+```text
+gwz's 64 connection-setup slots stayed full for 30 s (setups that stopped answering hold them until they time out); retry later
+```
+
+gwz runs at most 64 connection setups at once. This is a fixed internal limit,
+not `--jobs`. It is full when many setups have stopped answering and hold their
+slot until they time out, which points at a host or network that is not
+answering. This message has no attempt count. Retry later, and check the host.
+A lower `--ssh-timeout` makes stuck SSH setups give up sooner.
+
+Other failures keep the message they had: a bare 503 without `Retry-After`, a
+reset, a refused connect or a stalled setup is reported as that failure, also
+when the host's limit caused it. SSH servers that cap unauthenticated
+connections (OpenSSH's `MaxStartups`) usually drop the connection, so a failure
+there is reported as the drop. If gwz had lowered its number, a `note:` line
+says so. An error about a host that stopped answering is reported with the
+reason for that failure, never as a Capacity error.
+
+### Turning the adjusting off
+
+`--max-retries 0` turns it off. gwz then never lowers the number of
+connections because of a refusal, a repository whose connection is refused
+fails at once, and a `Retry-After` is still waited for. `--transport native`
+has no adjusting either: it is the transport of gwz 1.0 with the fixed
+`--max-per-host` (8 by default there).
 
 ## Push Refuses Root Publication
 

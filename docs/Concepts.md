@@ -130,6 +130,16 @@ Network operations are bounded by `--jobs <n>` across the whole operation and
 `--max-per-host <n>` per remote host. `--ssh-timeout <secs>` bounds stalled
 SSH/network reads; `0` disables the timeout.
 
+In the transport build (planned for 1.1.0), `--max-per-host` (default 32) is a
+ceiling. When a host refuses extra connections, gwz uses fewer at a time for the
+rest of the command, per scheme and port, and raises the number again when the
+host recovers. `--max-retries` (default 3 extra attempts, so 4 in all) bounds
+the retries of refused connections too, and `--max-retries 0` turns the
+lowering off. Human output says what gwz is doing in `note:` lines on stderr;
+`--json`, `--jsonl` and `--porcelain` carry none. A `note:` line is
+information. A failure line starts with `gwz: `. See
+[Troubleshooting](Troubleshooting.md) ("Fewer connections than --max-per-host, or a Capacity error").
+
 On `clone` and `materialize`, `--url-scheme <manifest|ssh|https>` chooses the
 URL form used for repositories this operation clones on the known hosts
 github.com, gitlab.com, and bitbucket.org; `GWZ_URL_SCHEME` sets the same
