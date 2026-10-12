@@ -52,3 +52,18 @@ fn a_followed_redirect_is_printed_only_with_verbose() {
         );
     }
 }
+
+#[test]
+fn the_http_remote_warning_is_printed_without_verbose_in_human_output() {
+    // Text T2 (Windows parity design section 14, item 13): the warning for an `http://` remote is a note, not
+    // a detail line, so `--verbose` neither gates it nor is needed to see it. Machine-readable modes have no
+    // reader, and the transport then writes the warning to standard error itself.
+    let line = "warning: http://git.example/repo is an http:// remote. GWZ carries it on the native transport: a Basic password is sent unencrypted and a Windows sign-in has no channel binding. Use an https:// address if the server offers one.";
+    for verbose in [false, true] {
+        let (progress, kept) = sink(false);
+        let progress = Arc::new(progress);
+        let reader = note_sink(OutputMode::Human, verbose, &progress).unwrap();
+        reader.tell(line);
+        assert_eq!(kept.told(), [format!("line:{line}")], "verbose={verbose}");
+    }
+}

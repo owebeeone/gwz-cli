@@ -1,14 +1,14 @@
 use super::open_merge_gate::open_merge_gate_request;
 use crate::*;
 
-cfg_if::cfg_if! { if #[cfg(any(test, not(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))))] {
+cfg_if::cfg_if! { if #[cfg(any(test, not(all(gwz_transport_candidate, any(unix, windows)))))] {
 pub(crate) fn execute_invocation(invocation: &CliInvocation) -> Result<CliResponse, CliError> {
     execute_invocation_selected(invocation, false)
 }
 
 } }
 
-cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
+cfg_if::cfg_if! { if #[cfg(all(gwz_transport_candidate, any(unix, windows)))] {
 /// Who is told what the transport's limit machines say (the adaptive
 /// concurrency design's §9): a person reading human output, as `note: ` lines
 /// above the live progress block. Every machine-readable mode gets none, so
@@ -39,7 +39,7 @@ pub(crate) fn execute_invocation_selected(
     let progress_sink = std::sync::Arc::new(StderrProgressSink::new(operation_label(
         &invocation.request,
     )));
-    cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
+    cfg_if::cfg_if! { if #[cfg(all(gwz_transport_candidate, any(unix, windows)))] {
         if let Some(meta) = transport_meta(&invocation.request).filter(|_| !_native) {
             let supervisor = crate::sspi_worker_executable().and_then(|descriptor|
                 gwz_sspi::Supervisor::new(descriptor, gwz_sspi::Options::default()).map(std::sync::Arc::new).map_err(|error| error.kind()));
@@ -412,7 +412,7 @@ fn execute_with_backend(
     response.map_err(CliError::from_model)
 }
 
-cfg_if::cfg_if! { if #[cfg(any(all(unix, gwz_transport_candidate), all(windows, gwz_transport_candidate, gwz_windows_https_qualification)))] {
+cfg_if::cfg_if! { if #[cfg(all(gwz_transport_candidate, any(unix, windows)))] {
     /// The request's metadata when it runs inside a transport runtime: gwz-core's
     /// transport scope decides, the predicate gwz-py's extension shares
     /// (gwz-py dev-docs/GwzPyPerOperationTransportDesign.md §2.1).

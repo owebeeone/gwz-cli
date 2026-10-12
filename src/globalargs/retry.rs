@@ -73,7 +73,7 @@ cfg_if::cfg_if! {
             fn policy(args: &[&str]) -> gwz_core::OperationPolicy {
                 let args = args.iter().map(ToString::to_string).collect();
                 let invocation =
-                    parse_args_with_request_id(args, "req_retry", std::path::Path::new("/"))
+                    parse_args_with_request_id(args, "req_retry", &crate::tests::test_cwd())
                         .unwrap();
                 let CliRequest::Fetch(request) = invocation.request else {
                     panic!("expected fetch");

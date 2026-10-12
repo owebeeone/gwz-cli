@@ -8,6 +8,7 @@ fn run(temp: &TempDir, args: &[&str], environment: &str) -> Output {
     Command::new(env!("CARGO_BIN_EXE_gwz"))
         .current_dir(temp.path())
         .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
         .env("XDG_CONFIG_HOME", temp.path().join("xdg"))
         .env("GWZ_TRANSPORT", environment)
         .env_remove("GIT_CONFIG_GLOBAL")
@@ -17,7 +18,7 @@ fn run(temp: &TempDir, args: &[&str], environment: &str) -> Output {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(all(unix, gwz_transport_candidate))] {
+    if #[cfg(all(gwz_transport_candidate, any(unix, windows)))] {
         fn workspace() -> TempDir {
             let temp = TempDir::new("transport-setting");
             let init = run(&temp, &["init"], "bad");
@@ -96,6 +97,10 @@ cfg_if::cfg_if! {
             assert!(human.stdout.is_empty());
         }
 
+        // The rows below make a file:// remote with git2, set a file mode and run `sh`: Unix only. The rows above run on
+        // Windows too (Windows parity plan step 5.2).
+        cfg_if::cfg_if! {
+            if #[cfg(unix)] {
         fn tagged_workspace() -> TempDir {
             let temp = workspace();
             let origin_path = temp.path().join("origin.git");
@@ -176,6 +181,8 @@ cfg_if::cfg_if! {
                 else { assert!(value["meta"].get("transport_setting").is_none()); }
             }
             assert_eq!(std::fs::read_to_string(alternate).unwrap(), "[gwz]\ntransport = gwz\n");
+        }
+            }
         }
     } else {
         #[test]

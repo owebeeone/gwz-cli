@@ -15,7 +15,7 @@ fn flag_overrides_invalid_environment_and_native_fills_only_missing_policy() {
     let mut invocation = parse_args_with_request_id(
         vec!["--jobs".into(), "7".into(), "fetch".into()],
         "req_setting",
-        std::path::Path::new("/"),
+        &crate::tests::test_cwd(),
     )
     .unwrap();
     let report = prepare_transport(
@@ -39,7 +39,7 @@ fn non_network_command_does_not_read_invalid_environment() {
     let mut invocation = parse_args_with_request_id(
         vec!["status".into()],
         "req_setting",
-        std::path::Path::new("/"),
+        &crate::tests::test_cwd(),
     )
     .unwrap();
     assert!(
@@ -58,7 +58,7 @@ fn invalid_deciding_environment_refuses_before_dispatch() {
     let mut invocation = parse_args_with_request_id(
         vec!["fetch".into()],
         "req_setting",
-        std::path::Path::new("/"),
+        &crate::tests::test_cwd(),
     )
     .unwrap();
     let error = prepare_transport(
@@ -119,7 +119,7 @@ fn native_defaults_and_explicit_timeouts_are_preserved() {
     let mut invocation = parse_args_with_request_id(
         vec!["fetch".into()],
         "req_setting",
-        std::path::Path::new("/"),
+        &crate::tests::test_cwd(),
     )
     .unwrap();
     prepare_transport(&mut invocation, Some(Transport::Native), &snapshot(&[])).unwrap();
