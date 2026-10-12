@@ -265,7 +265,10 @@ A repository gives up when it has used all of its attempts, which is
 `--max-retries` plus one (4 by default), and a refusal by the host counts as an
 attempt. Its error is the error of its last failure, and ends with
 `(attempt N of M)`, where M is the number of attempts allowed. There are three
-Capacity messages. Each starts with `member '<id>' at '<path>': `.
+Capacity messages. Each starts with `member '<id>' at '<path>': `. The error
+code is `Capacity` (in `--json`, `error.code`), so a script can tell "slow down,
+try later" from a Git failure without reading the message; see
+[Machine Output](MachineOutput.md) ("The `Capacity` error code").
 
 The host kept refusing connections:
 

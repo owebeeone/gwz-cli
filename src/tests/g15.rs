@@ -288,6 +288,59 @@ fn a_partial_fetch_prints_the_reason_once_and_json_repeats_it_in_errors() {
     );
 }
 
+/// A member that a host throttled to the end of its attempts: the transport build's
+/// `Capacity` failure as core reports it, with the member's prefix and attempt count.
+const CAPACITY_MESSAGE: &str = "member 'mem_busy' at 'busy': github.com:443 kept refusing connections (using 8 at a time, ceiling 32 from --max-per-host); gave up after 21 s; retry later, or lower --max-per-host (attempt 4 of 4)";
+
+fn throttled_fetch() -> CliResponse {
+    let mut failed = member("mem_busy", "busy", gwz_core::MemberStatus::Failed);
+    failed.error = Some(gwz_core::GwzError {
+        code: gwz_core::model::ErrorCode::Capacity.into(),
+        message: CAPACITY_MESSAGE.to_owned(),
+        member_id: Some("mem_busy".to_owned()),
+        member_path: Some("busy".to_owned()),
+        target_kind: Some(gwz_core::TargetKind::Member),
+        ..Default::default()
+    });
+    let copy = failed.error.clone();
+    let mut busy_row = row("mem_busy", "busy", gwz_core::FetchResult::Failed);
+    busy_row.upstream = None;
+    busy_row.ahead = None;
+    busy_row.behind = None;
+    let mut response = fetch_response(
+        gwz_core::AggregateStatus::Partial,
+        vec![
+            member("mem_good", "good", gwz_core::MemberStatus::Noop),
+            failed,
+        ],
+        vec![
+            row("mem_good", "good", gwz_core::FetchResult::Unchanged),
+            busy_row,
+        ],
+    );
+    response.envelope.errors = copy.into_iter().collect();
+    response
+}
+
+/// A script reads `error.code` to tell "slow down, try later" from a Git failure
+/// (operator decision 2026-10-13): the member's error, and its copy in `errors`,
+/// carry `Capacity` and its message, and the exit code is the partial one.
+#[test]
+fn json_names_a_throttled_member_with_the_capacity_code() {
+    let response = throttled_fetch();
+    let json = render_response(&response, OutputMode::Json);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+    let error = &value["members"][1]["error"];
+    assert_eq!(error["code"], "Capacity", "{json}");
+    assert_eq!(error["message"], CAPACITY_MESSAGE);
+    assert_eq!(error["member_id"], "mem_busy");
+    assert_eq!(value["errors"], serde_json::json!([error.clone()]));
+    assert_ne!(error["code"], "RemoteRejected");
+    assert_eq!(exit_code_for_response(&response.envelope), 1);
+    let human = render_response(&response, OutputMode::Human);
+    assert!(human.contains("kept refusing connections"), "{human}");
+}
+
 /// `--json` carries the structured rows under `fetch_repos`, and they appear
 /// on a fetch response only -- the envelope's pinned key set is untouched.
 #[test]

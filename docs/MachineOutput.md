@@ -198,6 +198,52 @@ The parenthesis reports `from --url-scheme`, `from GWZ_URL_SCHEME`, or
 `from .gwz/url-scheme.yml`. With `--verbose`, each converted member also gets
 one `manifest-url -> effective-url` line.
 
+### The `Capacity` error code
+
+In the transport build, a member that gave up because a host throttled it, or
+because gwz's own connection-setup slots stayed full, has `error.code`
+`Capacity` (taut name `capacity`, protocol value 76, appended after
+`CredentialHelperTimeout`). A script can tell "slow down, try later" from a Git
+failure by reading the code, without parsing the message. One rule decides it:
+a member fails with `Capacity` if and only if its own final failure is
+
+- a 429, or a 503 with `Retry-After`, on its last attempt (the host kept
+  refusing connections);
+- a `Retry-After` of more than 30 seconds, the longest one command holds a host
+  (the host asked for a long wait); or
+- a wait for one of gwz's 64 connection-setup slots that expired (a fixed
+  internal limit, not `--jobs`).
+
+Every other final failure keeps the code it had: a bare 503 without
+`Retry-After`, a reset, a refused connect, a stalled setup, and the failure of a
+host that stopped answering. The rule looks at the member's own last failure,
+never at the host's state, and is the same at every `--max-retries`. The
+`message` names the cause, for example (the first, with `retry_attempt`'s
+suffix `(attempt N of M)`, where M is the number of attempts allowed):
+
+```json
+{
+  "code": "Capacity",
+  "message": "member 'mem_core' at 'gwz-core': github.com:443 kept refusing connections (using 8 at a time, ceiling 32 from --max-per-host); gave up after 21 s; retry later, or lower --max-per-host (attempt 4 of 4)",
+  "member_id": "mem_core",
+  "member_path": "gwz-core",
+  "target_kind": "Member",
+  "detail": null,
+  "record_context": null
+}
+```
+
+The three messages are in
+[Troubleshooting](Troubleshooting.md) ("Fewer connections than --max-per-host,
+or a Capacity error"). The local one, `gwz's 64 connection-setup slots stayed
+full for 30 s ...; retry later`, has no attempt count. The structured cause
+(`server_throttle`, `server_retry_after` or `local`, with the host, port, the
+limit in use, the ceiling, the time spent, the last status and the
+`Retry-After`) travels in gwz-transport's `capacity` failure detail between the
+transport and gwz-core; the `detail` of an error row stays `null`, and the
+cause is in the `message`. `Capacity` is a failure of a row like any other: the
+aggregate status is `Partial` or `Failed`, and the exit code is 1.
+
 ### `meta.transport_setting`
 
 In the transport candidate build, the final network response optionally carries

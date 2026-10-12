@@ -21,6 +21,27 @@ the released CLI rather than unreleased work on `main`.
   output says what happened in `note:` lines on stderr; `--json`, `--jsonl` and
   `--porcelain` print none. `--max-retries 0` turns the lowering off. See
   [Troubleshooting](Troubleshooting.md) ("Fewer connections than --max-per-host, or a Capacity error").
+- **A member that a host throttled, or that waited for gwz's own setup slots,
+  fails with the new `Capacity` error code** (the transport build, planned for
+  1.1.0). Scripts can tell "slow down, try later" from a Git failure by reading
+  `error.code` in `--json` or `--jsonl` output. The code is a new value, 76, of
+  the protocol's error codes (`capacity`); a reader that does not know it sees an
+  unknown code, and `--json` writes it as the string `Capacity`. A final
+  failure that was a 429, a 503 with `Retry-After`, a `Retry-After` of more than
+  30 seconds, or a wait for gwz's 64 connection-setup slots that expired
+  reports `Capacity`; every other failure keeps its code. What `error.code`
+  was and is:
+
+  | The member's own final failure | `error.code` before | `error.code` now |
+  |---|---|---|
+  | A 429 on every attempt | `RemoteRejected` on a `fetch` or `push` row, `GitCommandFailed` elsewhere (`pull`, `clone`, `materialize`) | `Capacity` |
+  | A 503 with `Retry-After` on every attempt | the same | `Capacity` |
+  | A `Retry-After` of more than 30 seconds | the same | `Capacity` |
+  | Waiting for gwz's connection-setup slots expired | the same | `Capacity` |
+  | A bare 503, a reset, a refused connect, a stalled setup | unchanged | unchanged |
+  | A host that stopped answering (`not attempted: ...`) | unchanged | unchanged |
+
+  See [Machine Output](MachineOutput.md) ("The `Capacity` error code").
 - **`gwz merge --remote <name>` no longer refuses a member only this workspace
   has.** A member registered here after the lane was cloned made every family
   merge from that lane refuse with `PairingMismatch`, even when `--target` left
