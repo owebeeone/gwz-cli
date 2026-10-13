@@ -132,8 +132,8 @@ bypassing the identity check. See
 In the planned 1.1.0 transport candidate, GWZ runs the user's configured Git
 credential helpers, including `gh`. Its helper timeout messages link here; the
 same guidance applies to SSH's ambient password-only helper route. Ordinary
-SSH agent/key selection is described below. Windows transport parity remains
-under qualification.
+SSH agent/key selection is described below. The same helper messages apply on
+Windows, where Git Credential Manager (`manager`) is the usual helper.
 
 GWZ reads captured system/global/XDG configuration and session `GIT_CONFIG_*`
 overrides with unconditional includes. It excludes repository-local files and
@@ -160,6 +160,29 @@ allowance, so increasing the network timeout does not repair a waiting helper.
 Finish a pending sign-in/unlock, or repair the selected helper, then retry the
 operation. There are eight helper slots per endpoint and eight shared host
 slots, including cleanup; member jobs and connection limits are separate.
+
+Three messages say why no credential came from the helpers; the first two end with
+a pointer to this section:
+
+- **`The credential helper in your git configuration gave no password for <host>`**
+  (the helper declined). The helper may have been cancelled (for example a Git
+  Credential Manager window that was closed), may hold no sign-in for this server,
+  or may have failed; GWZ cannot tell which, because git's prompts are off and its
+  diagnostics are discarded, and it does not show the helper's name. No credential
+  was sent. Run `git ls-remote <member-url>` with the member's URL: it runs the same
+  helper where it can ask you or show its own error. Sign in, then retry.
+- **`gwz did not use your git configuration to find a credential helper, because it
+  refused to read it`** (configuration refused). GWZ refuses a configuration that is
+  too large, `include.path` chains that are too deep or too many, an include it
+  cannot follow (unreadable, not a regular file, or written as `~user/` or
+  `%(prefix)/`), a value too large for the environment of the `git` it starts, and a
+  `git config` that itself fails. It asked no helper and sent no credential.
+  `git config --list --show-origin` shows what git reads: reduce it or fix the
+  include it names, then retry.
+- **`The server asks for a user name and password (Basic) and no git credential
+  helper is configured`** (Windows). Configure one, for example
+  `git config --global credential.helper manager` (`manager` is Git Credential
+  Manager, which comes with Git for Windows), and retry.
 
 If `git` is missing or cannot execute, repair the captured `PATH`/installation
 and start a new operation. If the credential is rejected, renew it where it is
