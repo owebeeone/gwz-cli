@@ -51,6 +51,8 @@ fn ssh_timeout_help_states_both_defaults_and_the_https_stall_on_every_platform()
     let short = short.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(short.contains("(0 = no timeout, default 9; 3 with --transport native)"));
     let help = long_help();
-    assert!(help.contains("it applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS."));
+    assert!(help.contains(
+        "it applies to a stalled read during a fetch, push, or pull body on SSH and HTTPS."
+    ));
     assert!(help.contains("and it defaults to 3, as in gwz 1.0."));
 }
