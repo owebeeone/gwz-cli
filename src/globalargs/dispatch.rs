@@ -30,6 +30,21 @@ fn note_sink(
 cfg_if::cfg_if! { if #[cfg(test)] { mod notes_tests; } }
 } }
 
+/// Who is told why a commit or tag ran the Git CLI instead of the native
+/// route: a person reading human output who asked for `--verbose`. Every
+/// machine-readable mode gets none.
+fn route_notes(
+    output: OutputMode,
+    verbose: bool,
+    progress: &std::sync::Arc<StderrProgressSink>,
+) -> Option<gwz_core::git::RouteNotes> {
+    let progress = progress.clone();
+    (output == OutputMode::Human && verbose)
+        .then(|| gwz_core::git::RouteNotes::new(move |line| progress.println_above(line)))
+}
+
+cfg_if::cfg_if! { if #[cfg(test)] { mod route_notes_tests; } }
+
 pub(crate) fn execute_invocation_selected(
     invocation: &CliInvocation,
     _native: bool,
@@ -84,8 +99,16 @@ fn execute_with_backend(
     invocation: &CliInvocation,
     backend: &gwz_core::git::Git2Backend,
     operation_id: String,
-    progress_sink: &StderrProgressSink,
+    progress_sink: &std::sync::Arc<StderrProgressSink>,
 ) -> Result<CliResponse, CliError> {
+    let noted;
+    let backend = match route_notes(invocation.output, invocation.verbose, progress_sink) {
+        Some(notes) => {
+            noted = backend.with_route_notes(notes);
+            &noted
+        }
+        None => backend,
+    };
     let services = backend.operation_services();
     let start = invocation.start_dir.as_path();
     // --jsonl streams machine records to stdout; Human renders a live progress
@@ -94,7 +117,7 @@ fn execute_with_backend(
     let null_sink = gwz_core::operation::NullSink;
     let events: &dyn gwz_core::operation::EventSink = match invocation.output {
         OutputMode::Jsonl => &jsonl_sink,
-        OutputMode::Human => progress_sink,
+        OutputMode::Human => progress_sink.as_ref(),
         OutputMode::Json | OutputMode::Porcelain => &null_sink,
     };
     // Most mutations are guarded authoritatively by their public core handler.
