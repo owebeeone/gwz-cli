@@ -15,7 +15,7 @@ fn long_help() -> String {
 
 const AGENT_SOURCES: &str = "On Windows, SSH authentication uses one agent, chosen when the operation starts and not changed if it fails: Pageant when a Pageant window is running (even when SSH_AUTH_SOCK is set), otherwise the local named pipe that SSH_AUTH_SOCK names (in the form \\\\.\\pipe\\<name>), otherwise the default pipe \\\\.\\pipe\\openssh-ssh-agent of the OpenSSH Authentication Agent service.";
 const MACHINE_PROXY: &str = "On Windows, an HTTPS remote uses the machine proxy setting (netsh winhttp show proxy) and no other proxy: HTTP_PROXY, HTTPS_PROXY, ALL_PROXY, NO_PROXY and git's http.proxy are ignored.";
-const PAGEANT_WAIT: &str = "On Windows, the wait for you to confirm a key in Pageant runs under this clock too: a prompt that stays open longer fails that attempt, and the message names this option. Answer the prompt and run the command again, raise this value (0 removes the limit), or use --transport native, which waits for Pageant as gwz 1.0 did.";
+const PAGEANT_WAIT: &str = "On Windows, the wait for you to confirm a key in Pageant runs under this clock too: a prompt that stays open longer fails that attempt, and the message names this option. Answer the prompt and run the command again, raise this value (up to 30 seconds; 0 removes the limit), or use --transport native, which waits for Pageant as gwz 1.0 did.";
 const HTTP_WARNING: &str = "On Windows, an http:// remote prints a warning before its first request, whether or not you give --verbose, because a Basic password is sent unencrypted and a Windows sign-in has no channel binding.";
 const REDIRECT_DETAIL: &str = "A redirect that gwz follows while it discovers an HTTPS remote is printed as a line of detail only with --verbose.";
 

@@ -17,7 +17,7 @@ cfg_if::cfg_if! {
                 }
                 macro_rules! windows_ssh_timeout_help {
                     () => {
-                        " On Windows, the wait for you to confirm a key in Pageant runs under this clock too: a prompt that stays open longer fails that attempt, and the message names this option. Answer the prompt and run the command again, raise this value (0 removes the limit), or use --transport native, which waits for Pageant as gwz 1.0 did."
+                        " On Windows, the wait for you to confirm a key in Pageant runs under this clock too: a prompt that stays open longer fails that attempt, and the message names this option. Answer the prompt and run the command again, raise this value (up to 30 seconds; 0 removes the limit), or use --transport native, which waits for Pageant as gwz 1.0 did."
                     };
                 }
             } else {
