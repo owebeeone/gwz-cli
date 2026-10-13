@@ -239,6 +239,7 @@ note: github.com:443 refused extra connections; using 8 at a time (ceiling 32 fr
 note: github.com:443: now using 12 connections
 note: github.com:443: back at the ceiling of 32 connections
 note: github.com:443 asked gwz to wait 20 s; waiting
+note: github.com:443 asked gwz to wait 120 s; one command waits at most 30 s
 note: github.com:22 is not answering; waiting up to 30 s to retry
 ```
 
@@ -248,11 +249,26 @@ note: github.com:22 is not answering; waiting up to 30 s to retry
   every 2 seconds.
 - The fourth line means the host sent a `Retry-After` of more than 1 second and
   gwz is waiting for it. gwz waits at most 30 seconds at a time for one host.
+  The fifth line is a `Retry-After` of more than that: it says what the host
+  asked and what gwz waits, and a repository that is still refused after the
+  30 seconds fails with the "asked to wait" message below.
 - The last line means the host did not answer gwz's connection attempts.
-  Repositories on that host wait up to 30 seconds and then try once more. If two retries in a
-  row fail, the remaining repositories on that host fail at once with
-  `not attempted: github.com:22 failed earlier in this run (<the reason>)`. Check
-  the host and your network, then run the command again.
+  Repositories on that host wait up to 30 seconds and then try once more. A
+  repository that carried a retry and failed again reports the same failure
+  with `; still failing after a retry about 30 s later` after it. If two retries
+  in a row fail, the remaining repositories on that host fail at once, with the
+  failure they share inside `not attempted: <host:port> failed earlier in this
+  run (<the reason>)`. Check the host and your network, then run the command
+  again. For an SSH host whose connections stalled:
+
+  ```text
+  not attempted: github.com:22 failed earlier in this run (ssh setup timeout: no progress for 9 seconds (--ssh-timeout 9))
+  ssh setup timeout: no progress for 9 seconds (--ssh-timeout 9); still failing after a retry about 30 s later
+  ```
+
+  Neither line has an attempt count: the repository made no attempt of its own,
+  or shares the retry's failure. They keep the error code of the failure they
+  share, never `Capacity`.
 
 A `note:` line is information, never a failure. A failure line starts with
 `gwz: `. The notes are printed in human output, also when stderr is not a
@@ -270,17 +286,23 @@ code is `Capacity` (in `--json`, `error.code`), so a script can tell "slow down,
 try later" from a Git failure without reading the message; see
 [Machine Output](MachineOutput.md) ("The `Capacity` error code").
 
-The host kept refusing connections:
+The host refused connections:
 
 ```text
 github.com:443 kept refusing connections (using 8 at a time, ceiling 32 from --max-per-host); gave up after 21 s; retry later, or lower --max-per-host (attempt 4 of 4)
+github.com:443 refused the last attempt (using 8 at a time, ceiling 32 from --max-per-host); gave up after 21 s; retry later, or lower --max-per-host (attempt 4 of 4)
 ```
 
-This is a 429, or a 503 with `Retry-After`, on every attempt. The part in
-brackets is left out when gwz never had to lower its number. Run the command
-again later. If the account or address is shared with other jobs, lower
-`--max-per-host` (for example `--max-per-host 8`) so that this command leaves
-room for them. `--max-retries` gives repositories more attempts.
+This is a 429, or a 503 with `Retry-After`, and it is decided by the
+repository's last attempt: its last attempt was refused. The first line is said
+when more than one of its attempts was refused. The second is said when the
+last attempt was the only one refused, as when earlier attempts failed in other
+ways (a reset, a stall), or at `--max-retries 0`, where the first refusal is
+the only attempt. The part in brackets is left out when gwz never had to lower
+its number. Run the command again later. If the account or address is shared
+with other jobs, lower `--max-per-host` (for example `--max-per-host 8`) so
+that this command leaves room for them. `--max-retries` gives repositories more
+attempts.
 
 The host asked for a long wait:
 
@@ -291,17 +313,24 @@ github.com:443 asked to wait 120 s, longer than the 30 s one command holds a hos
 One command waits at most 30 seconds for a host, so a repository whose host
 asks for longer stops. Run the command again after the time it names.
 
-gwz ran out of connection setups:
+gwz waited for one of its own limits until its time ran out. The message names
+the limit that was full, and how long gwz waited:
 
 ```text
 gwz's 64 connection-setup slots stayed full for 30 s (setups that stopped answering hold them until they time out); retry later
+gwz's 8 slots for resolving a host and setting up TLS stayed full for 30 s; retry later
+every connection gwz may open at once was in use for 30 s (--max-per-host limits them per host, and a total limit applies across hosts); retry later, or raise --max-per-host
 ```
 
-gwz runs at most 64 connection setups at once. This is a fixed internal limit,
-not `--jobs`. It is full when many setups have stopped answering and hold their
+The first line is the fixed limit of 64 connection setups at once (not
+`--jobs`). It is full when many setups have stopped answering and hold their
 slot until they time out, which points at a host or network that is not
-answering. This message has no attempt count. Retry later, and check the host.
-A lower `--ssh-timeout` makes stuck SSH setups give up sooner.
+answering. A lower `--ssh-timeout` makes stuck SSH setups give up sooner. The
+second is the 8 slots that resolve a host name and set up TLS: a name lookup or
+a TLS setup that stopped answering holds one. The third means other members
+held every connection gwz may have open at once: they are healthy, and the
+command only has to wait for them, or `--max-per-host` can be raised. These
+messages have no attempt count. Retry later, and check the host.
 
 Other failures keep the message they had: a bare 503 without `Retry-After`, a
 reset, a refused connect or a stalled setup is reported as that failure, also

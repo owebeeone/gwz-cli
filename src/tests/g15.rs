@@ -341,6 +341,42 @@ fn json_names_a_throttled_member_with_the_capacity_code() {
     assert!(human.contains("kept refusing connections"), "{human}");
 }
 
+/// The docs state the rule and the texts the transport builds (5.6 remediation
+/// round 1; Capacity wording decision, Code P2-1 and P3-6). The strings here
+/// are the ones gwz-core's tests pin as built (`SshOpenFailure`,
+/// `CapacityReport`); a text that changes in one place and not the other fails
+/// a test on its side.
+#[test]
+fn the_capacity_docs_say_the_last_attempt_rule_and_quote_the_texts_as_built() {
+    let troubleshooting = include_str!("../../docs/Troubleshooting.md");
+    let releases = include_str!("../../docs/Releases.md");
+    let machine = include_str!("../../docs/MachineOutput.md");
+    for (name, doc) in [
+        ("Troubleshooting", troubleshooting),
+        ("Releases", releases),
+        ("MachineOutput", machine),
+    ] {
+        assert!(doc.contains("its last attempt was refused"), "{name}");
+        assert!(!doc.contains("on every attempt"), "{name}");
+    }
+    for built in [
+        // A Down key's member that made no attempt, and one that shares a failed retest.
+        "not attempted: github.com:22 failed earlier in this run (ssh setup timeout: no progress for 9 seconds (--ssh-timeout 9))",
+        "ssh setup timeout: no progress for 9 seconds (--ssh-timeout 9); still failing after a retry about 30 s later",
+        // The throttle: more than one refusal, and the last attempt alone.
+        "github.com:443 kept refusing connections (using 8 at a time, ceiling 32 from --max-per-host); gave up after 21 s; retry later, or lower --max-per-host (attempt 4 of 4)",
+        "github.com:443 refused the last attempt (using 8 at a time, ceiling 32 from --max-per-host); gave up after 21 s; retry later, or lower --max-per-host (attempt 4 of 4)",
+        // The three local waits, each its own words.
+        "gwz's 64 connection-setup slots stayed full for 30 s (setups that stopped answering hold them until they time out); retry later",
+        "gwz's 8 slots for resolving a host and setting up TLS stayed full for 30 s; retry later",
+        "every connection gwz may open at once was in use for 30 s (--max-per-host limits them per host, and a total limit applies across hosts); retry later, or raise --max-per-host",
+        // A long hold, said as asked.
+        "note: github.com:443 asked gwz to wait 120 s; one command waits at most 30 s",
+    ] {
+        assert!(troubleshooting.contains(built), "{built}");
+    }
+}
+
 /// `--json` carries the structured rows under `fetch_repos`, and they appear
 /// on a fetch response only -- the envelope's pinned key set is untouched.
 #[test]

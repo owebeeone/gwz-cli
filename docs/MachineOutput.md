@@ -201,18 +201,21 @@ one `manifest-url -> effective-url` line.
 ### The `Capacity` error code
 
 In the transport build, a member that gave up because a host throttled it, or
-because gwz's own connection-setup slots stayed full, has `error.code`
+because one of gwz's own connection limits stayed full, has `error.code`
 `Capacity` (taut name `capacity`, protocol value 76, appended after
 `CredentialHelperTimeout`). A script can tell "slow down, try later" from a Git
 failure by reading the code, without parsing the message. One rule decides it:
 a member fails with `Capacity` if and only if its own final failure is
 
-- a 429, or a 503 with `Retry-After`, on its last attempt (the host kept
-  refusing connections);
+- a 429, or a 503 with `Retry-After`, on its last attempt: its last attempt was refused
+  (the message says the host kept refusing connections only when more than one
+  attempt was refused);
 - a `Retry-After` of more than 30 seconds, the longest one command holds a host
   (the host asked for a long wait); or
-- a wait for one of gwz's 64 connection-setup slots that expired (a fixed
-  internal limit, not `--jobs`).
+- a wait for one of gwz's own connection limits that expired: its 64
+  connection setups (a fixed internal limit, not `--jobs`), its 8 slots for
+  resolving a host and setting up TLS, or the connections `--max-per-host` and
+  the total allow.
 
 Every other final failure keeps the code it had: a bare 503 without
 `Retry-After`, a reset, a refused connect, a stalled setup, and the failure of a
@@ -235,8 +238,9 @@ suffix `(attempt N of M)`, where M is the number of attempts allowed):
 
 The three messages are in
 [Troubleshooting](Troubleshooting.md) ("Fewer connections than --max-per-host,
-or a Capacity error"). The local one, `gwz's 64 connection-setup slots stayed
-full for 30 s ...; retry later`, has no attempt count. The structured cause
+or a Capacity error"). The local ones, such as `gwz's 64 connection-setup
+slots stayed full for 30 s ...; retry later`, name the limit that was full and
+have no attempt count. The structured cause
 (`server_throttle`, `server_retry_after` or `local`, with the host, port, the
 limit in use, the ceiling, the time spent, the last status and the
 `Retry-After`) travels in gwz-transport's `capacity` failure detail between the

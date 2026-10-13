@@ -28,16 +28,19 @@ the released CLI rather than unreleased work on `main`.
   the protocol's error codes (`capacity`); a reader that does not know it sees an
   unknown code, and `--json` writes it as the string `Capacity`. A final
   failure that was a 429, a 503 with `Retry-After`, a `Retry-After` of more than
-  30 seconds, or a wait for gwz's 64 connection-setup slots that expired
-  reports `Capacity`; every other failure keeps its code. What `error.code`
+  30 seconds, or a wait for one of gwz's own connection limits that expired
+  (its 64 connection setups, its 8 slots for resolving a host and setting up
+  TLS, or the connections `--max-per-host` and the total allow) reports
+  `Capacity`; every other failure keeps its code. The decision is made on the
+  member's last attempt only: its last attempt was refused. What `error.code`
   was and is:
 
   | The member's own final failure | `error.code` before | `error.code` now |
   |---|---|---|
-  | A 429 on every attempt | `RemoteRejected` on a `fetch` or `push` row, `GitCommandFailed` elsewhere (`pull`, `clone`, `materialize`) | `Capacity` |
-  | A 503 with `Retry-After` on every attempt | the same | `Capacity` |
+  | A 429 on its last attempt | `RemoteRejected` on a `fetch` or `push` row, `GitCommandFailed` elsewhere (`pull`, `clone`, `materialize`) | `Capacity` |
+  | A 503 with `Retry-After` on its last attempt | the same | `Capacity` |
   | A `Retry-After` of more than 30 seconds | the same | `Capacity` |
-  | Waiting for gwz's connection-setup slots expired | the same | `Capacity` |
+  | Waiting for one of gwz's own connection limits expired | the same | `Capacity` |
   | A bare 503, a reset, a refused connect, a stalled setup | unchanged | unchanged |
   | A host that stopped answering (`not attempted: ...`) | unchanged | unchanged |
 
