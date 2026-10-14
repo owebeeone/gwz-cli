@@ -224,6 +224,9 @@ Recovery:
   for repositories this run clones; members already checked out keep their
   remotes, and the manifest is not rewritten.
 
+- If the message says an SSH key file "is protected by a passphrase", see
+  [An SSH Key File Is Protected By A Passphrase](#an-ssh-key-file-is-protected-by-a-passphrase).
+
 Two messages point at that remedy:
 
 - No usable SSH identity on a known host; the message ends with
@@ -240,6 +243,50 @@ identity, so a clone, fetch, push or tag that would reach that remote over
 HTTPS refuses it before any network access, including a push whose root proof
 reads a dependency through that remote. The message ends with
 `; use --identity PATH, which non-SSH destinations ignore, or no override for that remote`.
+
+## An SSH Key File Is Protected By A Passphrase
+
+Symptoms:
+
+- A clone, fetch, pull or push over SSH fails, on any platform, with an
+  `UnsupportedOperation` error that starts:
+  `The SSH key file <path> is protected by a passphrase, and gwz cannot ask for a passphrase, so it cannot use the file.`
+- `<path>` is the key file you named with `--identity`, `--remote-identity` or a
+  remote's `gwzSshIdentity` setting. The message is given before gwz connects, and
+  nothing is retried.
+
+Cause: gwz reads a key file you name without a passphrase and cannot ask you for
+one, so it cannot use a key file that has one. gwz recognizes such a file by its
+`Proc-Type: 4,ENCRYPTED` or `DEK-Info:` header, an `ENCRYPTED PRIVATE KEY` block,
+or an OpenSSH-format key whose cipher is not `none`.
+
+Recovery, either way:
+
+- Load the key into an SSH agent, and name no key file. A named key file is the only
+  key gwz offers, and it does not turn to the agent, so drop `--identity` and
+  `--remote-identity`, and unset the remote's setting with
+  `gwz auth identity <remote> --unset`. The agent asks for the passphrase when you
+  add the key:
+
+  ```sh
+  ssh-add <path>
+  ```
+
+  On Windows the agent is the OpenSSH Authentication Agent service (`ssh-agent`),
+  which is disabled on many machines and which an administrator starts, or Pageant,
+  into which you load the key with "Add Key".
+- Or remove the passphrase from a copy of the key, and name the copy:
+
+  ```sh
+  cp <path> <path>-nopass
+  ssh-keygen -p -f <path>-nopass
+  ```
+
+  `ssh-keygen` asks for the old passphrase and then for a new one: press Enter for
+  the new one. The copy is unprotected, so keep it private and delete it when you no
+  longer need it. On Windows gwz reads a key file only if it is an RSA key in PEM
+  form, so for an RSA key use `ssh-keygen -p -m PEM -f <path>-nopass`; an ECDSA or
+  Ed25519 key can only come from an agent there.
 
 ## Fewer connections than --max-per-host, or a Capacity error
 
