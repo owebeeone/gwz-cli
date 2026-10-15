@@ -37,7 +37,7 @@ runtime authority or a finished binary hash. No credentials belong in metadata.
 
 Cargo archives include scripts/build_sspi.py; the producer is discovered through
 Cargo metadata from the SSPI dependency, never a sibling-source guess. Registry
-reconciliation pins SSPI =0.1.0 before the existing no-path release check. SSPI is
+reconciliation pins SSPI =0.1.1 before the existing no-path release check. SSPI is
 currently publish=false and unavailable as a published registry prerequisite;
 local provisioned builds do not bypass that release block. Extracted consumers
 must resolve the pinned dependency through Cargo.
