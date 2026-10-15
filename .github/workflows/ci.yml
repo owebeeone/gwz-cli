@@ -122,6 +122,14 @@ jobs:
         # script reads the same, since Git for Windows' bash and grep drop the CR.
         working-directory: gwz-core
         run: bash .github/checkout-git2-rs.sh
+      - name: Check out gwz-transport and gwz-sspi beside gwz-core
+        # gwz-core's Cargo.toml names both by path (`../gwz-transport`,
+        # `../gwz-sspi`) behind gwz_transport_candidate, and Cargo reads a path
+        # dependency's manifest in every build, ordinary ones included. Each is
+        # at the commit gwz-core's .github/gwz-transport.commit or
+        # .github/gwz-sspi.commit pins; one this job checked out already stays.
+        working-directory: gwz-core
+        run: bash .github/checkout-siblings.sh
       - name: Install Rust toolchain
         run: |
           rustup toolchain install 1.95.0 --profile minimal
