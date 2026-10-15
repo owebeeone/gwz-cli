@@ -161,6 +161,9 @@ Finish a pending sign-in/unlock, or repair the selected helper, then retry the
 operation. There are eight helper slots per endpoint and eight shared host
 slots, including cleanup; member jobs and connection limits are separate.
 
+A failure of a Windows sign-in (Negotiate or NTLM) is a different case: see
+[Windows Sign-In](#windows-sign-in).
+
 Three messages say why no credential came from the helpers; the first two end with
 a pointer to this section:
 
@@ -193,6 +196,53 @@ automatically switch to the native transport. The candidate's
 [authentication](commands/auth.md) for precedence and persistent setting removal,
 and the [core helper guide](https://github.com/owebeeone/gwz-core/blob/main/docs/CredentialHelpers.md)
 for timeout and configuration details.
+
+## Windows Sign-In
+
+On Windows, a server that answers an HTTPS request with `Negotiate` or `NTLM` is
+signed in to with the account you are logged on to Windows as. GWZ asks no
+credential helper for that, takes no password, tries no other account, and does
+not repeat the sign-in with another identity. A server that offers only Basic
+is the credential-helper case in [HTTPS Credential Failure](#https-credential-failure).
+These messages are the sign-in's own:
+
+- **`The server refused this account (HTTP 403) after gwz sent your Windows
+  sign-in.`** A 403 is the server's refusal of the request, not a rejection of
+  the sign-in (that is the next message). It can come at any step of the
+  exchange, so it does not by itself show that the server identified your
+  account. The account may lack access to the repository, or the server may
+  want more of it than a sign-in, such as membership of a group. Ask the
+  repository's administrator. `git ls-remote <member-url>` with the member's URL
+  shows the server's own explanation, but git signs in silently with your
+  Windows account only where the server offers Negotiate: on a server that
+  offers NTLM only, git may ask you for a password instead. A password typed
+  there is not the sign-in GWZ made, so cancel it, and ask the administrator
+  rather than relying on that run.
+- **`<host> rejected your Windows account (Negotiate)`** (or `(NTLM)`). The
+  server answered the sign-in with a 401 that ends it: it does not accept this
+  account. GWZ tries nothing else: no credential helper is asked, no other
+  account is tried, and the identity is not sent again. Ask the server's
+  administrator for access for this account, sign in to Windows as an account
+  that has it, or use an SSH remote.
+- **`GWZ could not use its Windows sign-in worker`** (the program installed
+  with gwz that answers Negotiate and NTLM): it is missing, or it is from a
+  different build of gwz. No credential was sent. The worker is the `gwz`
+  executable itself, and a `gwz` built or copied elsewhere is never used as one,
+  so reinstall gwz as a whole (see [Install](Install.md)), so that its parts
+  match.
+- **`GWZ's Windows sign-in worker did not answer as the one installed with gwz
+  does`**: the file may have been replaced by another program, or Windows
+  refused to start the sign-in. No credential was sent. Reinstall gwz.
+- **`The server answered GWZ's Windows sign-in with a redirect`**. GWZ does not
+  follow a redirect once a Windows sign-in has started, so your credential is
+  not carried to another address, and nothing was sent to the new location. Ask
+  the server's administrator to fix the redirect, or for the address that serves
+  the repository directly.
+
+If a worker message persists after a reinstall, `--transport native` (or
+`GWZ_TRANSPORT=native`: `set` it in `cmd`, or assign `$env:GWZ_TRANSPORT =
+"native"` in PowerShell) uses libgit2's native transport, as gwz 1.0 did, until
+it is repaired.
 
 ## SSH Or Credential Failure
 
