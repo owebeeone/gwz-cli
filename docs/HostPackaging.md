@@ -7,8 +7,21 @@ Runtime environment cannot provision this entry. `sspi_worker_executable()` is a
 callable descriptor for the actual current executable with compiled expected
 bytes; it creates no Supervisor or child. HTTP composition remains future work.
 
-Normal Cargo builds are Python-free and unprovisioned. An explicit local build
-uses the Cargo-resolved SSPI producer:
+Normal Cargo builds are Python-free and provision themselves. When no packaging
+metadata is given (`GWZ_SSPI_PACKAGING_TARGETS` is unset), `build.rs` generates a
+fresh random fingerprint for that build and compiles it in, so a plain
+`cargo build` or `cargo install gwz` on Windows can start its own sign-in worker
+and answer Negotiate and NTLM. The worker is the CLI's own image, so its Hello
+carries the same compiled bytes the descriptor expects: the same build matches.
+A worker image from any other build (another Cargo build, a release, a replaced
+file) was compiled with a different value and is refused before `Begin`. The
+value is an identity, not a secret, and is not a signature. It costs
+reproducibility: two Cargo builds of the same source differ in that one string.
+A build that must be reproducible supplies packaging metadata, whose identifier
+is a deterministic function of the build's inputs. A build that `build.rs` never
+ran for (the Bazel library) has no fingerprint and refuses without fallback.
+
+An explicit local build uses the Cargo-resolved SSPI producer:
 
 ```sh
 python3 scripts/build_sspi.py --target aarch64-apple-darwin --profile dev \
@@ -38,9 +51,10 @@ Local binaries appear under TARGET_DIR/TARGET/debug (dev) or the requested
 profile directory. Release bundles/installer retain their ordinary executable
 layout, with receipts under target/distrib during packaging. Install or upgrade
 the whole trusted CLI artifact; self-execution needs no companion worker file.
-Removing the CLI executable removes its worker entry as well. Unprovisioned
-portable builds remain usable for ordinary CLI commands, but their descriptor
-refuses; a portable descriptor is not usable Windows HTTP authentication.
+Removing the CLI executable removes its worker entry as well. A build
+`build.rs` never ran for has no fingerprint and a refusing descriptor; it stays
+usable for ordinary CLI commands, but a portable descriptor is not usable Windows
+HTTP authentication.
 
 ## Explicit wrapper options
 
@@ -70,4 +84,5 @@ python3 -c 'import subprocess,sys;host=next(line[6:] for line in subprocess.chec
 This omits `--profile`, selecting release. Local provisioning builds one explicit
 Cargo target; release provisioning consumes the actual cargo-dist matrix and
 passes its per-target metadata to subsequent dist builds. An ordinary Cargo
-build supplies neither handoff and remains unprovisioned.
+build supplies neither handoff and provisions itself with its own per-build
+fingerprint.

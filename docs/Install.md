@@ -45,6 +45,11 @@ depends on a sibling `gwz-core` checkout and builds only inside the
 [`gwz-dev`](https://github.com/owebeeone/gwz-dev) workspace. `--locked` builds with the
 tag's `Cargo.lock`.
 
+On Windows, a build from source signs in to Negotiate and NTLM servers with your logon session just as a
+release does: the build gives itself a fresh worker identity, so there is nothing to provision. Two builds
+of the same source are therefore not byte-identical. Install or upgrade the whole `gwz` executable; a
+`gwz` built elsewhere is never used as the sign-in worker.
+
 Both compile from source, so they need Rust 1.95 or newer, a C compiler and, on macOS and
 Linux, the OpenSSL development files (Homebrew `openssl@3`, or `libssl-dev` and `pkg-config`
 on Debian and Ubuntu).
