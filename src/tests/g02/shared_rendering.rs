@@ -169,7 +169,7 @@ pub(crate) fn a_noted_member_reports_unmaterialized_with_its_reason_in_both_mode
 
 #[allow(
     clippy::needless_update,
-    reason = "gwz_transport_candidate adds fields"
+    reason = "gwz_session_candidate adds fields"
 )]
 fn branch_response_envelope() -> gwz_core::ResponseEnvelope {
     gwz_core::ResponseEnvelope {
@@ -312,7 +312,7 @@ pub(crate) fn empty_workspace_git_status() -> gwz_core::WorkspaceGitStatus {
 
 #[allow(
     clippy::needless_update,
-    reason = "gwz_transport_candidate adds fields"
+    reason = "gwz_session_candidate adds fields"
 )]
 pub(crate) fn sample_response(
     aggregate_status: gwz_core::AggregateStatus,

@@ -54,7 +54,7 @@ fn noop_row(member_id: &str, member_path: &str, reason: &str) -> gwz_core::Membe
 
 #[allow(
     clippy::needless_update,
-    reason = "gwz_transport_candidate adds fields"
+    reason = "gwz_session_candidate adds fields"
 )]
 fn rows_response(
     action: gwz_core::ActionKind,

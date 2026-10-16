@@ -1117,7 +1117,7 @@ fn rooted_list_response(
 
 #[allow(
     clippy::needless_update,
-    reason = "gwz_transport_candidate adds fields"
+    reason = "gwz_session_candidate adds fields"
 )]
 fn family_response(
     op: gwz_core::LocalFamilyOp,
