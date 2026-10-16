@@ -2,7 +2,7 @@ use super::*;
 
 #[allow(
     clippy::needless_update,
-    reason = "gwz_transport_candidate adds fields"
+    reason = "gwz_session_candidate adds fields"
 )]
 fn envelope_with(member: gwz_core::MemberResponse) -> gwz_core::ResponseEnvelope {
     gwz_core::ResponseEnvelope {

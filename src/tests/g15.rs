@@ -65,7 +65,7 @@ fn member(
 
 #[allow(
     clippy::needless_update,
-    reason = "gwz_transport_candidate adds fields"
+    reason = "gwz_session_candidate adds fields"
 )]
 fn fetch_response(
     aggregate_status: gwz_core::AggregateStatus,
@@ -382,7 +382,7 @@ fn the_capacity_docs_say_the_last_attempt_rule_and_quote_the_texts_as_built() {
 #[test]
 #[allow(
     clippy::needless_update,
-    reason = "gwz_transport_candidate adds fields"
+    reason = "gwz_session_candidate adds fields"
 )]
 fn json_carries_the_structured_rows() {
     let mut moved = row("mem_core", "gwz-core", gwz_core::FetchResult::Updated);
