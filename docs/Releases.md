@@ -9,29 +9,66 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
-## Unreleased
+## Unreleased: 1.1.0, the transport release (DRAFT)
 
-- **`--max-per-host` is a ceiling, and gwz may use fewer connections** (the
-  transport build, planned for 1.1.0). When a host refuses extra connections,
-  gwz uses fewer at a time for the rest of the command, per scheme and port,
-  tests that limit again as the command goes, and raises the number when the
-  host recovers. A refused connection is retried inside `--max-retries` (default
-  3 extra attempts) instead of failing its repository at once, and a
-  `Retry-After` from the host is waited for, at most 30 seconds at a time. Human
-  output says what happened in `note:` lines on stderr; `--json`, `--jsonl` and
-  `--porcelain` print none. `--max-retries 0` turns the lowering off. See
+**This entry is a DRAFT** (2026-10-17, plan step C5 / S7.2). It is finalized after the switch removal (C4) and the acceptance matrix (S5.6). Statements marked *pending* wait on a number or a decision that is not in yet; nothing here is a release claim until the marker is gone.
+
+1.1.0 makes gwz's own SSH and HTTPS transport the default for every network operation, on macOS (ARM64), Linux (x86-64) and Windows (x86-64). Connections are pooled within one command, a setup that fails is retried, and a stalled setup or body read ends with a message that names the limit. Windows has parity with gwz 1.0.17 (and a list of deliberate differences, below). libgit2's own transport, which 1.0.17 used, stays available as a choice you make before a command runs.
+
+### What is new
+
+- **`--transport gwz|native` chooses the transport for network operations.**
+  `gwz` is the default. `native` is libgit2's own transport, as gwz 1.0 used.
+  It is an escape hatch you choose before a command runs, not a fallback: gwz
+  never moves an operation from one transport to the other, and a failed
+  operation is reported as failed. The order, highest first: `--transport`,
+  the `GWZ_TRANSPORT` environment variable (`gwz` or `native`), your global git
+  configuration (`gwz.transport`), then the default. An invalid value is
+  refused, not ignored. `gwz.transport` in a workspace's or a member's own git
+  configuration does not select the transport, and gwz says so in a `note:`
+  line. To try native once: `gwz --transport native fetch`. To keep it:
+  `git config --file "$HOME/.gitconfig" gwz.transport native`; to remove it:
+  `git config --file "$HOME/.gitconfig" --unset-all gwz.transport`. While
+  native is selected, each command that uses the network says so once. See
+  [`gwz fetch`](commands/fetch.md) and [Troubleshooting](Troubleshooting.md).
+- **`--max-retries <n>`** (default 3) is the number of extra attempts after a
+  failed setup. Setup is before the session is reusable: for SSH, before it is
+  authenticated; for HTTPS, before the first request byte. A stall or a reset
+  during a fetch, push or pull body is not retried. The wait after a failed
+  attempt is 1 second, then 2, then 4, doubling, never more than 30 seconds,
+  plus up to 0.25 second. `0` retries nothing and also turns off the adaptive
+  per-host limit below. `--ssh-timeout 0` does not turn retries off.
+- **`--ssh-timeout` means more and defaults higher.** It is the stall limit of
+  one SSH setup attempt and of a stalled read during a fetch, push or pull body,
+  on SSH and on HTTPS. The default is 9 seconds (it was 3). A setup also has a
+  30 second budget, which HTTPS setup has alone; `--ssh-timeout 0` removes both
+  clocks. With `--transport native` it is libgit2's connect and read timeout and
+  the default is 3, as in gwz 1.0.
+- **`--jobs` and `--max-per-host` default higher.** 100 jobs and 32 connections
+  per host (they were 50 and 8). `--transport native` keeps 50 and 8 unless you
+  give a value. Both are ceilings; see the next entry. *Pending S5.4: the
+  defaults are confirmed or changed by the measure-then-select note.*
+- **`--max-per-host` is a ceiling, and gwz may use fewer connections** (on gwz's
+  transport). When a host refuses extra connections, gwz uses fewer at a time
+  for the rest of the command, per scheme and port, tests that limit again as
+  the command goes, and raises the number when the host recovers. A refused
+  connection is retried inside `--max-retries` (default 3 extra attempts)
+  instead of failing its repository at once, and a `Retry-After` from the host
+  is waited for, at most 30 seconds at a time. Human output says what happened
+  in `note:` lines on stderr; `--json`, `--jsonl` and `--porcelain` print none.
+  `--max-retries 0` turns the lowering off. See
   [Troubleshooting](Troubleshooting.md) ("Fewer connections than --max-per-host, or a Capacity error").
 - **A member that a host throttled, or that waited for gwz's own setup slots,
-  fails with the new `Capacity` error code** (the transport build, planned for
-  1.1.0). Scripts can tell "slow down, try later" from a Git failure by reading
-  `error.code` in `--json` or `--jsonl` output. The code is a new value, 76, of
-  the protocol's error codes (`capacity`); a reader that does not know it sees an
-  unknown code, and `--json` writes it as the string `Capacity`. A final
-  failure that was a 429, a 503 with `Retry-After`, a `Retry-After` of more than
-  30 seconds, or a wait for one of gwz's own connection limits that expired
-  (its 64 connection setups, its 8 slots for resolving a host and setting up
-  TLS, or the connections `--max-per-host` and the total allow) reports
-  `Capacity`; every other failure keeps its code. The decision is made on the
+  fails with the new `Capacity` error code.** Scripts can tell "slow down, try
+  later" from a Git failure by reading `error.code` in `--json` or `--jsonl`
+  output. The code is a new value, 76, of the protocol's error codes
+  (`capacity`); a reader that does not know it sees an unknown code, and
+  `--json` writes it as the string `Capacity`. A final failure that was a 429, a
+  503 with `Retry-After`, a `Retry-After` of more than 30 seconds, or a wait for
+  one of gwz's own connection limits that expired (its 64 connection setups, its
+  8 slots for resolving a host and setting up TLS, or the connections
+  `--max-per-host` and the total allow) reports `Capacity`; every other failure
+  keeps its code. The decision is made on the
   member's last attempt only: its last attempt was refused. What `error.code`
   was and is:
 
@@ -45,6 +82,19 @@ the released CLI rather than unreleased work on `main`.
   | A host that stopped answering (`not attempted: ...`) | unchanged | unchanged |
 
   See [Machine Output](MachineOutput.md) ("The `Capacity` error code").
+- **HTTPS is authenticated through your configured git credential helpers.**
+  `gh` is among them, and on Windows Git Credential Manager (`manager`) is the
+  usual one. gwz reads your system, global and XDG git configuration (with
+  unconditional includes, not `includeIf`) to find the helpers, asks them in
+  their configured order, and sends what they return only as a Basic
+  credential. It runs no `store` or `erase`. An `https://` URL that carries a
+  password, a query or a fragment is refused before anything is sent, so a
+  password or signed token in the URL is not a way to authenticate (a user name
+  alone is allowed); use a credential helper. Windows adds one thing: a
+  server that offers Negotiate or NTLM is answered with your Windows logon
+  session, and no helper is asked for that. Credentials never cross to another
+  origin on a redirect. See [Troubleshooting](Troubleshooting.md) ("HTTPS
+  Credential Failure", "Windows Sign-In").
 - **`gwz merge --remote <name>` no longer refuses a member only this workspace
   has.** A member registered here after the lane was cloned made every family
   merge from that lane refuse with `PairingMismatch`, even when `--target` left
@@ -53,6 +103,72 @@ the released CLI rather than unreleased work on `main`.
   `not in source lane; unchanged`. Naming it with `--target` is refused before
   any transfer, and a member only the lane has is still refused. See
   [Local Clones](LocalClones.md).
+
+### Migration notes for gwz-cli users
+
+What to check when you move from 1.0.17. The first table is what changes for every user; the Windows list follows it.
+
+| | 1.0.17 | 1.1.0 |
+|---|---|---|
+| Transport | libgit2's | gwz's own, by default; `--transport native` returns to libgit2's |
+| `--jobs` / `--max-per-host` defaults | 50 / 8 | 100 / 32 (native: 50 / 8) |
+| `--ssh-timeout` default | 3 | 9 (native: 3) |
+| What `--ssh-timeout` covers | libgit2's connect and read timeout | a stalled SSH setup attempt and a stalled body read on SSH and HTTPS; native: libgit2's |
+| A failed setup | one attempt | retried, 3 extra attempts by default (`--max-retries`) |
+| A host that throttles | the repository fails | fewer connections, a wait for `Retry-After`, then `Capacity` (code 76) |
+| A stalled body read | libgit2's timeout | ends that repository; not retried |
+| Connections | one per member operation | pooled within one command |
+| An `https://` URL with an embedded password, query or fragment | left to libgit2 | refused before anything is sent; use a credential helper |
+| `--verbose` | authentication rows | also names the transport selected and what selected it |
+
+Things that still use libgit2's own transport under the default setting. These are listed on purpose; none is a fallback:
+
+- `http://` remotes. On Windows gwz prints a warning before the first request, on every operation, because a Basic password is sent unencrypted and a Windows sign-in has no channel binding. Use `https://` where the server offers it.
+- `git://` remotes.
+- `file://` remotes and local paths, including local clone families.
+- Anything, when you choose `--transport native`.
+
+On those remotes `--ssh-timeout` is libgit2's connect and read timeout, so under the default setting it is 9 seconds (it was 3), and `--max-retries` has no effect.
+
+Scripts: `error.code` can now be `Capacity`. `--json` and `--jsonl` carry `meta.transport_setting` when the setting is not the plain default (native selected, a value ignored, an unreadable file skipped). gwz-cli's `meta.transport` rows are unchanged (see [Machine Output](MachineOutput.md)); gwz-py's gain four keys (see its migration notes). A reader of `meta.transport` rows from a Python or other client must treat the new keys as optional, and must not read an absent key as "the native route": the four receipts are absent unless the transport reported an open for that row (absent on the native route, on a transport row whose setup failed or was refused before the open, for remotes the transport does not carry, and from an older writer).
+
+If something goes wrong after the upgrade, run the same command with `--transport native`, which is 1.0.17's behaviour for that command, and tell us what differed.
+
+#### Windows
+
+A Windows build of 1.1.0 uses Pageant, the OpenSSH agent, the machine's WinHTTP proxy and Windows authentication. The deliberate differences from 1.0.17 (the operator's list of 2026-10-10 with the decisions since; the draft Windows guide, `gwz-core/dev-docs/GwzTransportWindowsUserGuide-DRAFT.md`, has the messages and the commands, and moves into this documentation set at the release):
+
+1. Folder and key names with non-ASCII characters work.
+2. A key path that starts with `~/` uses the same home as `known_hosts` (`HOME`, then `HOMEDRIVE` plus `HOMEPATH`, then `USERPROFILE`); 1.0.17 used `USERPROFILE`. A missing or unusable home says which source needs correcting.
+3. A server that offers Digest beside a supported scheme is answered with the supported scheme; a server that offers only Digest fails at once, not after 15 replays. Neither transport answers Digest.
+4. A server that rejects your Windows account ends the operation with one error naming the scheme. No replay loop, no helper fallback, no setting changes this.
+5. Discovery redirects are followed on Windows (at most five; never from `https://` to `http://`; none after a Windows sign-in has started). Credentials never cross to another origin.
+6. A server that challenges the upload step of a fetch is refused with a plain message, and the data is never sent again.
+7. An SSH connection that drops before login is retried. The key exchange that Windows' crypto library (WinCNG) ends by itself about once in a hundred connections is retried up to twice on a new connection inside the same attempt; it does not count toward `--max-retries`. *Pending D32 landing.*
+8. Messages that were opaque now name the cause and the fix (a host that is not in `known_hosts` and a key that changed are worded apart; a passphrase-protected key file is refused on every platform with its own message).
+9. HTTPS uses the machine proxy setting (`netsh winhttp show proxy`) and no other. `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` and git's `http.proxy` are ignored. A setting with no entry for `https`, a PAC script, or a form gwz cannot read refuses the https remote with a message naming the setting, instead of going direct as 1.0.17 did; SSH and local operations are not affected. A proxy that answers 407 is refused: proxy sign-in is not supported.
+10. gwz trusts the Windows store and also the CA file `GIT_SSL_CAINFO` names (else `SSL_CERT_FILE`); 1.0.17 ignored both. A stale or malformed file named there can now stop gwz before it connects.
+11. A Pageant that is set to confirm every use, whose prompt stays open longer than `--ssh-timeout`, fails that attempt with a message that names the option (1.0.17 waited). Raise `--ssh-timeout` (up to 30 seconds; `0` removes the limit) or use `--transport native`. A passphrase entered on first use succeeds on the retry.
+12. A plain `http://` remote prints the warning above (it goes native, as the previous list says).
+
+Unchanged on purpose, so they are not differences: your Windows account can be offered to any host that challenges with Negotiate or NTLM (review the remote and any redirect; no setting turns it off in 1.1.0); only RSA host keys and unencrypted RSA PEM key files are used on Windows; agent RSA keys sign at `rsa-sha2-512` only; the agent pipe's creator is not checked and a Pageant owned by another user is not refused. Not promised: Kerberos, hardware security keys, certificates held by an agent, PAC scripts.
+
+*Pending S7.2 finalization:* the capability answers for Windows selected-identity SSH (`file_identity`) and exact agent selection (`exact_agent_identity`) follow decision D30 (GO for both, the second after one exact-selection row passes); until the final answer is in, treat exact agent selection as not offered on Windows.
+
+### Known limits of this release
+
+Stated here because they are measured or decided, not because they are solved.
+
+- **Platforms.** macOS ARM64, Linux x86-64 and Windows x86-64. Linux ARM64 and macOS x86-64 are not supported in 1.1.0. Building with Bazel's `@gwz_core_crates` is unsupported until the release's registry pins; it was already unbuildable before this release.
+- **Speed on Windows (decision D29).** Over SSH, gwz 1.1.0 costs a fixed 20 to 30 ms more per command than 1.0.17 (8 ms more at 32 members in run `2026-10-16-tr84speed`). This is accepted as parity. Over HTTPS the first measurement was 4.7 ms more per member (0.165 s at 32 members); the cause was found (every member's certificate check queued on one thread of the HTTPS endpoint) and the fix, a multi-thread runtime on every platform, is decision D33. *Pending the re-time on macOS, Linux and Windows; the numbers go here.*
+- **Speed on Linux.** *Pending the Linux x86-64 rows.* The Raspberry Pi 5 runs (aarch64, not a supported platform) put HTTPS to 32 members at +0.062 s against 1.0.17 after the fixed-cost fix, down from +0.071 s; at 1 member +0.005 s.
+- **No partial result on the transport route (D22).** On the transport route a fetch of 16 or 32 members does not lose a member to a key exchange that Windows ends on its own (1.0.17 lost members in up to half of the SSH runs on the Windows speed rows). The native route keeps 1.0.17's behaviour here and is not retried; about 1 in 160 to 190 member fetches on the Windows test host (7 of 1,280 native, 8 of 1,280 on 1.0.17).
+- **A very large blob pushed over SSH may be charged to the stall clock.** The pump cannot tell a push whose producer has paused (libgit2 compresses an object whole before writing it) from a finished pack waiting for the server's report, so a pause longer than `--ssh-timeout` can end the push with a stream stall. HTTPS does not have this. This is a hypothesis that has not been reproduced; a 1 GiB single-blob push row is the test. If it bites, raise `--ssh-timeout`. *Pending that row.*
+- **A pooled SSH connection can be stale.** The pool's 60 second idle timer starts when a connection is released, not at its last network byte, so a connection a NAT dropped can be pooled and fails on reuse; that costs one stall and one retry.
+- **Credential-helper launches on Windows are serialized, with limits.** gwz launches a helper in a window during which no other gwz child process may inherit its pipes. The serialization is per command (one host per `gwz` command): a program that embeds gwz and runs two operations at once in one process does not serialize them against each other, and `gwz log`'s `git rev-list` is not serialized. gwz's own sign-in worker launch is covered by a gwz-sspi launch guard (decision D31, *pending gwz-sspi 0.1.2*).
+- **A Windows SSH server that refuses a signature it accepted the key for** (`PUBLICKEY_UNVERIFIED`, about 1 in 6,000 connections against Windows' `sshd.exe`) is not retried.
+
+For Python, including the async `call()` exit limitation, see the gwz-py migration notes.
 
 ## 1.0.17: `gwz fetch`, and lanes that dispose clean
 
