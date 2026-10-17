@@ -39,7 +39,7 @@ name = "gwz"
 path = "src/main.rs"
 
 [dependencies]
-gwz-sspi = { path = "../gwz-sspi", version = "=0.1.1" }
+gwz-sspi = { path = "../gwz-sspi", version = "=0.1.2" }
 cfg-if = "1"
 clap = { version = "4", features = ["derive", "wrap_help"] }
 console = "0.16"

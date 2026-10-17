@@ -56,9 +56,10 @@ pub(crate) fn execute_invocation_selected(
     )));
     cfg_if::cfg_if! { if #[cfg(all(gwz_transport_candidate, any(unix, windows)))] {
         if let Some(meta) = transport_meta(&invocation.request).filter(|_| !_native) {
-            let supervisor = crate::sspi_worker_executable().and_then(|descriptor|
-                gwz_sspi::Supervisor::new(descriptor, gwz_sspi::Options::default()).map(std::sync::Arc::new).map_err(|error| error.kind()));
-            let caller = gwz_core::transport_host::NativeCaller::capture(&supervisor);
+            // The command's native route: the SSPI supervisor and the spawn gate its worker launches take, which
+            // the transport below builds its own spawns on (operator decision D31).
+            let native = gwz_core::transport_host::NativeHost::new(crate::sspi_worker_executable());
+            let caller = native.caller();
             let run = |backend: &gwz_core::git::Git2Backend| {
                 execute_with_backend(invocation, backend, operation_id.clone(), &progress_sink)
             };
