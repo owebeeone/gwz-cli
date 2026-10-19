@@ -113,9 +113,15 @@ where
         &mut W,
     ) -> Result<(), crate::LogMachineOutputError>,
 {
-    let response =
-        gwz_core::operation::handle_log(start, invocation.request.clone(), operation_id, registry)
-            .map_err(CliError::from_model)?;
+    // This process owns no host, so its log's `git` child has no launch to wait for: a private gate is correct.
+    let response = gwz_core::operation::handle_log(
+        &gwz_core::git::Git2Backend::new(),
+        start,
+        invocation.request.clone(),
+        operation_id,
+        registry,
+    )
+    .map_err(CliError::from_model)?;
     let log_id = response.output.log_id.clone();
     let code = exit_code_for_response(&response.response);
     let result = match output {
