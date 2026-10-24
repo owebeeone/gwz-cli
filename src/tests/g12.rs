@@ -1115,10 +1115,6 @@ fn rooted_list_response(
     family_response(gwz_core::LocalFamilyOp::List, Some(root_path), members)
 }
 
-#[allow(
-    clippy::needless_update,
-    reason = "gwz_session_candidate adds fields"
-)]
 fn family_response(
     op: gwz_core::LocalFamilyOp,
     root_path: Option<&str>,

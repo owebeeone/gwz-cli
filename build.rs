@@ -4,7 +4,6 @@ mod provenance;
 mod self_provision;
 fn main() {
     println!("cargo:rustc-check-cfg=cfg(gwz_transport_candidate)");
-    println!("cargo:rustc-check-cfg=cfg(gwz_session_candidate)");
     provenance::emit();
     println!("cargo:rerun-if-env-changed=GWZ_SSPI_PACKAGING_TARGETS");
     if let Ok(table) = std::env::var("GWZ_SSPI_PACKAGING_TARGETS") {

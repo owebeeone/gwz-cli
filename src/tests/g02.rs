@@ -229,10 +229,6 @@ pub(crate) fn merge_renderer_reports_only_remaining_post_gc_stash_evidence() {
 }
 
 #[test]
-#[allow(
-    clippy::needless_update,
-    reason = "gwz_session_candidate adds fields"
-)]
 pub(crate) fn merge_renderer_reports_idle_without_fabricating_an_operation() {
     let response = gwz_core::MergeResponse {
         response: gwz_core::ResponseEnvelope {
@@ -411,10 +407,6 @@ fn canonical_merge_response_fixture() -> std::path::PathBuf {
         .join("../gwz-core/protocol/fixtures/cli_parity/merge_response.json")
 }
 
-#[allow(
-    clippy::needless_update,
-    reason = "gwz_session_candidate adds fields"
-)]
 fn parity_merge_response() -> gwz_core::MergeResponse {
     let mut repos = vec![
         merge_repo("lib", gwz_core::MergeParticipantState::Planned),
@@ -602,10 +594,6 @@ fn merge_repo(path: &str, state: gwz_core::MergeParticipantState) -> gwz_core::M
 }
 
 #[test]
-#[allow(
-    clippy::needless_update,
-    reason = "gwz_session_candidate adds fields"
-)]
 fn transport_renderer_distinguishes_offer_from_authentication() {
     let meta = gwz_core::ResponseMeta {
         transport: Some(vec![gwz_core::TransportObservation {

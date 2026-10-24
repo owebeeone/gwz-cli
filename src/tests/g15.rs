@@ -63,10 +63,6 @@ fn member(
     }
 }
 
-#[allow(
-    clippy::needless_update,
-    reason = "gwz_session_candidate adds fields"
-)]
 fn fetch_response(
     aggregate_status: gwz_core::AggregateStatus,
     members: Vec<gwz_core::MemberResponse>,
@@ -380,10 +376,6 @@ fn the_capacity_docs_say_the_last_attempt_rule_and_quote_the_texts_as_built() {
 /// `--json` carries the structured rows under `fetch_repos`, and they appear
 /// on a fetch response only -- the envelope's pinned key set is untouched.
 #[test]
-#[allow(
-    clippy::needless_update,
-    reason = "gwz_session_candidate adds fields"
-)]
 fn json_carries_the_structured_rows() {
     let mut moved = row("mem_core", "gwz-core", gwz_core::FetchResult::Updated);
     moved.before = Some("a1b2c3d4e5f60718293a4b5c6d7e8f9012345678".to_owned());

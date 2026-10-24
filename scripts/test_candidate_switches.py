@@ -2,9 +2,9 @@
 """gwz-cli's candidate switch inventory (TR2.12; rule (a) of gwz-core dev-docs/GwzTransportReleasePlanAmendment-2.md §3.13).
 
 gwz-core's `scripts/checks/check_candidate_switches.py` finds every site in this
-crate where `gwz_transport_candidate` or `gwz_session_candidate` appears in a
-cfg, and fails unless the sites equal `scripts/candidate_switch_inventory.txt`
-and `build.rs` declares both switches. CI checks gwz-core's main out beside
+crate where `gwz_transport_candidate` appears in a cfg (or the retired
+`gwz_session_candidate`, which fails the check), and fails unless the sites equal
+`scripts/candidate_switch_inventory.txt` and `build.rs` declares the switch. CI checks gwz-core's main out beside
 gwz-cli for this test, as for `test_process_globals.py`, with the same accepted
 coupling: a checker change on gwz-core's main changes this gate. Python 3.10 or
 later: `python -m unittest scripts/test_candidate_switches.py`.
