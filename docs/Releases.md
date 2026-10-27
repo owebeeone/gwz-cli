@@ -9,6 +9,35 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
+## 1.0.18: root pushes no longer fail on objects a member lacks
+
+1.0.18 (2026-10-27) is a patch release on 1.0.17. It changes no command,
+flag or output format other than the refusal text described here.
+
+Before it records a member commit in the root, `gwz push` proves that the
+commit is available at the member's remote. In 1.0.17 that proof walked
+history from the commits the remote advertises. When the remote advertised a
+commit the local member had never fetched, the walk failed with a Git
+"object not found" error and the root push stopped, even when the member was
+fully published.
+
+1.0.18 checks which objects the member actually holds before it walks:
+
+- **A proof that can succeed still succeeds.** A member commit reachable from
+  an advertised branch or tag the member holds is proven as before, including
+  through a pushed annotated tag.
+- **An object the member lacks proves nothing.** gwz no longer fails on it,
+  and it never counts as evidence that the commit is published.
+- **A refusal names a remedy that can work.** When fetching could bring the
+  locked commit in, the message says to fetch the member's advertised history
+  and retry. Otherwise, and if a retry is still refused, it says to publish the
+  member by pushing a branch, or to run `gwz push --check-remotes`.
+
+A root push is never allowed to record a member commit the remote does not
+have; 1.0.18 only replaces the failure with a proof or a clear refusal.
+
+The Python driver (`gwz-py` 1.0.18) embeds the same fix.
+
 ## 1.0.17: `gwz fetch`, and lanes that dispose clean
 
 1.0.17 (2026-09-18) adds one read-only network verb and finishes the lane
