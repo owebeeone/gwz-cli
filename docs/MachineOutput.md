@@ -65,7 +65,8 @@ Errors use:
 ```
 
 Top-level CLI errors in `--json` or `--jsonl` mode keep the same response shape,
-with `meta: null`, no members, and one error entry. Per-member failures retain
+with `meta: null`, no members, and one error entry (two after an interrupt: the
+`Cancelled` entry, then the error). Per-member failures retain
 `member_id`, `member_path`, and `target_kind: "Member"` even when preflight
 rejects the whole operation before a normal response exists.
 
@@ -140,7 +141,8 @@ row is `Noop`:
 ```
 
 - The copies come first. Any other entry in `errors` is an error the operation
-  reports in its own right.
+  reports in its own right. After an interrupt the first of these is the
+  `Cancelled` entry with no member.
 - An entry with any other status, such as `Skipped`, keeps its error on the
   entry only.
 - Every other aggregate status, such as `Ok`, `Noop` or `Conflicted`, leaves
@@ -285,6 +287,8 @@ connections to a host) are written to stderr in human output only. `--json`,
 stderr sees the same bytes as without a limit. The final response is the
 record. See
 [Troubleshooting](Troubleshooting.md) ("Fewer connections than --max-per-host, or a Capacity error").
+Unlike `note:` lines, the interrupt and forced-exit notices are written to
+stderr in every output mode.
 
 ### `meta.transport`
 
@@ -670,7 +674,8 @@ the operation finishes. After `OperationFinished`, the stream contains exactly
 one final `kind: "response"` object. A failed invocation retains any events
 already emitted and ends with one structured error response. Event-stream
 completion is not published until that final response, or its structured
-failure, is available to the driver.
+failure, is available to the driver. A command forced to exit after an
+interrupt (exit 130) may end the stream without that final response.
 
 The Rust and Python event serializers compare against the shared
 `gwz-core/protocol/fixtures/cli_parity/merge_event.json` fixture. This pins the
@@ -960,5 +965,43 @@ GWZ maps aggregate status to process exit codes:
 | `Accepted`, `Ok`, `Noop`, `Dirty` | `0` |
 | `Partial`, `Failed`, `Conflicted` | `1` |
 | `Rejected` | `2` |
+| interrupted (Ctrl-C, SIGINT, SIGTERM, SIGHUP; Windows Ctrl-C, Ctrl-Break, console close, logoff, shutdown) before the response was claimed, or a `server` subcommand stopped by one, when gwz exits by itself; not `hook` or `claude-code-setup` | `130` as a shell reports it (on Unix after Ctrl-C or SIGINT, a death by SIGINT), whatever the aggregate |
 
 Argument parsing and top-level CLI construction errors also exit non-zero.
+
+### Interrupted commands
+
+The first interrupt cancels network work; gwz exits once the command returns or
+the cleanup bound (5 s) passes. A second interrupt, or the bound, forces the
+exit: network work and gwz's killable children end at once, while a `git commit`
+or `git tag` (with its hooks and signer) is let finish, and gwz waits for each
+local write in progress to finish or reach a safe point. An interrupt after the forced exit
+has begun ends gwz by the system default.
+
+When the command's own response is written, its first own entry of `errors`
+(after the copies of member errors) is:
+
+```json
+{"code":"Cancelled","message":"interrupted","member_id":null,
+ "member_path":null,"target_kind":null,"detail":null,"record_context":null}
+```
+
+Members report as they completed; `aggregate_status` is computed as without the
+interrupt. A top-level CLI error after an interrupt has two entries: this one,
+then the error.
+
+When the forced exit writes the response instead, `--json` gets the top-level
+shape with `meta: null`, no members and the one `Cancelled` entry, whose
+`message` is `interrupted; forced exit, see stderr for what stopped`. `--jsonl`,
+human and porcelain output get nothing more on stdout, so a forced `--jsonl`
+stream ends without its final `kind: "response"` object.
+
+Notices go to stderr in every output mode:
+
+- at the first interrupt: `gwz: interrupted; cancelling (interrupt again to stop now)`;
+- at the forced exit: `gwz: forced exit; network work ended, waiting for local writes to finish or reach a safe point (a further interrupt ends gwz at once and may leave a partial write)`;
+- for each write stopped at a safe point: `gwz: stopped: <member path> (<phase>)`;
+  a push stopped after the remote's report adds `: the remote received it; tracking ref not updated`;
+- for each transfer ended: `gwz: transfer ended: <member path> (fetch|push|clone)`;
+  a push adds `; the remote may have received it`;
+- `gwz: <n> progress lines dropped` when any were.
