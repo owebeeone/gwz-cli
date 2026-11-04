@@ -153,9 +153,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.10.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86e055fa6e3e40ad6187ba25b6855eeb635d5271f8e0f0e1e9a5826b8d75bea0"
+checksum = "375989decec1a0fa424442bed520fa12ede43a48475ce8c7417d2c69b32b5f6b"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "gwz"
-version = "1.0.18"
+version = "1.0.19"
 dependencies = [
  "clap",
  "console",
@@ -431,15 +431,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-copy-contract"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08714d96357bbd266ee342639f2ad00c5e52ba7318fd97a00fd903adbf4665ae"
+checksum = "6aebd0b9e4b2d1900ad4eb5bc8417c6af9e4bf516f992cfce1924d89f4135dbd"
 
 [[package]]
 name = "gwz-core"
-version = "1.0.18"
+version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd4e86ad9a3a5585d59956ea1e4024246a74ebb02a2b8b6cfb5a9a60e8bcc084"
+checksum = "153c55b39b592728ad91c2a1324994d42300d741259463f5ee930f55f1acad25"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
@@ -461,6 +461,7 @@ dependencies = [
  "gwz-work-detector",
  "gwz-workspace-install",
  "libc",
+ "libgit2-sys",
  "regex",
  "rustix",
  "serde",
@@ -477,15 +478,15 @@ dependencies = [
 
 [[package]]
 name = "gwz-family-model"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "023246adc2c22d45597bd8af0d399a6481f4508d53052946355712daa213968c"
+checksum = "c519606ea55d8047de2f0213d26ee3ea41ab4829a0cc300a073f9067914a4eaa"
 
 [[package]]
 name = "gwz-family-store"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c91181879c9d7b97baa1679c421d3cab43c5ad11fb2a464f0f23bcb4d540496"
+checksum = "5d6d2d58d094e35a0b81fde3e03e16b030615a15c73d5299c2cfcab877c83fd5"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -495,27 +496,27 @@ dependencies = [
 
 [[package]]
 name = "gwz-family-store-contract"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "241c2ed7974686941f2fbecbe7ff900e888507a49001ccfcfb48f8a0b7415483"
+checksum = "b7892a760088f707e8802a032bb4a2f277f7eb768ba201080bf9c3bdad8c1c95"
 dependencies = [
  "gwz-family-model",
 ]
 
 [[package]]
 name = "gwz-history-check"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0539382f7b2e55f4b6027c2d36e1ccb676f87183f68eea49b29c142b5281185f"
+checksum = "aba0546615f746916b414cbe9df131adb2a3302b40b6adfc602e790c270dc9d8"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-local-disposal"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "340560a9284c6ffd257127a187f3a91abc3a2041bc28f796fd64a8100474b505"
+checksum = "6a3f02919693a451cf83157c5a8841fbd80074866f1691d9a7f89c943f3af7b0"
 dependencies = [
  "gwz-family-model",
  "gwz-family-store-contract",
@@ -525,9 +526,9 @@ dependencies = [
 
 [[package]]
 name = "gwz-local-import"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b65a33f58e8f97d3c019284c0e1aa5305b69d2edda26688447e30d271e229da3"
+checksum = "90fca19abdfe9462f9a9954ed59b29b073f6cfe59e62ba9d04bdd1085667a226"
 dependencies = [
  "gwz-family-model",
  "gwz-repo-contract",
@@ -535,9 +536,9 @@ dependencies = [
 
 [[package]]
 name = "gwz-refcopy"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7f4b4d67e5b06bfb0c5592fc1465b12ec1efec7693f8b05baa16f7f706f3933"
+checksum = "e71913b4f09d5373e33b286c8d085fc8c4238252f378ca1e66e4847628e19ab8"
 dependencies = [
  "gwz-copy-contract",
  "libc",
@@ -547,24 +548,24 @@ dependencies = [
 
 [[package]]
 name = "gwz-repo-contract"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7220a571f87be6a022da6ea0265e2d5a589c244df373c8a74362b6677ca4f2e9"
+checksum = "85ef4f60c7f49747d1a48f8fc99645e746d4c2832219fdbdbd482834cd5ccb22"
 
 [[package]]
 name = "gwz-repo-factory"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46dfcba49b52f3ca4e9c032eb24a922a73ceeeab04b4f70bfd777a0e21c4a6fc"
+checksum = "e5058b15b8fe010bb2d5dd772c833b88d5fb4392ca796c9871cf55a5a9b01676"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-repo-inspect"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b17bb036129a7434e63eefba0a031c71c2f433ad7174a9bbc964cb2f44ac8023"
+checksum = "f4fc39cf9beab562915d9eca3727ac40a2be4fcef79cbe43c747e109a457d70b"
 dependencies = [
  "git2",
  "gwz-repo-contract",
@@ -572,18 +573,18 @@ dependencies = [
 
 [[package]]
 name = "gwz-work-detector"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "450aeca7ba5cca873e43f60b6df76953c9961411a204d2ecae2323a6aaad2ecc"
+checksum = "436271ef063a31df9fe0397870a721310b83d936ed2a686d73bd6ad62401eded"
 dependencies = [
  "gwz-repo-contract",
 ]
 
 [[package]]
 name = "gwz-workspace-install"
-version = "0.0.9"
+version = "0.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4401ef0868bc7741ea1778f847139a81354fb7a4a4f07edd84b1b6f1cdc1c0f"
+checksum = "0ad1765ca432eeb0585760b4726423c2560544838ba6c0e206daa6c00fc964b5"
 dependencies = [
  "gwz-copy-contract",
  "gwz-family-model",
@@ -811,9 +812,9 @@ dependencies = [
 
 [[package]]
 name = "js-sys"
-version = "0.3.106"
+version = "0.3.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7883d941dae510fb2d978fc3fe018c71c9e2892fd38854de3e8b92c2e5ad9cc5"
+checksum = "8dc09d2154098bbf4ef54eab6b117a3c24cbbffe94046b16ee6d6d4510584d3a"
 dependencies = [
  "cfg-if",
  "futures-util",
@@ -856,9 +857,9 @@ dependencies = [
 
 [[package]]
 name = "libz-sys"
-version = "1.1.30"
+version = "1.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f710a23e6dbf193214fd46ca56a9d6864e550abe86202184532ae7275e46de19"
+checksum = "ff20308ecabd635a2dc1dd5834a86c462cca20efba1d5d3ddab1f8aea3455cb2"
 dependencies = [
  "cc",
  "libc",
@@ -880,9 +881,9 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "log"
-version = "0.4.34"
+version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "maybe-owned"
@@ -925,9 +926,9 @@ checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.117"
+version = "0.9.118"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b47e7e6bb2c38cd930d25a23b40fa52e068c10e85f3e03a7f5ba5aaca5713695"
+checksum = "19c413d6ec9ebaf5e1c829d355cb3e9f783778d700f135be0921d52fce3c60ae"
 dependencies = [
  "cc",
  "libc",
@@ -1265,9 +1266,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-width"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
+checksum = "ca718471876992059f251e33aafc334346ada08042b7661dd1fe313a9bced557"
 
 [[package]]
 name = "unsafe-libyaml"
@@ -1289,15 +1290,24 @@ dependencies = [
 
 [[package]]
 name = "utf8_iter"
-version = "1.0.4"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+checksum = "af3bd9d3e571c26fcce9d033b87ea5ab061b8d2ffe9b7a5675d810d68f03edf0"
+dependencies = [
+ "utf_types",
+]
 
 [[package]]
 name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+
+[[package]]
+name = "utf_types"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a3b425286980a367278453f3b6d28cdcb134b574e5a35824a6ff5eebad50bb6"
 
 [[package]]
 name = "vcpkg"
@@ -1322,12 +1332,11 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.129"
+version = "0.2.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb54f33acc68fd454578d9820b0bde1a1a3d17aa17bb7b6595806d02886d409"
+checksum = "a0181c14ddd6c7b8b0b0132a5f1ea2f32be0d893cd3ea97b6e3b28886b8a3d1c"
 dependencies = [
  "cfg-if",
- "once_cell",
  "rustversion",
  "wasm-bindgen-macro",
  "wasm-bindgen-shared",
@@ -1335,9 +1344,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.129"
+version = "0.2.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e29d0c35b16e224a7eeb5cd2d25e3e1968fbd65604117b44d3b789d00ee8535"
+checksum = "6e931a02a39abdbf66966fc35902b5ed58344750a70885bed4ebb3d8eaf28ed9"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -1345,9 +1354,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.129"
+version = "0.2.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f501a8bc3719dba86ef8ae4728879c08001bea749eb1333ac5b91e040e2a6b7"
+checksum = "2ca4b54280e455bd831e33a6b8e734baf432fe63fbc35c42ac14ce67a043a53a"
 dependencies = [
  "bumpalo",
  "proc-macro2",
@@ -1358,9 +1367,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.129"
+version = "0.2.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6"
+checksum = "3b1f9c3798725016c6ee5f2f57869ec0831e8bbc0ab0310a86e787e97f41389e"
 dependencies = [
  "unicode-ident",
 ]

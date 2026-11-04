@@ -9,6 +9,50 @@ The [hosted documentation](https://owebeeone.github.io/gwz-cli/) is built from
 the tag of the most recently published release, so its command model matches
 the released CLI rather than unreleased work on `main`.
 
+## 1.0.19: gwz pull past untracked files, and no partial pulls
+
+1.0.19 (2026-11-04) is a patch release on 1.0.18. It changes no command or
+flag. Only `gwz pull` behaves differently, as described here.
+
+In 1.0.18 any untracked file in the root or a member made `gwz pull` refuse
+with "uncommitted changes", even a file the update never touched, and
+`--force` did not help. Worse, the root was fast-forwarded before the members
+were checked, so a member refusal left the root on the new commit with staged
+`gwz.conf` edits that blocked every later pull until they were restored by
+hand.
+
+1.0.19, in every integrating sync mode (ff-only, merge, rebase,
+driver-selected):
+
+- **Untracked and ignored files the update does not touch never block**, in
+  the root or in any member, as with `git pull`.
+- **Anything in the update's way refuses the pull before anything changes.**
+  The message names the paths (the first ten, then the count). Move or delete
+  them and run the pull again. "In the way" means a file, directory (an empty
+  one too) or symlink at a path the update adds, at a parent of one, or inside
+  a directory the update turns into a file, untracked or ignored, including
+  case variants wherever the filesystem treats them as the same name (macOS
+  and Windows, accented letters included). Pull deletes and overwrites nothing
+  of its own, so `--force` does not change this. Where git would quietly
+  overwrite an ignored file at an incoming path, gwz refuses instead; that is
+  deliberate.
+- `--sync rebase` also refuses when something is in the way of what a replayed
+  local commit writes.
+- **No partial pulls from a refusal.** Every repository, root included, is
+  checked before any of them changes; a refused pull leaves the workspace as
+  it was, apart from fetched objects. A tracked file renamed only by case
+  upstream still pulls.
+- Changes to tracked files still refuse, with or without `--force`.
+  `--sync reset` and fetch-only are unchanged.
+- `--dry-run` reports the refusal it would make.
+- A member the pulled root registers but that is not materialized yet is
+  reported with a hint to run `gwz materialize`.
+
+Known limits: a file created inside a tracked directory that the update turns
+into a file, in the moment between the last check and the update, can still
+be removed on macOS and Windows; and a tracked directory spelled differently
+by letter case on disk can refuse a pull that git completes.
+
 ## 1.0.18: root pushes no longer fail on objects a member lacks
 
 1.0.18 (2026-10-27) is a patch release on 1.0.17. It changes no command,
